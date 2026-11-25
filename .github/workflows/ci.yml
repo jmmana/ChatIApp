@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # El autoarreglo de las ramas de WarCodex lo dispara tras su commit:
+  # los push hechos con GITHUB_TOKEN no activan otros workflows.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    name: Detectar componentes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.d.outputs.backend }}
+      frontend: ${{ steps.d.outputs.frontend }}
+      embed: ${{ steps.d.outputs.embed }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: d
+        run: |
+          for c in backend:backend/pyproject.toml frontend:frontend/package.json embed:embed/package.json; do
+            name="${c%%:*}"; file="${c#*:}"
+            if [ -f "$file" ]; then echo "$name=true" >> "$GITHUB_OUTPUT"; else echo "$name=false" >> "$GITHUB_OUTPUT"; fi
+          done
+
+  backend:
+    name: Backend (ruff, mypy, pytest)
+    needs: detect
+    if: needs.detect.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Dependencias (uv.lock al día)
+        run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check .
+      - name: Formato
+        run: uv run ruff format --check .
+      - name: Tipos
+        run: uv run mypy app
+      - name: Pruebas
+        run: uv run pytest
+
+  node:
+    name: ${{ matrix.package }} (lint, test, build)
+    needs: detect
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [frontend, embed]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
+    steps:
+      - name: ¿Existe el paquete?
+        id: exists
+        working-directory: .
+        run: |
+          if [ "${{ matrix.package }}" = "frontend" ]; then echo "run=${{ needs.detect.outputs.frontend }}" >> "$GITHUB_OUTPUT"; else echo "run=${{ needs.detect.outputs.embed }}" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@v4
+        if: steps.exists.outputs.run == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.exists.outputs.run == 'true'
+        with:
+          node-version: 22
+      - name: pnpm
+        if: steps.exists.outputs.run == 'true'
+        run: corepack enable && pnpm --version
+      - name: Dependencias
+        if: steps.exists.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        if: steps.exists.outputs.run == 'true'
+        run: pnpm run lint
+      - name: Pruebas
+        if: steps.exists.outputs.run == 'true'
+        run: pnpm run test
+      - name: Build
+        if: steps.exists.outputs.run == 'true'
+        run: pnpm run build
+
+  ok:
+    name: CI completo
+    needs: [backend, node]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resultado
+        run: |
+          echo "backend=${{ needs.backend.result }} node=${{ needs.node.result }}"
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then exit 1; fi

@@ -12,6 +12,7 @@
 
 ChatIApp is an AI chat that **reasons about your question, asks for what's missing and writes safe SQL** against your database, using the AI provider of your choice.
 
+[![CI](https://github.com/jmmana/ChatIApp/actions/workflows/ci.yml/badge.svg)](https://github.com/jmmana/ChatIApp/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-3B82F6)](LICENSE)
 [![Status](https://img.shields.io/badge/status-open%20design-8B5CF6)](#project-status)
 [![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](docs/ARQUITECTURA.md)

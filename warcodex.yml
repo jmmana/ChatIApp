@@ -1,0 +1,9 @@
+# Configuración de WarCodex para este repo (claves documentadas en docs/CONFIGURAR_REPO.md de WarCodex).
+# Una clave desconocida invalida el archivo entero: no agregues claves sin verificarlas.
+test_command: sh scripts/warcodex-verify.sh
+verify_timeout_seconds: 900
+max_duration_seconds: 3600
+draft_until_ci_green: true
+default_priority: p1
+preferred_account: Warlock
+pr_issue_keyword: closes

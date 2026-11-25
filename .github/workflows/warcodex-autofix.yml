@@ -1,0 +1,66 @@
+name: Autoarreglo de ramas de WarCodex
+
+# El contenedor de WarCodex no tiene Python ni acceso a PyPI: no puede generar backend/uv.lock
+# ni ejecutar ruff. Este workflow lo hace en cada push a una rama warcodex/**, commitea el
+# resultado y vuelve a lanzar el CI sobre el commit nuevo.
+on:
+  push:
+    branches: ["warcodex/**"]
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: autofix-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  autofix:
+    name: uv.lock y formato
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: ¿Hay backend?
+        id: has
+        run: |
+          if [ -f backend/pyproject.toml ]; then echo "backend=true" >> "$GITHUB_OUTPUT"; else echo "backend=false" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: astral-sh/setup-uv@v6
+        if: steps.has.outputs.backend == 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Lock y formato del backend
+        if: steps.has.outputs.backend == 'true'
+        working-directory: backend
+        run: |
+          uv lock
+          uv sync
+          uv run ruff format .
+          uv run ruff check --fix --exit-zero .
+
+      - name: Commit si hubo cambios
+        id: commit
+        run: |
+          if [ -z "$(git status --porcelain backend)" ]; then
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A backend
+          git commit -m "Generar uv.lock y aplicar formato automático (CI)"
+          git push
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Lanzar el CI sobre el commit nuevo
+        if: steps.commit.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yml --ref "${{ github.ref_name }}"
