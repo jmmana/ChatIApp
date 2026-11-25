@@ -24,7 +24,7 @@ def _source(dialect: str = "postgres", max_rows: int = 500) -> Datasource:
 
 # Los 6 casos de docs/SEGURIDAD.md#el-guardián-sql: (dialecto, SQL, código esperado).
 ATTACKS = [
-    ("postgres", "DELETE FROM facturas", "write_operation"),
+    ("postgres", "DELETE FROM facturas", "not_a_query"),
     ("postgres", "SELECT 1; DROP TABLE facturas", "multiple_statements"),
     ("tsql", "SELECT * INTO nueva FROM facturas", "write_operation"),
     (
@@ -32,8 +32,8 @@ ATTACKS = [
         "WITH d AS (DELETE FROM facturas RETURNING *) SELECT * FROM d",
         "write_operation",
     ),
-    ("tsql", "EXEC xp_cmdshell 'dir'", "write_operation"),
-    ("postgres", "SELECT pg_sleep(10)", "forbidden_function"),
+    ("tsql", "EXEC xp_cmdshell 'dir'", "not_a_query"),
+    ("postgres", "SELECT pg_sleep(10)", "denied_function"),
 ]
 
 
@@ -71,10 +71,11 @@ def test_tabla_oculta_del_rol_se_rechaza() -> None:
 def test_politica_desde_el_modelo() -> None:
     policy = build_policy(_model(), _source(max_rows=250), "mercadeo")
     assert policy.max_rows == 250
-    assert "clientes" not in policy.allowed_tables
-    assert "facturas" in policy.allowed_tables
+    assert policy.tables is not None
+    assert "clientes" not in policy.tables
+    assert "facturas" in policy.tables
     full = build_policy(_model(), _source(), "gerencia_general")
-    assert set(full.hidden_columns["clientes"]) == {"documento", "email"}
+    assert set(full.hidden_columns) == {"clientes.documento", "clientes.email"}
 
 
 def test_rol_inexistente() -> None:

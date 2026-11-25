@@ -26,7 +26,7 @@ class UnknownRoleError(ValueError):
 
 @dataclass(frozen=True)
 class Violation:
-    code: str  # código de sqlguardllm: write_operation, hidden_column...
+    code: str  # código de sqlguardllm: not_a_query, write_operation, hidden_column...
     message: str  # en el idioma del usuario
 
 
@@ -59,12 +59,8 @@ def build_policy(
     dialect: Dialect = datasource.dialect  # type: ignore[assignment]
     return Policy(
         dialect=SQLGLOT_DIALECT[dialect],
-        allowed_tables=[t.name for t in model.tables if t.name not in hidden_tables],
-        hidden_columns={
-            t.name: [c.name for c in t.columns if c.hidden]
-            for t in model.tables
-            if any(c.hidden for c in t.columns)
-        },
+        tables=[t.name for t in model.tables if t.name not in hidden_tables],
+        hidden_columns={f"{t.name}.{c.name}" for t in model.tables for c in t.columns if c.hidden},
         max_rows=datasource.max_rows,
         default_schema=default_schema,
     )
@@ -88,10 +84,12 @@ class GuardCache:
         with self._lock:
             guard = self._guards.get(key)
             if guard is None:
-                guard = Guard(build_policy(model, datasource, role))
+                guard = Guard(build_policy(model, datasource, role), language=LANGUAGE)
                 # Publicar una versión nueva invalida las anteriores de la misma fuente.
                 self._guards = {
-                    k: g for k, g in self._guards.items() if k[0] != datasource.id or k[1] >= version
+                    k: g
+                    for k, g in self._guards.items()
+                    if k[0] != datasource.id or k[1] >= version
                 }
                 self._guards[key] = guard
             return guard
@@ -113,12 +111,12 @@ def check_sql(
     cache: GuardCache = guards,
 ) -> GuardResult:
     """Valida `sql` con el guardián de la fuente, versión y rol."""
-    result = cache.get(model, datasource, version, role).check(sql, language=LANGUAGE)
+    result = cache.get(model, datasource, version, role).check(sql)
     violations = tuple(Violation(v.code, v.message) for v in result.violations)
     return GuardResult(
         allowed=not violations,
         sql=None if violations else result.sql,
-        tables=tuple(result.tables),
+        tables=tuple(sorted(result.tables)),
         violations=violations,
     )
 
