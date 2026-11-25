@@ -125,7 +125,10 @@ def test_llave_foranea_hacia_tabla_ausente_se_advierte() -> None:
 
 
 def test_comment_sobre_objeto_desconocido_se_advierte() -> None:
-    result = import_ddl("COMMENT ON TABLE nada IS 'x'; COMMENT ON COLUMN nada.c IS 'y';", "postgres")
+    result = import_ddl(
+        "COMMENT ON TABLE nada IS 'x'; COMMENT ON COLUMN nada.c IS 'y';",
+        "postgres",
+    )
 
     assert result.tables == []
     assert len(result.warnings) == 2
