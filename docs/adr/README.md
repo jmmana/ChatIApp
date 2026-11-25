@@ -11,5 +11,6 @@ Cada decisión importante se registra aquí con su contexto, la decisión, las c
 | [0005](0005-modelo-semantico-como-documento.md) | El modelo semántico se guarda como documento versionado | Aceptada |
 | [0006](0006-sse-para-streaming.md) | Server-Sent Events para el streaming del turno | Aceptada |
 | [0007](0007-api-keys-y-tokens-de-sesion.md) | API keys de servidor y tokens de sesión cortos para integrar ChatIApp | Aceptada |
+| [0008](0008-imagen-unica-con-sqlite.md) | Una sola imagen con SQLite por defecto | Aceptada |
 
 Plantilla: copia cualquiera de los anteriores y usa el siguiente número.
