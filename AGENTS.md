@@ -47,4 +47,4 @@ La documentación en [`docs/`](docs/) es el contrato. Antes de escribir código,
 
 Lista viva: se completa con los errores que aparezcan en las revisiones para que no se repitan.
 
-- _Todavía vacía._
+- **No escribas `backend/uv.lock`** (visto en #10): sin `uv` ni PyPI el lock sale inventado y el CI falla en `uv sync --locked`. Declara las dependencias en `pyproject.toml` y deja que el autoarreglo genere el lock en tu rama.
