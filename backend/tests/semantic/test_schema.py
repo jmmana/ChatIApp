@@ -240,9 +240,7 @@ def test_time_column_de_resumida_debe_tener_rol_time(data: dict[str, Any]) -> No
         "sucursal_id IN ({{user.sucursales}})",
     ],
 )
-def test_condicion_de_rol_con_marcador_mal_formado(
-    data: dict[str, Any], condition: str
-) -> None:
+def test_condicion_de_rol_con_marcador_mal_formado(data: dict[str, Any], condition: str) -> None:
     data["security"]["roles"][1]["filters"][0]["condition"] = condition
 
     _assert_error(data, "security.roles[1].filters[0].condition", "Marcador mal formado")
