@@ -1,0 +1,56 @@
+# ChatIApp completo: `docker compose up --build` y abre http://localhost:8080
+# Con IA local: `docker compose --profile local-ai up --build`
+name: chatiapp
+
+services:
+  app-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chatiapp
+      POSTGRES_PASSWORD: ${CHATIAPP_DB_PASSWORD:?define CHATIAPP_DB_PASSWORD en .env}
+      POSTGRES_DB: chatiapp
+    volumes:
+      - app-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatiapp -d chatiapp"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    environment:
+      CHATIAPP_DATABASE_URL: postgresql+psycopg://chatiapp:${CHATIAPP_DB_PASSWORD}@app-db:5432/chatiapp
+      CHATIAPP_SECRET_KEY: ${CHATIAPP_SECRET_KEY:?define CHATIAPP_SECRET_KEY en .env}
+      CHATIAPP_SECRET_KEY_PREVIOUS: ${CHATIAPP_SECRET_KEY_PREVIOUS:-}
+      CHATIAPP_CONFIG: ${CHATIAPP_CONFIG:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://ollama:11434}
+    depends_on:
+      app-db:
+        condition: service_healthy
+    volumes:
+      - ${CHATIAPP_CONFIG_DIR:-./examples}:/config:ro
+    restart: unless-stopped
+
+  web:
+    build: ./frontend
+    ports:
+      - "${CHATIAPP_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ollama:
+    profiles: ["local-ai"]
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  app-db-data:
+  ollama-data:
