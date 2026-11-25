@@ -108,8 +108,8 @@ De punta a punta con un proveedor: modelo semántico (importar y editar), motor 
 | [#27](https://github.com/jmmana/ChatIApp/issues/27) | Motor · Resolutor de períodos en español e inglés | p0 | L | [#10](https://github.com/jmmana/ChatIApp/issues/10) |
 | [#28](https://github.com/jmmana/ChatIApp/issues/28) | Motor · Catálogo de métricas: resolución y verificación del plan | p0 | S | [#18](https://github.com/jmmana/ChatIApp/issues/18) |
 | [#29](https://github.com/jmmana/ChatIApp/issues/29) | Motor · Dialectos: literales de fecha, truncado por granularidad y límites | p0 | M | [#10](https://github.com/jmmana/ChatIApp/issues/10) |
-| [#30](https://github.com/jmmana/ChatIApp/issues/30) | Motor · Guardián SQL con sqlglot y suite adversarial | p0 | L | [#18](https://github.com/jmmana/ChatIApp/issues/18) |
-| [#33](https://github.com/jmmana/ChatIApp/issues/33) | Seguridad · Filtro por rol inyectado como tabla derivada | p0 | M | [#30](https://github.com/jmmana/ChatIApp/issues/30) |
+| [#30](https://github.com/jmmana/ChatIApp/issues/30) | Motor · Guardián SQL con sqlguardllm: política armada desde el modelo semántico | p0 | M | [#18](https://github.com/jmmana/ChatIApp/issues/18) |
+| [#33](https://github.com/jmmana/ChatIApp/issues/33) | Seguridad · Filtros por rol con sqlguardllm: roles del modelo y atributos del usuario | p0 | M | [#30](https://github.com/jmmana/ChatIApp/issues/30) |
 | [#34](https://github.com/jmmana/ChatIApp/issues/34) | Motor · Constructor de SQL desde el plan de una métrica | p0 | L | [#28](https://github.com/jmmana/ChatIApp/issues/28) [#29](https://github.com/jmmana/ChatIApp/issues/29) [#27](https://github.com/jmmana/ChatIApp/issues/27) |
 | [#35](https://github.com/jmmana/ChatIApp/issues/35) | Motor · Enrutamiento a tablas resumidas | p1 | M | [#34](https://github.com/jmmana/ChatIApp/issues/34) |
 | [#36](https://github.com/jmmana/ChatIApp/issues/36) | Motor · Ejecutor de solo lectura con tiempo máximo y tope de filas | p0 | M | [#19](https://github.com/jmmana/ChatIApp/issues/19) |
