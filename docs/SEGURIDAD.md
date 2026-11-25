@@ -43,7 +43,7 @@ Se implementa con sqlglot sobre el **árbol sintáctico**, nunca con expresiones
 
 Los dos casos marcados con **con** son la razón de recorrer el árbol completo: a simple vista parecen consultas de lectura.
 
-El guardián se diseña junto con **[sqlguard](https://github.com/jmmana/sqlguard)**, su versión como librería independiente: comparte las reglas, los códigos de violación y la [galería de ataques](https://github.com/jmmana/sqlguard/blob/main/docs/ATTACK_GALLERY.md).
+El guardián se implementa con **[sqlguardllm](https://github.com/jmmana/sqlguardllm)** (`pip install sqlguardllm`), la librería independiente que nació de este diseño: ChatIApp arma su política desde el modelo semántico y comparte sus reglas, los códigos de violación y la [galería de ataques](https://github.com/jmmana/sqlguardllm/blob/main/docs/ATTACK_GALLERY.md).
 
 Reglas:
 

@@ -21,6 +21,7 @@ La documentación en [`docs/`](docs/) es el contrato. Antes de escribir código,
 - No agregues dependencias que la tarea no necesite; si agregas una, justifícala en el PR.
 - Nada de secretos, credenciales, URLs de conexión ni datos reales. Para datos usa `examples/ventas/` y la demo SQLite.
 - El motor (`backend/app/engine/`) no importa nada de `backend/app/llm/`: se prueba sin red ni IA.
+- **El guardián SQL es la librería [sqlguardllm](https://github.com/jmmana/sqlguardllm)** (`pip install sqlguardllm`, `import sqlguardllm`). No reimplementes sus reglas (solo lectura, tablas, columnas ocultas, funciones, filtros por rol, límite): arma su `Policy` desde el modelo semántico. Si le falta algo, se pide en su repositorio.
 
 ## Backend (Python)
 

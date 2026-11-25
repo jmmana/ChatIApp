@@ -224,7 +224,7 @@ LIMIT 1000
 La tabla se reemplaza por una versión ya filtrada, así que el filtro aplica también dentro de subconsultas y CTE. Y el guardián recorre el árbol completo: detecta un `DELETE` escondido en un CTE de PostgreSQL o un `SELECT … INTO` de SQL Server, que a simple vista parecen consultas de lectura. Modelo de amenazas completo en [docs/SEGURIDAD.md](docs/SEGURIDAD.md).
 
 > [!TIP]
-> El guardián también existe como librería independiente para cualquier app con IA que ejecute SQL: **[sqlguard](https://github.com/jmmana/sqlguard)**, el firewall de SQL para apps con LLM.
+> El guardián también existe como librería independiente para cualquier app con IA que ejecute SQL: **[sqlguardllm](https://github.com/jmmana/sqlguardllm)**, el firewall de SQL para apps con LLM.
 
 ## Proveedores de IA
 
