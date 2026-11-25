@@ -1,7 +1,9 @@
 """Aplicación FastAPI de ChatIApp."""
 
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 
@@ -9,6 +11,7 @@ from app.api import health, providers
 from app.settings.env import get_settings
 from app.settings.startup import load_and_register
 from app.version import __version__
+from app.web import mount_web
 
 API_PREFIX = "/api/v1"
 
@@ -20,7 +23,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-def create_app() -> FastAPI:
+def create_app(static_dir: Path | None = None) -> FastAPI:
+    """Crea la app. Si hay interfaz compilada (`CHATIAPP_STATIC_DIR`), la sirve en `/`."""
     application = FastAPI(
         lifespan=lifespan,
         title="ChatIApp",
@@ -31,6 +35,11 @@ def create_app() -> FastAPI:
     )
     application.include_router(health.router, prefix=API_PREFIX)
     application.include_router(providers.router, prefix=API_PREFIX)
+
+    if static_dir is None and (env_dir := os.environ.get("CHATIAPP_STATIC_DIR")):
+        static_dir = Path(env_dir)
+    if static_dir is not None:
+        mount_web(application, static_dir)
     return application
 
 

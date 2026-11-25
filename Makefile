@@ -1,5 +1,5 @@
 # Verificación local: reproduce lo mismo que .github/workflows/ci.yml.
-.PHONY: check backend-check frontend-check embed-check
+.PHONY: check backend-check frontend-check embed-check image
 
 check: backend-check frontend-check embed-check
 
@@ -17,3 +17,8 @@ embed-check:
 	@if [ -f embed/package.json ]; then \
 		cd embed && pnpm install --frozen-lockfile && pnpm run lint && pnpm run test && pnpm run build; \
 	else echo "embed: todavía no existe"; fi
+
+# Imagen única y prueba de humo (requiere Docker), igual que el job «imagen» del CI.
+image:
+	docker build -t chatiapp:local .
+	sh scripts/smoke-image.sh chatiapp:local
