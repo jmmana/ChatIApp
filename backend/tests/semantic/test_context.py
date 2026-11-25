@@ -91,6 +91,17 @@ def test_columna_oculta_con_sample_values_no_sale_ni_con_samples(data: dict[str,
     assert "a@b.co" not in text
 
 
+def test_relacion_sobre_columna_oculta_no_revela_su_nombre(data: dict[str, Any]) -> None:
+    detalle = next(t for t in data["tables"] if t["name"] == "factura_detalle")
+    next(c for c in detalle["columns"] if c["name"] == "producto_id")["hidden"] = True
+    model = parse_semantic_model(data)
+
+    text = build_context(model, role="gerencia_general")
+
+    assert "producto_id" not in text
+    assert "facturas.sucursal_id = sucursales.id" in text
+
+
 def test_con_presupuesto_prioriza_la_pregunta_y_las_tablas_de_las_metricas(
     model: SemanticModel,
 ) -> None:

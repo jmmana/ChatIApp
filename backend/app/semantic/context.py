@@ -200,7 +200,8 @@ def build_context(
     relations: list[str] = []
     for rel in model.relationships:
         origin, target = rel.from_.rpartition(".")[0], rel.to.rpartition(".")[0]
-        if origin in shown and target in shown:
+        # Una relación sobre una columna oculta revelaría su nombre: no se muestra.
+        if origin in shown and target in shown and {rel.from_, rel.to} <= columns:
             relations.append(f"- {_clean(rel.from_)} = {_clean(rel.to)}")
     if relations:
         cost = estimate_tokens("\n".join(relations))
