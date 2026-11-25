@@ -34,7 +34,11 @@ TABLE = [
         "2027-01-01",
     ),
     (["año pasado", "ano pasado", "last year"], "2025-01-01", "2026-01-01"),
-    (["últimos 7 días", "ultimos 7 dias", "last 7 days", "past 7 days"], "2026-11-19", "2026-11-26"),
+    (
+        ["últimos 7 días", "ultimos 7 dias", "last 7 days", "past 7 days"],
+        "2026-11-19",
+        "2026-11-26",
+    ),
     (
         ["últimos 30 días", "ULTIMOS 30 DIAS", "last 30 days", "ultimos treinta dias"],
         "2026-10-27",
@@ -50,10 +54,24 @@ TABLE = [
     (["diciembre", "December"], "2025-12-01", "2026-01-01"),
     (["marzo de 2025", "March 2025", "marzo del 2025"], "2025-03-01", "2025-04-01"),
     (["2024", "en 2024", "year 2024", "año 2024"], "2024-01-01", "2025-01-01"),
-    (["Q1", "primer trimestre", "first quarter", "T1", "1er trimestre"], "2026-01-01", "2026-04-01"),
-    (["primer semestre de 2025", "first half of 2025", "S1 2025", "H1-2025"], "2025-01-01", "2025-07-01"),
     (
-        ["del 1 al 15 de marzo", "1 al 15 de marzo", "March 1 to 15", "from march 1 - 15", "1 to 15 march"],
+        ["Q1", "primer trimestre", "first quarter", "T1", "1er trimestre"],
+        "2026-01-01",
+        "2026-04-01",
+    ),
+    (
+        ["primer semestre de 2025", "first half of 2025", "S1 2025", "H1-2025"],
+        "2025-01-01",
+        "2025-07-01",
+    ),
+    (
+        [
+            "del 1 al 15 de marzo",
+            "1 al 15 de marzo",
+            "March 1 to 15",
+            "from march 1 - 15",
+            "1 to 15 march",
+        ],
         "2026-03-01",
         "2026-03-16",
     ),
@@ -73,7 +91,8 @@ def test_table_ranges(expression: str, start: str, end: str) -> None:
 def test_fiscal_year_starting_in_april() -> None:
     cfg = PeriodConfig(timezone="America/Bogota", fiscal_year_start_month=4)
     result = resolve_period("este año fiscal", cfg, NOW)
-    assert result == PeriodRange(d("2026-04-01"), d("2027-04-01"), "AF 2026-27 (al 25 nov)", "year", True)
+    expected = PeriodRange(d("2026-04-01"), d("2027-04-01"), "AF 2026-27 (al 25 nov)", "year", True)
+    assert result == expected
     last = resolve_period("last fiscal year", cfg, NOW)
     assert last is not None
     assert (last.start, last.end_exclusive) == (d("2025-04-01"), d("2026-04-01"))
@@ -134,14 +153,26 @@ def test_fiscal_quarters_and_semesters() -> None:
             "26 Nov 2024 – 25 Nov 2026 (rolling window)", "year", True,
         ),
         ("últimos 3 meses completos", "2026-08-01", "2026-11-01", "Ago – oct 2026", "month", False),
-        ("last 14 complete months", "2025-09-01", "2026-11-01", "Sep 2025 – Oct 2026", "month", False),
+        (
+            "last 14 complete months", "2025-09-01", "2026-11-01",
+            "Sep 2025 – Oct 2026", "month", False,
+        ),
         ("last 1 full month", "2026-10-01", "2026-11-01", "October 2026", "month", False),
-        ("últimas 2 semanas completas", "2026-11-09", "2026-11-23", "9 – 22 nov 2026", "week", False),
+        (
+            "últimas 2 semanas completas", "2026-11-09", "2026-11-23",
+            "9 – 22 nov 2026", "week", False,
+        ),
         ("últimos 2 días completos", "2026-11-23", "2026-11-25", "23 – 24 nov 2026", "day", False),
         ("last 1 day", "2026-11-25", "2026-11-26", "25 Nov 2026", "day", True),
-        ("últimos 2 trimestres completos", "2026-04-01", "2026-10-01", "Abr – sep 2026", "quarter", False),
+        (
+            "últimos 2 trimestres completos", "2026-04-01", "2026-10-01",
+            "Abr – sep 2026", "quarter", False,
+        ),
         ("last 1 complete year", "2025-01-01", "2026-01-01", "2025", "year", False),
-        ("last 2 semesters", "2025-11-26", "2026-11-26", "26 Nov 2025 – 25 Nov 2026 (rolling window)", "semester", True),
+        (
+            "last 2 semesters", "2025-11-26", "2026-11-26",
+            "26 Nov 2025 – 25 Nov 2026 (rolling window)", "semester", True,
+        ),
         ("marzo", "2026-03-01", "2026-04-01", "Marzo 2026", "month", False),
         ("noviembre", "2026-11-01", "2026-12-01", "Noviembre 2026 (al día 25)", "month", True),
         ("diciembre", "2025-12-01", "2026-01-01", "Diciembre 2025", "month", False),
