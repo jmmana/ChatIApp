@@ -1,0 +1,25 @@
+# Solo entra a la imagen lo que usa el Dockerfile: frontend/, backend/ y examples/.
+.git
+.github
+docs
+scripts
+**/.env
+**/.env.*
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+**/__pycache__
+**/*.py[cod]
+
+# Backend
+backend/.venv
+backend/.pytest_cache
+backend/.mypy_cache
+backend/.ruff_cache
+backend/tests
+
+# Frontend
+frontend/node_modules
+frontend/dist
+frontend/coverage
+**/*.tsbuildinfo
