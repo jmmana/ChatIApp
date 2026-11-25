@@ -1,0 +1,106 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+/* El tema sigue la preferencia del sistema. */
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+/* Tokens de color: paleta slate y un único acento índigo → cian. */
+:root {
+  color-scheme: light;
+  --background: #f8fafc; /* slate-50 */
+  --foreground: #0f172a; /* slate-900 */
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --muted: #f1f5f9; /* slate-100 */
+  --muted-foreground: #64748b; /* slate-500 */
+  --secondary: #e2e8f0; /* slate-200 */
+  --secondary-foreground: #0f172a;
+  --border: #e2e8f0;
+  --input: #cbd5e1; /* slate-300 */
+  --primary: #4f46e5; /* índigo */
+  --primary-foreground: #ffffff;
+  --accent: #eef2ff; /* índigo-50 */
+  --accent-foreground: #3730a3;
+  --brand-from: #4f46e5;
+  --brand-to: #06b6d4; /* cian */
+  --ring: #6366f1;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --radius: 0.625rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --background: #020617; /* slate-950 */
+    --foreground: #f1f5f9;
+    --card: #0f172a;
+    --card-foreground: #f1f5f9;
+    --popover: #0f172a;
+    --popover-foreground: #f1f5f9;
+    --muted: #1e293b; /* slate-800 */
+    --muted-foreground: #94a3b8; /* slate-400 */
+    --secondary: #1e293b;
+    --secondary-foreground: #f1f5f9;
+    --border: #1e293b;
+    --input: #334155; /* slate-700 */
+    --primary: #6366f1;
+    --primary-foreground: #ffffff;
+    --accent: #1e1b4b; /* índigo-950 */
+    --accent-foreground: #c7d2fe;
+    --brand-from: #6366f1;
+    --brand-to: #22d3ee;
+    --ring: #818cf8;
+    --destructive: #ef4444;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-brand-from: var(--brand-from);
+  --color-brand-to: var(--brand-to);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
