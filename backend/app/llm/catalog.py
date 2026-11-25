@@ -310,9 +310,7 @@ CATALOG: tuple[ProviderSpec, ...] = (
                 required=False,
                 help=_CHINA_HELP,
                 options=(
-                    FieldOption(
-                        value="https://api.z.ai/api/paas/v4", label="Internacional (Z.ai)"
-                    ),
+                    FieldOption(value="https://api.z.ai/api/paas/v4", label="Internacional (Z.ai)"),
                     FieldOption(
                         value="https://open.bigmodel.cn/api/paas/v4",
                         label="China continental (BigModel)",
