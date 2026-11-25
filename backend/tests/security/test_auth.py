@@ -142,6 +142,8 @@ def test_refresh_sin_cookie_o_con_token_de_acceso_se_rechaza(client: TestClient)
 
     me = client.get(f"{API_PREFIX}/auth/me", headers=_bearer(_login(client, USER))).json()
     access = create_access_token(uuid.UUID(me["id"]))
+    # Sin limpiar, el cliente seguiría enviando la cookie de refresco válida del login.
+    client.cookies.clear()
     client.cookies.set("chatiapp_refresh", access, path="/api/v1/auth")
     assert client.post(f"{API_PREFIX}/auth/refresh").status_code == 401
 
@@ -166,9 +168,7 @@ def test_bloqueo_tras_cinco_intentos_fallidos(client: TestClient) -> None:
         assert response.status_code == 401
 
     # Ni siquiera la contraseña correcta entra mientras dura el bloqueo.
-    response = client.post(
-        f"{API_PREFIX}/auth/login", json={"email": USER[0], "password": USER[1]}
-    )
+    response = client.post(f"{API_PREFIX}/auth/login", json={"email": USER[0], "password": USER[1]})
     assert response.status_code == 429
     assert response.json()["error"]["code"] == "too_many_attempts"
 

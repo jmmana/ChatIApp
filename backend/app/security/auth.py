@@ -204,7 +204,10 @@ def user_from_refresh_token(session: Session, token: str) -> User:
 
 
 def ensure_initial_admin(session: Session) -> User | None:
-    """Crea el administrador de `CHATIAPP_ADMIN_EMAIL`/`CHATIAPP_ADMIN_PASSWORD` si no hay ninguno."""
+    """Crea el administrador inicial si no hay ninguno.
+
+    Usa `CHATIAPP_ADMIN_EMAIL` y `CHATIAPP_ADMIN_PASSWORD`.
+    """
     email = os.environ.get("CHATIAPP_ADMIN_EMAIL")
     password = os.environ.get("CHATIAPP_ADMIN_PASSWORD")
     if not email or not password:
