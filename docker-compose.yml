@@ -1,47 +1,45 @@
-# ChatIApp completo: `docker compose up --build` y abre http://localhost:8080
-# Con IA local: `docker compose --profile local-ai up --build`
+# ChatIApp en una sola imagen (docs/adr/0008-imagen-unica-con-sqlite.md).
+#
+#   docker compose up --build                       → http://localhost:8080
+#   docker compose --profile local-ai up --build    → + Ollama para modelos locales
+#   docker compose --profile postgres up --build    → + PostgreSQL como base de la app
+#                                                     (define CHATIAPP_DATABASE_URL y
+#                                                      CHATIAPP_DB_PASSWORD en .env)
 name: chatiapp
 
 services:
-  app-db:
+  chatiapp:
+    build: .
+    image: chatiapp:local
+    ports:
+      - "${CHATIAPP_PORT:-8080}:8080"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - chatiapp-data:/data
+      - ${CHATIAPP_CONFIG_DIR:-./examples}:/config:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+    restart: unless-stopped
+
+  postgres:
+    profiles: ["postgres"]
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: chatiapp
-      POSTGRES_PASSWORD: ${CHATIAPP_DB_PASSWORD:?define CHATIAPP_DB_PASSWORD en .env}
+      # Sin contraseña, PostgreSQL no arranca: defínela en .env.
+      POSTGRES_PASSWORD: ${CHATIAPP_DB_PASSWORD:-}
       POSTGRES_DB: chatiapp
     volumes:
-      - app-db-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U chatiapp -d chatiapp"]
       interval: 5s
       timeout: 3s
       retries: 10
-    restart: unless-stopped
-
-  api:
-    build: ./backend
-    environment:
-      CHATIAPP_DATABASE_URL: postgresql+psycopg://chatiapp:${CHATIAPP_DB_PASSWORD}@app-db:5432/chatiapp
-      CHATIAPP_SECRET_KEY: ${CHATIAPP_SECRET_KEY:?define CHATIAPP_SECRET_KEY en .env}
-      CHATIAPP_SECRET_KEY_PREVIOUS: ${CHATIAPP_SECRET_KEY_PREVIOUS:-}
-      CHATIAPP_CONFIG: ${CHATIAPP_CONFIG:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://ollama:11434}
-    depends_on:
-      app-db:
-        condition: service_healthy
-    volumes:
-      - ${CHATIAPP_CONFIG_DIR:-./examples}:/config:ro
-    restart: unless-stopped
-
-  web:
-    build: ./frontend
-    ports:
-      - "${CHATIAPP_PORT:-8080}:80"
-    depends_on:
-      api:
-        condition: service_healthy
     restart: unless-stopped
 
   ollama:
@@ -52,5 +50,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  app-db-data:
+  chatiapp-data:
+  postgres-data:
   ollama-data:
