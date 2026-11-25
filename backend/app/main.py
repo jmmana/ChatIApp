@@ -1,7 +1,9 @@
 """Aplicación FastAPI de ChatIApp."""
 
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -11,6 +13,7 @@ from app.api import auth, health, providers
 from app.db.session import get_engine
 from app.security.auth import AuthError, ensure_initial_admin
 from app.version import __version__
+from app.web import mount_web
 
 API_PREFIX = "/api/v1"
 
@@ -31,8 +34,8 @@ def _auth_error_handler(_request: Request, exc: Exception) -> JSONResponse:
     )
 
 
-def create_app() -> FastAPI:
-    """Crea la app.
+def create_app(static_dir: Path | None = None) -> FastAPI:
+    """Crea la app. Si hay interfaz compilada (`CHATIAPP_STATIC_DIR`), la sirve en `/`.
 
     `health` y `auth` son públicas. Todo router nuevo bajo `/api/v1` se incluye con
     `dependencies=[Depends(get_current_user)]` (o `require_admin` si es de administración).
@@ -49,6 +52,11 @@ def create_app() -> FastAPI:
     application.include_router(health.router, prefix=API_PREFIX)
     application.include_router(auth.router, prefix=API_PREFIX)
     application.include_router(providers.router, prefix=API_PREFIX)
+
+    if static_dir is None and (env_dir := os.environ.get("CHATIAPP_STATIC_DIR")):
+        static_dir = Path(env_dir)
+    if static_dir is not None:
+        mount_web(application, static_dir)
     return application
 
 
