@@ -34,9 +34,7 @@ def test_ejemplo_ventas_importa_sin_errores() -> None:
 
 def test_encabezados_en_ingles_con_mayusculas_y_tildes() -> None:
     text = (
-        "Table,COLUMN,Descripción,Synonyms,Role,Hidden\n"
-        "t,,Una tabla,a|b,,\n"
-        "t,c,Col,x,MEASURE,1\n"
+        "Table,COLUMN,Descripción,Synonyms,Role,Hidden\nt,,Una tabla,a|b,,\nt,c,Col,x,MEASURE,1\n"
     )
     result = parse_dictionary_csv(text)
     assert result.issues == []
@@ -59,13 +57,7 @@ def test_oculta_acepta_variantes(value: str, expected: bool) -> None:
 
 def test_filas_invalidas_se_reportan_y_las_validas_se_importan() -> None:
     text = (
-        "tabla,columna,rol,oculta\n"
-        "t,a,measure,\n"
-        ",b,,\n"
-        "t,c,raro,\n"
-        "t,d,,quizas\n"
-        "t,a,,\n"
-        "t,e,id,no\n"
+        "tabla,columna,rol,oculta\nt,a,measure,\n,b,,\nt,c,raro,\nt,d,,quizas\nt,a,,\nt,e,id,no\n"
     )
     result = parse_dictionary_csv(text)
     assert [i.row for i in result.issues] == [3, 4, 5, 6]
