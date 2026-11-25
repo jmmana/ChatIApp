@@ -31,12 +31,19 @@ def test_campos_bien_formados() -> None:
                 assert field.default in {o.value for o in field.options}
 
 
+# DeepSeek publica un único endpoint, el mismo dentro y fuera de China.
+SINGLE_ENDPOINT = {"deepseek"}
+
+
 def test_chinos_ofrecen_api_base_con_opciones() -> None:
     for spec in (s for s in CATALOG if s.category == "chinese"):
         api_base = next(f for f in spec.fields if f.name == "api_base")
         assert api_base.type == "url"
         assert api_base.default is not None
-        assert api_base.options, spec.kind
+        if spec.kind in SINGLE_ENDPOINT:
+            assert not api_base.options, spec.kind
+        else:
+            assert api_base.options, spec.kind
 
 
 def test_get_spec() -> None:
