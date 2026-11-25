@@ -223,6 +223,9 @@ LIMIT 1000
 
 The table is replaced by an already-filtered version, so the filter also applies inside subqueries and CTEs. And the guard walks the entire tree: it catches a `DELETE` hidden in a PostgreSQL CTE or a SQL Server `SELECT … INTO`, which look like reads at first glance.
 
+> [!TIP]
+> The guard is also a standalone library for any LLM app that executes SQL: **[sqlguard](https://github.com/jmmana/sqlguard)**, the SQL firewall for LLM apps.
+
 ## AI providers
 
 | Type | Providers | How it connects |

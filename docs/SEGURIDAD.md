@@ -43,6 +43,8 @@ Se implementa con sqlglot sobre el **árbol sintáctico**, nunca con expresiones
 
 Los dos casos marcados con **con** son la razón de recorrer el árbol completo: a simple vista parecen consultas de lectura.
 
+El guardián se diseña junto con **[sqlguard](https://github.com/jmmana/sqlguard)**, su versión como librería independiente: comparte las reglas, los códigos de violación y la [galería de ataques](https://github.com/jmmana/sqlguard/blob/main/docs/ATTACK_GALLERY.md).
+
 Reglas:
 
 1. **Una sola sentencia**, y su raíz debe ser una consulta (`SELECT`, `UNION`, `WITH … SELECT`).
