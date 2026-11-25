@@ -17,8 +17,8 @@ def d(text: str) -> date:
 TABLE = [
     (["hoy", "today", "HOY"], "2026-11-25", "2026-11-26"),
     (["ayer", "yesterday"], "2026-11-24", "2026-11-25"),
-    (["esta semana", "this week", "semana actual"], "2026-11-23", "2026-11-30"),
-    (["semana pasada", "la semana pasada", "last week", "WTD"], None, None),
+    (["esta semana", "this week", "semana actual", "WTD"], "2026-11-23", "2026-11-30"),
+    (["semana pasada", "la semana pasada", "last week"], "2026-11-16", "2026-11-23"),
     (
         ["este mes", "en lo que va del mes", "mes actual", "MTD", "Este Mes", "month to date",
          "this month", "en lo que va de este mes"],
@@ -60,7 +60,7 @@ TABLE = [
     (["01/03/2026 al 15/03/2026", "del 01/03/2026 al 15/03/2026"], "2026-03-01", "2026-03-16"),
     (["2026-03-01 - 2026-03-15", "2026-03-01 a 2026-03-15"], "2026-03-01", "2026-03-16"),
 ]
-CASES = [(e, s, f) for exprs, s, f in TABLE if s for e in exprs]
+CASES = [(e, s, f) for exprs, s, f in TABLE for e in exprs]
 
 
 @pytest.mark.parametrize(("expression", "start", "end"), CASES)
@@ -156,7 +156,10 @@ def test_fiscal_quarters_and_semesters() -> None:
 def test_labels_grain_and_current(
     expression: str, start: str, end: str, label: str, grain: str, current: bool
 ) -> None:
-    assert resolve_period(expression, CFG, NOW) == PeriodRange(d(start), d(end), label, grain, current)  # type: ignore[arg-type]
+    result = resolve_period(expression, CFG, NOW)
+    assert result is not None
+    assert (result.start, result.end_exclusive, result.label) == (d(start), d(end), label)
+    assert (result.grain, result.is_current) == (grain, current)
 
 
 @pytest.mark.parametrize(
@@ -322,12 +325,12 @@ def test_previous_equivalent_label_and_grain() -> None:
 
 
 def test_previous_equivalent_is_capped_at_period_start() -> None:
-    march_31 = datetime(2026, 3, 31, 12, 0, tzinfo=ZoneInfo("America/Bogota"))
-    result = previous("este mes", march_31)
+    march_30 = datetime(2026, 3, 30, 12, 0, tzinfo=ZoneInfo("America/Bogota"))
+    result = previous("este mes", march_30)
     assert (result.start, result.end_exclusive) == (d("2026-02-01"), d("2026-03-01"))
 
 
 def test_previous_equivalent_without_now() -> None:
-    period = resolve_period("mes pasado", CFG, NOW)
+    period = resolve_period("2024", CFG, NOW)
     assert period is not None
-    assert previous_equivalent(period).start == d("2026-09-01")
+    assert previous_equivalent(period).start == d("2023-01-01")

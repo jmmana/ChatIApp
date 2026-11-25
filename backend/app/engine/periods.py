@@ -300,7 +300,7 @@ def _parse_day(s: str, ctx: _Ctx) -> PeriodRange | None:
 
 _CURRENT = re.compile(
     rf"(?:(?:este|esta|actual|presente|this|current)\s+({_SINGULAR_ALT})"
-    rf"|({_SINGULAR_ALT})\s+(?:actual|en curso|to date)"
+    rf"|({_SINGULAR_ALT})\s+(?:actual|curso|to date)"
     rf"|lo que va (?:del?|de este|de esta)\s+({_SINGULAR_ALT})"
     rf"|(mtd|ytd|qtd|wtd))"
 )
