@@ -1,0 +1,58 @@
+# Tarea lista para desarrollar, por una persona o por un agente.
+# Los campos Objetivo, Criterios de aceptación y Archivos relevantes son los que
+# validan los flujos automáticos (por ejemplo WarCodex): no cambies sus etiquetas.
+name: Tarea
+description: Una tarea con un resultado verificable, lista para desarrollar sin preguntas.
+title: ''
+labels: ['tipo:tarea']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Una tarea, un resultado verificable. Guía: [CONTRIBUTING.md](https://github.com/jmmana/ChatIApp/blob/main/CONTRIBUTING.md#cómo-se-escribe-una-tarea).
+  - type: textarea
+    id: objetivo
+    attributes:
+      label: Objetivo
+      description: Qué cambio se quiere y por qué, en pocas líneas. Un solo resultado.
+      placeholder: 'Que el resolutor de períodos entienda «últimos N días», para que «ventas de los últimos 30 días» no requiera aclaración.'
+    validations:
+      required: true
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación
+      description: Comprobaciones objetivas. Cada una debe poder verificarse con un comando o una prueba.
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: archivos
+    attributes:
+      label: Archivos relevantes
+      description: Rutas donde probablemente hay que trabajar y pruebas que deben seguir pasando.
+      placeholder: |
+        - backend/app/engine/periods.py
+        - backend/tests/engine/test_periods.py
+    validations:
+      required: true
+  - type: dropdown
+    id: tamano
+    attributes:
+      label: Tamaño
+      description: Si no cabe en L, divide la tarea.
+      options:
+        - S (hasta medio día)
+        - M (1 a 2 días)
+        - L (3 a 5 días)
+    validations:
+      required: true
+  - type: textarea
+    id: notas
+    attributes:
+      label: Notas (opcional)
+      description: Épica, dependencias (Depende de #N), decisiones previas y enlaces. No pegues secretos.
+    validations:
+      required: false

@@ -1,0 +1,62 @@
+# =============================================================================
+# ChatIApp · Configuración como código
+#
+# Se valida con Pydantic al arrancar. Si algo está mal (un campo que no existe,
+# un proveedor sin credenciales, un archivo que no se encuentra), la app NO
+# inicia y el error dice exactamente qué y dónde.
+#
+# Los secretos nunca van aquí: escribe ${VARIABLE} y defínela en el entorno.
+# Lo que se declare en este archivo aparece en la interfaz como «gestionado por
+# configuración» y no se puede editar desde allí.
+# =============================================================================
+version: 1
+
+app:
+  public_url: http://localhost:8080
+  language: es
+  timezone: America/Bogota
+
+ai:
+  providers:
+    - id: claude
+      kind: anthropic
+      model: claude-sonnet-5-5
+      api_key: ${ANTHROPIC_API_KEY}
+
+    - id: deepseek
+      kind: deepseek
+      model: deepseek-chat
+      api_key: ${DEEPSEEK_API_KEY}
+
+    - id: bedrock
+      kind: bedrock
+      model: ${BEDROCK_MODEL_ID}        # ID del modelo o perfil de inferencia
+      aws_region: us-east-1
+      # Sin llaves: usa el rol IAM de la máquina o del contenedor.
+
+    - id: local
+      kind: ollama
+      model: qwen2.5:14b
+      api_base: http://ollama:11434
+
+  # Qué proveedor hace cada trabajo. Ver docs/PROVEEDORES_IA.md#enrutamiento-por-tarea
+  routing:
+    planner: claude       # entender la pregunta y armar el plan
+    sql: claude           # SQL libre cuando la pregunta no está en el catálogo
+    answer: deepseek      # redactar la respuesta final
+    suggest: local        # sugerir descripciones del modelo semántico
+    fallback: [deepseek, local]
+
+  # Qué ve el modelo de IA: schema | aggregates | samples
+  # Ver docs/SEGURIDAD.md#qué-ve-el-modelo-de-ia
+  privacy: aggregates
+
+datasources:
+  - id: ventas
+    name: Ventas (demo)
+    dialect: postgres
+    url: ${VENTAS_DB_URL}         # usa un usuario de SOLO LECTURA
+    execute: true                 # false = solo genera el SQL, no lo ejecuta
+    max_rows: 1000
+    timeout_seconds: 30
+    semantic_model: ./examples/ventas/semantic-model.yaml

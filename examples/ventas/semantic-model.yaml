@@ -1,0 +1,237 @@
+# =============================================================================
+# ChatIApp · Modelo semántico de ejemplo: «Ventas»
+#
+# El modelo semántico es lo que ChatIApp sabe de tu base de datos: qué significa
+# cada tabla y columna, cómo se relacionan, cómo se calculan tus métricas, qué
+# tablas resumidas existen y qué puede ver cada rol.
+#
+# Referencia completa de campos y reglas: docs/MODELO_SEMANTICO.md
+# =============================================================================
+version: 1
+name: Ventas (demo)
+dialect: postgres
+
+# Explícale tu negocio como se lo explicarías a un analista nuevo. Este texto
+# va en el contexto del modelo de IA en cada pregunta.
+business_context: |
+  Cadena de 6 tiendas de tecnología en Colombia que vende en tienda, en línea y
+  a mayoristas.
+  - «Vender» significa facturas en estado PAGADA. Las ANULADAS nunca cuentan y
+    las PENDIENTES solo cuando el usuario las pide explícitamente.
+  - Los montos están en pesos colombianos (COP). `total` incluye IVA;
+    `subtotal` es sin IVA.
+  - «Ventas», sin más, significa ventas netas: total de facturas pagadas.
+  - Cuando digan «la tienda de Bogotá» puede haber varias: pregunta cuál.
+
+settings:
+  timezone: America/Bogota
+  currency: COP
+  locale: es-CO
+  fiscal_year_start_month: 1     # 1 = enero
+  week_starts_on: monday
+  default_row_limit: 1000
+
+tables:
+  - name: facturas
+    description: Encabezado de cada factura de venta. Una fila por factura.
+    synonyms: [ventas, facturación, comprobantes]
+    primary_key: [id]
+    time_column: fecha
+    columns:
+      - { name: id,          type: integer,       role: id }
+      - { name: numero,      type: varchar(20),   role: id, description: Número legal de la factura. }
+      - { name: fecha,       type: date,          role: time, description: Fecha de emisión en hora de Colombia. }
+      - { name: cliente_id,  type: integer,       role: id }
+      - { name: sucursal_id, type: integer,       role: id }
+      - { name: canal,       type: varchar(12),   role: dimension, sample_values: [TIENDA, ONLINE, MAYORISTA] }
+      - { name: subtotal,    type: "numeric(14,2)", role: measure, description: "Valor antes de IVA, con descuentos aplicados.", synonyms: [ventas sin IVA] }
+      - { name: descuento,   type: "numeric(14,2)", role: measure }
+      - { name: impuesto,    type: "numeric(14,2)", role: measure, description: IVA facturado. }
+      - { name: total,       type: "numeric(14,2)", role: measure, description: Valor final cobrado (subtotal + impuesto). }
+      - { name: estado,      type: varchar(12),   role: dimension, sample_values: [PAGADA, PENDIENTE, ANULADA] }
+
+  - name: factura_detalle
+    description: Líneas de cada factura. Un producto por fila.
+    primary_key: [id]
+    columns:
+      - { name: id,              type: integer,       role: id }
+      - { name: factura_id,      type: integer,       role: id }
+      - { name: producto_id,     type: integer,       role: id }
+      - { name: cantidad,        type: integer,       role: measure, synonyms: [unidades] }
+      - { name: precio_unitario, type: "numeric(14,2)", role: measure }
+      - { name: total_linea,     type: "numeric(14,2)", role: measure }
+
+  - name: sucursales
+    description: Tiendas físicas de la cadena.
+    synonyms: [tiendas, sedes, puntos de venta]
+    primary_key: [id]
+    columns:
+      - { name: id,            type: integer,     role: id }
+      - { name: nombre,        type: varchar(80), role: dimension, synonyms: [tienda, sede] }
+      - { name: ciudad,        type: varchar(60), role: dimension, sample_values: [Bogotá, Medellín, Cali, Barranquilla] }
+      - { name: region,        type: varchar(30), role: dimension, synonyms: [zona] }
+      - { name: abierta_desde, type: date,        role: time }
+
+  - name: productos
+    description: Catálogo de productos.
+    primary_key: [id]
+    columns:
+      - { name: id,           type: integer,       role: id }
+      - { name: sku,          type: varchar(20),   role: id }
+      - { name: nombre,       type: varchar(120),  role: dimension, synonyms: [producto, referencia] }
+      - { name: categoria,    type: varchar(40),   role: dimension, synonyms: [línea, familia], sample_values: [Celulares, Portátiles, Accesorios, Audio] }
+      - { name: marca,        type: varchar(40),   role: dimension }
+      - { name: precio_lista, type: "numeric(14,2)", role: measure }
+
+  - name: clientes
+    description: Clientes que han comprado al menos una vez.
+    primary_key: [id]
+    columns:
+      - { name: id,        type: integer,      role: id }
+      - { name: nombre,    type: varchar(120), role: dimension, synonyms: [cliente] }
+      - { name: documento, type: varchar(20),  role: id,    hidden: true, description: Cédula o NIT. Dato personal. }
+      - { name: email,     type: varchar(160), role: other, hidden: true, description: Correo. Dato personal. }
+      - { name: segmento,  type: varchar(20),  role: dimension, sample_values: [PERSONA, EMPRESA] }
+      - { name: ciudad,    type: varchar(60),  role: dimension }
+      - { name: creado_en, type: date,         role: time }
+
+  - name: ventas_diarias
+    description: Resumen diario de facturas PAGADAS por sucursal y canal. Se actualiza cada hora.
+    primary_key: [fecha, sucursal_id, canal]
+    columns:
+      - { name: fecha,        type: date,          role: time }
+      - { name: sucursal_id,  type: integer,       role: id }
+      - { name: canal,        type: varchar(12),   role: dimension }
+      - { name: total_ventas, type: "numeric(16,2)", role: measure }
+      - { name: num_facturas, type: integer,       role: measure }
+      - { name: unidades,     type: integer,       role: measure }
+
+  - name: ventas_mensuales
+    description: Resumen mensual de facturas PAGADAS por sucursal. Se carga al cerrar cada mes.
+    primary_key: [mes, sucursal_id]
+    columns:
+      - { name: mes,          type: date,          role: time, description: Primer día del mes. }
+      - { name: sucursal_id,  type: integer,       role: id }
+      - { name: total_ventas, type: "numeric(16,2)", role: measure }
+      - { name: num_facturas, type: integer,       role: measure }
+      - { name: unidades,     type: integer,       role: measure }
+
+relationships:
+  - { from: facturas.cliente_id,         to: clientes.id }
+  - { from: facturas.sucursal_id,        to: sucursales.id }
+  - { from: factura_detalle.factura_id,  to: facturas.id }
+  - { from: factura_detalle.producto_id, to: productos.id }
+  - { from: ventas_diarias.sucursal_id,  to: sucursales.id }
+  - { from: ventas_mensuales.sucursal_id, to: sucursales.id }
+
+# Las métricas se definen una vez y se calculan siempre igual. Cuando una
+# pregunta coincide con una métrica, el SQL lo arma el motor, no la IA.
+metrics:
+  - name: ventas_netas
+    label: Ventas netas
+    description: Total cobrado en facturas pagadas, con IVA.
+    synonyms: [ventas, cuánto vendí, facturación, ingresos]
+    table: facturas
+    expression: SUM(total)
+    time_column: fecha
+    filters: ["estado = 'PAGADA'"]
+    format: currency
+    requires_period: true
+    dimensions: [sucursales.nombre, sucursales.ciudad, sucursales.region, facturas.canal, clientes.segmento]
+
+  - name: ventas_sin_iva
+    label: Ventas sin IVA
+    synonyms: [base gravable, ventas antes de impuestos]
+    table: facturas
+    expression: SUM(subtotal)
+    time_column: fecha
+    filters: ["estado = 'PAGADA'"]
+    format: currency
+    dimensions: [sucursales.nombre, sucursales.ciudad, sucursales.region, facturas.canal, clientes.segmento]
+
+  - name: num_facturas
+    label: Número de facturas
+    synonyms: [transacciones, cantidad de ventas, tickets]
+    table: facturas
+    expression: COUNT(*)
+    time_column: fecha
+    filters: ["estado = 'PAGADA'"]
+    format: integer
+    dimensions: [sucursales.nombre, sucursales.ciudad, facturas.canal, clientes.segmento]
+
+  - name: ticket_promedio
+    label: Ticket promedio
+    description: Valor promedio por factura pagada. No es aditiva.
+    synonyms: [venta promedio, valor promedio por compra]
+    table: facturas
+    expression: SUM(total) / NULLIF(COUNT(*), 0)
+    time_column: fecha
+    filters: ["estado = 'PAGADA'"]
+    format: currency
+    additive: false
+    dimensions: [sucursales.nombre, sucursales.ciudad, facturas.canal]
+
+  - name: unidades_vendidas
+    label: Unidades vendidas
+    synonyms: [unidades, cantidad vendida, piezas]
+    table: factura_detalle
+    expression: SUM(cantidad)
+    time_column: facturas.fecha
+    filters: ["facturas.estado = 'PAGADA'"]
+    format: integer
+    dimensions: [productos.categoria, productos.marca, productos.nombre, sucursales.nombre, facturas.canal]
+
+  - name: clientes_activos
+    label: Clientes activos
+    description: Clientes distintos con al menos una factura pagada en el período.
+    table: facturas
+    expression: COUNT(DISTINCT cliente_id)
+    time_column: fecha
+    filters: ["estado = 'PAGADA'"]
+    format: integer
+    additive: false
+    dimensions: [sucursales.nombre, clientes.segmento]
+
+# Tablas resumidas: el motor las usa cuando responden la pregunta igual de bien
+# y más rápido. Reglas de enrutamiento: docs/MODELO_SEMANTICO.md#tablas-resumidas
+summary_tables:
+  - table: ventas_diarias
+    grain: day
+    time_column: fecha
+    includes_current_period: true
+    metrics:
+      ventas_netas: SUM(total_ventas)
+      num_facturas: SUM(num_facturas)
+      ticket_promedio: SUM(total_ventas) / NULLIF(SUM(num_facturas), 0)
+      unidades_vendidas: SUM(unidades)
+    dimensions:
+      facturas.canal: canal
+      # sucursales.* se alcanzan por la relación ventas_diarias.sucursal_id → sucursales.id
+
+  - table: ventas_mensuales
+    grain: month
+    time_column: mes
+    includes_current_period: false   # se carga al cierre: no sirve para «este mes»
+    metrics:
+      ventas_netas: SUM(total_ventas)
+      num_facturas: SUM(num_facturas)
+      ticket_promedio: SUM(total_ventas) / NULLIF(SUM(num_facturas), 0)
+      unidades_vendidas: SUM(unidades)
+
+# Seguridad por rol. Los filtros se inyectan en TODO el SQL que se ejecuta,
+# venga del catálogo o de la IA. {user.x} sale del usuario autenticado y se
+# escapa como literal; la IA nunca lo decide.
+security:
+  default_role: gerente_sucursal
+  roles:
+    - name: gerencia_general
+      description: Ve todas las sucursales.
+    - name: gerente_sucursal
+      description: Solo ve las sucursales que tiene asignadas.
+      filters:
+        - { table: facturas,         condition: "sucursal_id IN ({user.sucursales})" }
+        - { table: ventas_diarias,   condition: "sucursal_id IN ({user.sucursales})" }
+        - { table: ventas_mensuales, condition: "sucursal_id IN ({user.sucursales})" }
+    - name: mercadeo
+      description: Ve ventas de todas las sucursales, pero no datos de clientes individuales.
+      hidden_tables: [clientes]

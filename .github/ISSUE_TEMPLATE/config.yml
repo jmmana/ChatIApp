@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Reportar una vulnerabilidad
+    url: https://github.com/jmmana/ChatIApp/security/advisories/new
+    about: En privado, nunca en un issue público.
+  - name: Leer la documentación
+    url: https://github.com/jmmana/ChatIApp/tree/main/docs
+    about: Arquitectura, flujo conversacional, modelo semántico, proveedores y seguridad.

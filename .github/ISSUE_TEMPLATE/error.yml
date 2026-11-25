@@ -1,0 +1,37 @@
+name: Error
+description: Algo no funciona como dice la documentación.
+title: 'Error: '
+labels: ['tipo:bug']
+body:
+  - type: textarea
+    id: que-paso
+    attributes:
+      label: Qué pasó
+      description: Lo que viste. Si es una respuesta del chat, incluye la pregunta, el SQL y la respuesta.
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Qué esperabas
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Cómo reproducirlo
+      value: |
+        1.
+        2.
+    validations:
+      required: true
+  - type: input
+    id: entorno
+    attributes:
+      label: Entorno
+      description: Versión de ChatIApp, motor de base de datos y proveedor de IA.
+      placeholder: 'v0.1.0 · PostgreSQL 16 · Claude (anthropic)'
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ No pegues credenciales, URLs de conexión ni datos reales de clientes. Si es una vulnerabilidad, repórtala en privado: [SECURITY.md](https://github.com/jmmana/ChatIApp/blob/main/SECURITY.md).

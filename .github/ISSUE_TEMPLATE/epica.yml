@@ -1,0 +1,42 @@
+name: Épica
+description: Un resultado grande que agrupa varias tareas (sub-issues).
+title: 'Épica · '
+labels: ['tipo:épica']
+body:
+  - type: textarea
+    id: resultado
+    attributes:
+      label: Resultado
+      description: Qué podrá hacer el usuario cuando la épica esté terminada.
+    validations:
+      required: true
+  - type: textarea
+    id: porque
+    attributes:
+      label: Por qué
+      description: El problema que resuelve y para quién.
+    validations:
+      required: true
+  - type: textarea
+    id: alcance
+    attributes:
+      label: Alcance
+      description: Qué incluye y, sobre todo, qué no incluye.
+    validations:
+      required: true
+  - type: textarea
+    id: terminado
+    attributes:
+      label: Criterios de terminado
+      description: Comprobaciones de punta a punta que demuestran que la épica está completa.
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: referencias
+    attributes:
+      label: Referencias
+      description: Documentos de docs/ y ADR relacionados.
+    validations:
+      required: false

@@ -1,0 +1,25 @@
+name: Idea
+description: Propón una funcionalidad o un cambio de diseño.
+title: 'Idea: '
+labels: ['tipo:idea']
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema
+      description: Qué no puedes hacer hoy, o qué cuesta demasiado. Empieza por el problema, no por la solución.
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Propuesta
+      description: Cómo lo resolverías.
+    validations:
+      required: true
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas consideradas
+    validations:
+      required: false

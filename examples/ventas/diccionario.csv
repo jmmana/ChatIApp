@@ -1,0 +1,18 @@
+tabla,columna,tipo,descripcion,sinonimos,rol,oculta,valores_ejemplo
+sucursales,,,Tiendas físicas de la cadena,tiendas|puntos de venta|sedes,,,
+sucursales,id,integer,Identificador de la sucursal,,id,,
+sucursales,nombre,varchar(80),Nombre comercial de la tienda,tienda|sede,dimension,,Bogotá Andino|Medellín El Tesoro|Cali Chipichape
+sucursales,ciudad,varchar(60),Ciudad donde está la tienda,,dimension,,Bogotá|Medellín|Cali|Barranquilla
+sucursales,region,varchar(30),Región comercial,zona,dimension,,Centro|Antioquia|Pacífico|Caribe
+productos,categoria,varchar(40),Categoría del catálogo,línea|familia,dimension,,Celulares|Portátiles|Accesorios|Audio
+productos,marca,varchar(40),Marca del fabricante,,dimension,,
+clientes,segmento,varchar(20),Tipo de cliente,,dimension,,PERSONA|EMPRESA
+clientes,documento,varchar(20),Cédula o NIT del cliente,,id,si,
+clientes,email,varchar(160),Correo electrónico del cliente,,other,si,
+facturas,,,Encabezado de cada factura de venta. Una fila por factura,ventas|facturación|comprobantes,,,
+facturas,fecha,date,Fecha de emisión en hora de Colombia,día de venta,time,,
+facturas,subtotal,"numeric(14,2)","Valor antes de IVA, con descuentos aplicados",ventas sin IVA|base gravable,measure,,
+facturas,total,"numeric(14,2)",Valor final cobrado (subtotal + impuesto),valor facturado|monto,measure,,
+facturas,estado,varchar(12),Solo PAGADA cuenta como venta,,dimension,,PAGADA|PENDIENTE|ANULADA
+facturas,canal,varchar(12),Canal por el que entró la venta,,dimension,,TIENDA|ONLINE|MAYORISTA
+factura_detalle,cantidad,integer,Unidades vendidas en la línea,unidades|cantidad vendida,measure,,
