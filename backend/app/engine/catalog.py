@@ -62,7 +62,8 @@ class AmbiguousMetricError(CatalogError):
     def __init__(self, name: str, candidates: Sequence[str]) -> None:
         self.name = name
         self.candidates = tuple(candidates)
-        super().__init__(f"«{name}» puede referirse a varias métricas: {', '.join(self.candidates)}")
+        listado = ", ".join(self.candidates)
+        super().__init__(f"«{name}» puede referirse a varias métricas: {listado}")
 
 
 class MetricNotAllowedError(CatalogError):
