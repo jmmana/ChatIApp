@@ -1,5 +1,8 @@
 <div align="center">
 
+[![Español](https://img.shields.io/badge/Espa%C3%B1ol-8B5CF6?style=for-the-badge)](README.md)
+[![Read in English](https://img.shields.io/badge/Read_in_English-30363D?style=for-the-badge)](README.en.md)
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
   <img alt="ChatIApp" src="docs/assets/logo-light.svg" width="380">
@@ -15,8 +18,6 @@ ChatIApp es un chat de IA que **razona tu pregunta, te pide lo que falta y escri
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](docs/ARQUITECTURA.md)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](docs/INTERFAZ.md)
 [![PRs](https://img.shields.io/badge/PRs-bienvenidos-22C55E)](CONTRIBUTING.md)
-
-**Español** · [English](README.en.md)
 
 <img src="docs/assets/hero.svg" alt="Conversación en ChatIApp: el usuario pregunta cuánto vendió, ChatIApp pregunta el período, el usuario responde este mes y ChatIApp muestra el SQL validado y el total de ventas" width="100%">
 

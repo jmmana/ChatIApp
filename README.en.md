@@ -1,5 +1,8 @@
 <div align="center">
 
+[![Leer en español](https://img.shields.io/badge/Leer_en_espa%C3%B1ol-30363D?style=for-the-badge)](README.md)
+[![English](https://img.shields.io/badge/English-8B5CF6?style=for-the-badge)](README.en.md)
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
   <img alt="ChatIApp" src="docs/assets/logo-light.svg" width="380">
@@ -15,8 +18,6 @@ ChatIApp is an AI chat that **reasons about your question, asks for what's missi
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](docs/ARQUITECTURA.md)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](docs/INTERFAZ.md)
 [![PRs](https://img.shields.io/badge/PRs-welcome-22C55E)](CONTRIBUTING.md)
-
-[Español](README.md) · **English**
 
 <img src="docs/assets/hero.en.svg" alt="A ChatIApp conversation: the user asks how much they sold, ChatIApp asks for the period, the user answers this month and ChatIApp shows the validated SQL and the sales total" width="100%">
 
