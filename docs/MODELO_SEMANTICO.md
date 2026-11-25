@@ -189,6 +189,12 @@ El modelo se valida con Pydantic antes de guardarse o al arrancar si viene de ar
 - `time_column` apunta a una columna con rol `time`.
 - Las condiciones de rol solo usan marcadores `{user.nombre}` bien formados.
 - Ninguna métrica, dimensión o filtro usa columnas ocultas.
+- Cada dimensión de una métrica es alcanzable por relaciones desde su tabla y por un único camino más corto (si hay dos del mismo largo, no valida).
+- Los campos desconocidos se rechazan: un error de tipeo no se ignora en silencio.
+
+Cada error trae la ruta del campo (`metrics[2].dimensions[0]`) y se reportan todos juntos. Una **advertencia** (no un error) avisa si una tabla filtrada en un rol tiene tablas resumidas sin filtro para ese rol.
+
+El esquema vive en `backend/app/semantic/schema.py`. Su JSON Schema, para autocompletar en editores, está en [`schema/semantic-model.schema.json`](schema/semantic-model.schema.json) y se regenera con `uv run python -m app.semantic.schema` desde `backend/`.
 
 ## Cómo escribir buenas descripciones
 
