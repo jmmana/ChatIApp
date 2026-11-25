@@ -403,26 +403,29 @@ def _check(model: SemanticModel) -> list[Issue]:
     # Tablas resumidas
     for i, summary in enumerate(model.summary_tables):
         at = f"summary_tables[{i}]"
-        table = tables.get(summary.table)
-        if table is None:
+        summary_table = tables.get(summary.table)
+        if summary_table is None:
             add(f"{at}.table", f"La tabla «{summary.table}» no existe")
         else:
-            _check_time_column(summary.time_column, table, tables, f"{at}.time_column", add)
+            _check_time_column(summary.time_column, summary_table, tables, f"{at}.time_column", add)
         for metric_name, expression in summary.metrics.items():
             path = f"{at}.metrics[{metric_name}]"
             if metric_name not in metric_names:
                 add(path, f"La métrica «{metric_name}» no existe en metrics")
-            _check_sql(expression, dialect, table, tables, path, add)
+            _check_sql(expression, dialect, summary_table, tables, path, add)
         for dim_ref, column_name in summary.dimensions.items():
             path = f"{at}.dimensions[{dim_ref}]"
             _resolve(dim_ref, None, tables, path, add)
-            if table is None:
+            if summary_table is None:
                 continue
-            target = _find_column(table, column_name)
-            if target is None:
-                add(path, f"La columna «{column_name}» no existe en la tabla «{table.name}»")
-            elif target.hidden:
-                add(path, f"Usa la columna oculta «{table.name}.{target.name}»")
+            summary_column = _find_column(summary_table, column_name)
+            if summary_column is None:
+                add(
+                    path,
+                    f"La columna «{column_name}» no existe en la tabla «{summary_table.name}»",
+                )
+            elif summary_column.hidden:
+                add(path, f"Usa la columna oculta «{summary_table.name}.{summary_column.name}»")
 
     # Seguridad
     role_names: set[str] = set()
