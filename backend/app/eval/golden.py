@@ -117,6 +117,7 @@ class ConfigSet(BaseModel):
     dataset: Dataset
     role: str
     minimos: Minimos = Field(default_factory=Minimos)
+    etiquetas_obligatorias: list[str] = Field(default_factory=lambda: list(ETIQUETAS_OBLIGATORIAS))
 
 
 class SetDorado(BaseModel):
@@ -219,7 +220,7 @@ def validar(raiz: Path = RAIZ_SET, estricto: bool = False) -> list[str]:
     etiquetas = {t for c in conjunto.casos for t in c.tags}
     errores += [
         f"ningún caso cubre la etiqueta «{t}»"
-        for t in ETIQUETAS_OBLIGATORIAS
+        for t in config.etiquetas_obligatorias
         if t not in etiquetas
     ]
     for caso in conjunto.casos:
