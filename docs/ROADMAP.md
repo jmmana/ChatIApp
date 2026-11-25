@@ -8,7 +8,7 @@ Cada tarea tiene objetivo, criterios de aceptación verificables, archivos relev
 
 | Hito | Qué entrega | Tareas |
 |---|---|---|
-| [**M0 · Fundaciones**](https://github.com/jmmana/ChatIApp/milestone/1) | Backend y frontend que compilan, CI, Docker Compose, base de datos de la app, configuración validada, cifrado de credenciales y el dataset demo de ventas. | 8 |
+| [**M0 · Fundaciones**](https://github.com/jmmana/ChatIApp/milestone/1) | Backend y frontend que compilan, CI, imagen única con SQLite, base de datos de la app, configuración validada, cifrado de credenciales y el dataset demo de ventas. | 8 |
 | [**M1 · MVP «¿Cuánto vendí?»**](https://github.com/jmmana/ChatIApp/milestone/2) | De punta a punta con un proveedor: modelo semántico (importar y editar), motor de consultas (períodos, catálogo, resumidas, guardián, ejecución), agente que pide aclaraciones y chat con razonamiento visible. Termina con v0.1.0. | 38 |
 | [**M2 · Cualquier IA**](https://github.com/jmmana/ChatIApp/milestone/3) | Hub completo de proveedores (API directa, plataformas cloud, modelos chinos y locales), enrutamiento por tarea con respaldo, comparación con el período anterior, entidades y preguntas de seguimiento. | 11 |
 | [**M3 · Listo para empresa**](https://github.com/jmmana/ChatIApp/milestone/4) | Login y roles, filtros por rol con atributos del usuario, auditoría, niveles de privacidad hacia la IA, defensa contra inyección de prompt, límites de uso y accesibilidad AA. Además, integración en otras apps: API keys de servidor, chat embebible con tokens de sesión, SDKs y API /api/v1 versionada. | 17 |
@@ -65,7 +65,7 @@ flowchart LR
 
 ## M0 · Fundaciones
 
-Backend y frontend que compilan, CI, Docker Compose, base de datos de la app, configuración validada, cifrado de credenciales y el dataset demo de ventas.
+Backend y frontend que compilan, CI, imagen única con SQLite, base de datos de la app, configuración validada, cifrado de credenciales y el dataset demo de ventas.
 
 ### [#1](https://github.com/jmmana/ChatIApp/issues/1) Fundaciones del proyecto
 
@@ -76,9 +76,9 @@ Backend y frontend que compilan, CI, Docker Compose, base de datos de la app, co
 | [#12](https://github.com/jmmana/ChatIApp/issues/12) | Backend · Base de datos de la app con SQLAlchemy 2 y migraciones Alembic | p0 | M | [#10](https://github.com/jmmana/ChatIApp/issues/10) |
 | [#13](https://github.com/jmmana/ChatIApp/issues/13) | Backend · Configuración por entorno y chatiapp.yaml validados con Pydantic al arrancar | p0 | M | [#12](https://github.com/jmmana/ChatIApp/issues/12) |
 | [#14](https://github.com/jmmana/ChatIApp/issues/14) | Seguridad · Cifrado de credenciales con Fernet, rotación de llave y enmascarado | p0 | S | [#13](https://github.com/jmmana/ChatIApp/issues/13) |
-| [#15](https://github.com/jmmana/ChatIApp/issues/15) | Infra · Docker Compose con api, web (nginx), app-db y Ollama opcional | p1 | M | [#11](https://github.com/jmmana/ChatIApp/issues/11) [#12](https://github.com/jmmana/ChatIApp/issues/12) |
 | [#16](https://github.com/jmmana/ChatIApp/issues/16) | Infra · CI en GitHub Actions con lint, tipos, pruebas y build | p0 | S | [#10](https://github.com/jmmana/ChatIApp/issues/10) [#11](https://github.com/jmmana/ChatIApp/issues/11) |
 | [#17](https://github.com/jmmana/ChatIApp/issues/17) | Datos · Dataset de demostración «Ventas» con generador reproducible en SQLite | p0 | M | [#10](https://github.com/jmmana/ChatIApp/issues/10) |
+| [#15](https://github.com/jmmana/ChatIApp/issues/15) | Infra · Imagen única: API + interfaz web + SQLite por defecto (PostgreSQL y Ollama opcionales) | p1 | M | [#11](https://github.com/jmmana/ChatIApp/issues/11) [#12](https://github.com/jmmana/ChatIApp/issues/12) [#17](https://github.com/jmmana/ChatIApp/issues/17) |
 
 ## M1 · MVP «¿Cuánto vendí?»
 
