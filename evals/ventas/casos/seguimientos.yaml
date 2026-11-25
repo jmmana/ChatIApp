@@ -1,0 +1,107 @@
+# Preguntas cortas que modifican el plan anterior.
+# Formato: evals/README.md. Los SQL son escritos a mano; los valores esperados
+# viven en ../valores.json (se generan con `python -m app.eval.golden --congelar`).
+
+- id: seg-es-otro-periodo
+  lang: es
+  question: "¿Y este mes?"
+  previous: ["¿Cuánto vendí el mes pasado?"]
+  tags: [seguimiento, cambia-periodo]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-01' AND f.fecha < '2026-12-01'"
+
+- id: seg-es-otro-periodo-anio
+  lang: es
+  question: "¿Y el año pasado?"
+  previous: ["¿Cuánto vendí el mes pasado?"]
+  tags: [seguimiento, cambia-periodo]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01'"
+
+- id: seg-es-por-sucursal
+  lang: es
+  question: "¿Y por sucursal?"
+  previous: ["¿Cuánto vendí el mes pasado?"]
+  tags: [seguimiento, agrega-dimension]
+  expect:
+    sql: "SELECT s.nombre AS nombre, SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01' GROUP BY s.nombre"
+
+- id: seg-es-por-canal
+  lang: es
+  question: "¿Y por canal?"
+  previous: ["Ventas de este año"]
+  tags: [seguimiento, agrega-dimension]
+  expect:
+    sql: "SELECT f.canal AS canal, SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01' GROUP BY f.canal"
+
+- id: seg-es-solo-online
+  lang: es
+  question: "Solo en línea"
+  previous: ["¿Cuánto vendí el mes pasado?"]
+  tags: [seguimiento, agrega-filtro]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01' AND f.canal = 'ONLINE'"
+
+- id: seg-es-solo-cali
+  lang: es
+  question: "¿Y solo en Cali?"
+  previous: ["Ventas de este año"]
+  tags: [seguimiento, agrega-filtro]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01' AND s.ciudad = 'Cali'"
+
+- id: seg-es-unidades
+  lang: es
+  question: "¿Y en unidades?"
+  previous: ["¿Cuánto vendí el mes pasado?"]
+  tags: [seguimiento, cambia-metrica]
+  expect:
+    sql: "SELECT SUM(d.cantidad) AS unidades_vendidas FROM factura_detalle d JOIN facturas f ON f.id = d.factura_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01'"
+
+- id: seg-es-ticket
+  lang: es
+  question: "¿Y el ticket promedio?"
+  previous: ["Ventas por canal del trimestre pasado"]
+  tags: [seguimiento, cambia-metrica, conserva-dimension]
+  expect:
+    sql: "SELECT f.canal AS canal, ROUND(SUM(f.total) * 1.0 / COUNT(*), 2) AS ticket_promedio FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-07-01' AND f.fecha < '2026-10-01' GROUP BY f.canal"
+
+- id: seg-es-encadenado
+  lang: es
+  question: "Solo online"
+  previous: ["¿Cuánto vendí el mes pasado?", "¿Y por sucursal?"]
+  tags: [seguimiento, agrega-filtro, encadenado]
+  expect:
+    sql: "SELECT s.nombre AS nombre, SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01' AND f.canal = 'ONLINE' GROUP BY s.nombre"
+
+- id: seg-en-other-period
+  lang: en
+  question: "And this month?"
+  previous: ["How much did we sell last month?"]
+  tags: [seguimiento, cambia-periodo]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-01' AND f.fecha < '2026-12-01'"
+
+- id: seg-en-by-branch
+  lang: en
+  question: "And by branch?"
+  previous: ["How much did we sell last month?"]
+  tags: [seguimiento, agrega-dimension]
+  expect:
+    sql: "SELECT s.nombre AS nombre, SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01' GROUP BY s.nombre"
+
+- id: seg-en-online-only
+  lang: en
+  question: "Only online"
+  previous: ["Sales this year"]
+  tags: [seguimiento, agrega-filtro]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01' AND f.canal = 'ONLINE'"
+
+- id: seg-en-units
+  lang: en
+  question: "What about units?"
+  previous: ["Sales last quarter"]
+  tags: [seguimiento, cambia-metrica]
+  expect:
+    sql: "SELECT SUM(d.cantidad) AS unidades_vendidas FROM factura_detalle d JOIN facturas f ON f.id = d.factura_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-07-01' AND f.fecha < '2026-10-01'"

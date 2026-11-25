@@ -1,0 +1,85 @@
+# Preguntas que ninguna métrica del catálogo responde: el agente escribe SQL.
+# Formato: evals/README.md. Los SQL son escritos a mano; los valores esperados
+# viven en ../valores.json (se generan con `python -m app.eval.golden --congelar`).
+
+- id: sql-es-producto-caro
+  lang: es
+  question: "¿Cuál es el producto más caro del catálogo?"
+  tags: [sql_libre, producto]
+  expect:
+    sql: "SELECT nombre, precio_lista FROM productos ORDER BY precio_lista DESC, nombre LIMIT 1"
+    ordered: true
+
+- id: sql-es-clientes-ciudad
+  lang: es
+  question: "¿Cuántos clientes tenemos por ciudad?"
+  tags: [sql_libre, clientes]
+  expect:
+    sql: "SELECT ciudad, COUNT(*) AS clientes FROM clientes GROUP BY ciudad"
+
+- id: sql-es-sucursales-region
+  lang: es
+  question: "¿Cuántas sucursales hay por región?"
+  tags: [sql_libre, sucursales]
+  expect:
+    sql: "SELECT region, COUNT(*) AS sucursales FROM sucursales GROUP BY region"
+
+- id: sql-es-productos-categoria
+  lang: es
+  question: "¿Cuántos productos tiene cada categoría?"
+  tags: [sql_libre, productos]
+  expect:
+    sql: "SELECT categoria, COUNT(*) AS productos FROM productos GROUP BY categoria"
+
+- id: sql-es-mejor-dia
+  lang: es
+  question: "¿Qué día de 2025 se vendió más?"
+  tags: [sql_libre, ranking]
+  expect:
+    sql: "SELECT fecha, SUM(total) AS ventas FROM facturas WHERE estado = 'PAGADA' AND fecha >= '2025-01-01' AND fecha < '2026-01-01' GROUP BY fecha ORDER BY ventas DESC, fecha LIMIT 1"
+    ordered: true
+
+- id: sql-es-pct-anuladas
+  lang: es
+  question: "¿Qué porcentaje de las facturas de 2025 fue anulado?"
+  tags: [sql_libre, porcentaje]
+  expect:
+    sql: "SELECT ROUND(100.0 * SUM(CASE WHEN estado = 'ANULADA' THEN 1 ELSE 0 END) / COUNT(*), 2) AS porcentaje FROM facturas WHERE fecha >= '2025-01-01' AND fecha < '2026-01-01'"
+
+- id: sql-es-sucursal-mas-antigua
+  lang: es
+  question: "¿Cuál es la sucursal más antigua?"
+  tags: [sql_libre, sucursales]
+  expect:
+    sql: "SELECT nombre, abierta_desde FROM sucursales ORDER BY abierta_desde LIMIT 1"
+    ordered: true
+
+- id: sql-es-descuento
+  lang: es
+  question: "¿Cuánto se descontó en total en 2025 en facturas pagadas?"
+  tags: [sql_libre, descuento]
+  expect:
+    sql: "SELECT SUM(descuento) AS descuento FROM facturas WHERE estado = 'PAGADA' AND fecha >= '2025-01-01' AND fecha < '2026-01-01'"
+
+- id: sql-en-priciest
+  lang: en
+  question: "What is the most expensive product in the catalog?"
+  tags: [sql_libre, producto]
+  expect:
+    sql: "SELECT nombre, precio_lista FROM productos ORDER BY precio_lista DESC, nombre LIMIT 1"
+    ordered: true
+
+- id: sql-en-customers-city
+  lang: en
+  question: "How many customers do we have per city?"
+  tags: [sql_libre, clientes]
+  expect:
+    sql: "SELECT ciudad, COUNT(*) AS clientes FROM clientes GROUP BY ciudad"
+
+- id: sql-en-best-day
+  lang: en
+  question: "Which day of 2025 had the highest sales?"
+  tags: [sql_libre, ranking]
+  expect:
+    sql: "SELECT fecha, SUM(total) AS ventas FROM facturas WHERE estado = 'PAGADA' AND fecha >= '2025-01-01' AND fecha < '2026-01-01' GROUP BY fecha ORDER BY ventas DESC, fecha LIMIT 1"
+    ordered: true

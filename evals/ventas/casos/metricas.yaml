@@ -1,0 +1,94 @@
+# Métricas simples del catálogo, con el período en la pregunta.
+# Formato: evals/README.md. Los SQL son escritos a mano; los valores esperados
+# viven en ../valores.json (se generan con `python -m app.eval.golden --congelar`).
+
+- id: met-es-ventas-mes-pasado
+  lang: es
+  question: "¿Cuánto vendí el mes pasado?"
+  tags: [metrica, ventas_netas]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01'"
+
+- id: met-es-ventas-anio-pasado
+  lang: es
+  question: "¿Cuáles fueron las ventas totales del año pasado?"
+  tags: [metrica, ventas_netas]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01'"
+
+- id: met-es-ingresos-trimestre
+  lang: es
+  question: "Dime los ingresos de este trimestre"
+  tags: [metrica, ventas_netas]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2027-01-01'"
+
+- id: met-es-sin-iva
+  lang: es
+  question: "¿Cuánto fue la venta sin IVA de octubre?"
+  tags: [metrica, ventas_sin_iva]
+  expect:
+    sql: "SELECT SUM(f.subtotal) AS ventas_sin_iva FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01'"
+
+- id: met-es-facturas
+  lang: es
+  question: "¿Cuántas facturas emitimos este año?"
+  tags: [metrica, num_facturas]
+  expect:
+    sql: "SELECT COUNT(*) AS num_facturas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01'"
+
+- id: met-es-ticket
+  lang: es
+  question: "¿Cuál fue el ticket promedio el mes pasado?"
+  tags: [metrica, ticket_promedio]
+  expect:
+    sql: "SELECT ROUND(SUM(f.total) * 1.0 / COUNT(*), 2) AS ticket_promedio FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01'"
+
+- id: met-es-clientes
+  lang: es
+  question: "¿Cuántos clientes activos tuvimos el trimestre pasado?"
+  tags: [metrica, clientes_activos]
+  expect:
+    sql: "SELECT COUNT(DISTINCT f.cliente_id) AS clientes_activos FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-07-01' AND f.fecha < '2026-10-01'"
+
+- id: met-es-unidades
+  lang: es
+  question: "¿Cuántas unidades vendimos este mes?"
+  tags: [metrica, unidades_vendidas]
+  expect:
+    sql: "SELECT SUM(d.cantidad) AS unidades_vendidas FROM factura_detalle d JOIN facturas f ON f.id = d.factura_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-01' AND f.fecha < '2026-12-01'"
+
+- id: met-es-pendientes
+  lang: es
+  question: "¿Cuánto hay en facturas pendientes este año?"
+  tags: [metrica, estado-explicito]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PENDIENTE' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01'"
+
+- id: met-es-anuladas
+  lang: es
+  question: "¿Cuántas facturas anuladas hubo el mes pasado?"
+  tags: [metrica, estado-explicito]
+  expect:
+    sql: "SELECT COUNT(*) AS num_facturas FROM facturas f WHERE f.estado = 'ANULADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01'"
+
+- id: met-en-sales
+  lang: en
+  question: "How much did we sell last month?"
+  tags: [metrica, ventas_netas]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01'"
+
+- id: met-en-invoices
+  lang: en
+  question: "How many invoices did we issue this year?"
+  tags: [metrica, num_facturas]
+  expect:
+    sql: "SELECT COUNT(*) AS num_facturas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01'"
+
+- id: met-en-avg-ticket
+  lang: en
+  question: "What was the average ticket last quarter?"
+  tags: [metrica, ticket_promedio]
+  expect:
+    sql: "SELECT ROUND(SUM(f.total) * 1.0 / COUNT(*), 2) AS ticket_promedio FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-07-01' AND f.fecha < '2026-10-01'"

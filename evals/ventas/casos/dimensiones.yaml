@@ -1,0 +1,111 @@
+# Métricas desglosadas por una o más dimensiones.
+# Formato: evals/README.md. Los SQL son escritos a mano; los valores esperados
+# viven en ../valores.json (se generan con `python -m app.eval.golden --congelar`).
+
+- id: dim-es-sucursal
+  lang: es
+  question: "¿Cuánto vendió cada sucursal el mes pasado?"
+  tags: [dimension, sucursal]
+  expect:
+    sql: "SELECT s.nombre AS nombre, SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01' GROUP BY s.nombre"
+
+- id: dim-es-ciudad
+  lang: es
+  question: "Ventas por ciudad este año"
+  tags: [dimension, ciudad]
+  expect:
+    sql: "SELECT s.ciudad AS ciudad, SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01' GROUP BY s.ciudad"
+
+- id: dim-es-region
+  lang: es
+  question: "Ventas por región del año pasado"
+  tags: [dimension, region]
+  expect:
+    sql: "SELECT s.region AS region, SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01' GROUP BY s.region"
+
+- id: dim-es-canal
+  lang: es
+  question: "¿Cuánto vendimos por canal este mes?"
+  tags: [dimension, canal]
+  expect:
+    sql: "SELECT f.canal AS canal, SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-01' AND f.fecha < '2026-12-01' GROUP BY f.canal"
+
+- id: dim-es-segmento
+  lang: es
+  question: "Ventas por segmento de cliente el trimestre pasado"
+  tags: [dimension, segmento]
+  expect:
+    sql: "SELECT c.segmento AS segmento, SUM(f.total) AS ventas_netas FROM facturas f JOIN clientes c ON c.id = f.cliente_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-07-01' AND f.fecha < '2026-10-01' GROUP BY c.segmento"
+
+- id: dim-es-categoria
+  lang: es
+  question: "¿Cuántas unidades vendimos por categoría este año?"
+  tags: [dimension, categoria]
+  expect:
+    sql: "SELECT p.categoria AS categoria, SUM(d.cantidad) AS unidades_vendidas FROM factura_detalle d JOIN facturas f ON f.id = d.factura_id JOIN productos p ON p.id = d.producto_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01' GROUP BY p.categoria"
+
+- id: dim-es-marca
+  lang: es
+  question: "Unidades vendidas por marca el mes pasado"
+  tags: [dimension, marca]
+  expect:
+    sql: "SELECT p.marca AS marca, SUM(d.cantidad) AS unidades_vendidas FROM factura_detalle d JOIN facturas f ON f.id = d.factura_id JOIN productos p ON p.id = d.producto_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01' GROUP BY p.marca"
+
+- id: dim-es-ticket-canal
+  lang: es
+  question: "Ticket promedio por canal el mes pasado"
+  tags: [dimension, canal]
+  expect:
+    sql: "SELECT f.canal AS canal, ROUND(SUM(f.total) * 1.0 / COUNT(*), 2) AS ticket_promedio FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01' GROUP BY f.canal"
+
+- id: dim-es-facturas-sucursal
+  lang: es
+  question: "Número de facturas por sucursal en los últimos 30 días"
+  tags: [dimension, sucursal]
+  expect:
+    sql: "SELECT s.nombre AS nombre, COUNT(*) AS num_facturas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-27' AND f.fecha < '2026-11-26' GROUP BY s.nombre"
+
+- id: dim-es-top-productos
+  lang: es
+  question: "Los 5 productos más vendidos en unidades de 2025"
+  tags: [dimension, ranking, producto]
+  expect:
+    sql: "SELECT p.nombre AS nombre, SUM(d.cantidad) AS unidades_vendidas FROM factura_detalle d JOIN facturas f ON f.id = d.factura_id JOIN productos p ON p.id = d.producto_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01' GROUP BY p.nombre ORDER BY unidades_vendidas DESC, p.nombre LIMIT 5"
+    ordered: true
+
+- id: dim-es-serie-mensual
+  lang: es
+  question: "Ventas por mes en 2025"
+  tags: [dimension, serie, time_grain]
+  expect:
+    sql: "SELECT strftime('%Y-%m', f.fecha) AS periodo, SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01' GROUP BY strftime('%Y-%m', f.fecha) ORDER BY 1"
+    ordered: true
+
+- id: dim-es-clientes-segmento
+  lang: es
+  question: "Clientes activos por segmento este año"
+  tags: [dimension, segmento]
+  expect:
+    sql: "SELECT c.segmento AS segmento, COUNT(DISTINCT f.cliente_id) AS clientes_activos FROM facturas f JOIN clientes c ON c.id = f.cliente_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01' GROUP BY c.segmento"
+
+- id: dim-en-branch
+  lang: en
+  question: "Sales by branch last month"
+  tags: [dimension, sucursal]
+  expect:
+    sql: "SELECT s.nombre AS nombre, SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01' GROUP BY s.nombre"
+
+- id: dim-en-channel
+  lang: en
+  question: "Number of invoices by channel this year"
+  tags: [dimension, canal]
+  expect:
+    sql: "SELECT f.canal AS canal, COUNT(*) AS num_facturas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01' GROUP BY f.canal"
+
+- id: dim-en-monthly
+  lang: en
+  question: "Monthly sales for last year"
+  tags: [dimension, serie, time_grain]
+  expect:
+    sql: "SELECT strftime('%Y-%m', f.fecha) AS periodo, SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01' GROUP BY strftime('%Y-%m', f.fecha) ORDER BY 1"
+    ordered: true
