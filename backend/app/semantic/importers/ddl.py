@@ -8,10 +8,9 @@ DDL de tablas se ignora y se reporta como advertencia: importar nunca falla por 
 
 from dataclasses import dataclass, field
 
-from sqlglot import exp
+from sqlglot import Token, TokenType, exp
 from sqlglot.dialects.dialect import Dialect
 from sqlglot.errors import SqlglotError
-from sqlglot.tokens import Token, TokenType
 
 from app.semantic.schema import Column, Issue, Relationship, Table
 
