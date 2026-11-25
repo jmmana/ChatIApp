@@ -10,7 +10,7 @@ La documentación en [`docs/`](docs/) es el contrato. Antes de escribir código,
 |---|---|---|
 | Node 22, pnpm, npm | Sí | Ejecuta `pnpm install`, `pnpm run lint`, `pnpm run test` y `pnpm run build` en `frontend/` y `embed/` antes de terminar. Commitea `pnpm-lock.yaml` |
 | Python, uv, ruff, mypy, pytest | **No** | Escribe el código y sus pruebas igual: el CI de GitHub ([`ci.yml`](.github/workflows/ci.yml)) los ejecuta en cada PR |
-| PyPI | **No** | Declara las dependencias en `backend/pyproject.toml`. **No escribas `backend/uv.lock` a mano**: el workflow de autoarreglo lo genera en tu rama y aplica `ruff format` |
+| PyPI | **No** | Declara las dependencias en `backend/pyproject.toml`. **No escribas `backend/uv.lock` a mano**: quien revisa el PR lo genera y aplica `ruff format` antes de fusionar |
 | Postgres, MySQL, SQL Server, navegadores, proveedores de IA | **No** | Usa SQLite con la demo y el proveedor simulado (`kind: fake`). Los criterios que exigen servicios reales déjalos sin marcar en el PR y explica cómo se verifican |
 
 ## Reglas del repositorio
@@ -47,4 +47,4 @@ La documentación en [`docs/`](docs/) es el contrato. Antes de escribir código,
 
 Lista viva: se completa con los errores que aparezcan en las revisiones para que no se repitan.
 
-- **No escribas `backend/uv.lock`** (visto en #10): sin `uv` ni PyPI el lock sale inventado y el CI falla en `uv sync --locked`. Declara las dependencias en `pyproject.toml` y deja que el autoarreglo genere el lock en tu rama.
+- **No escribas `backend/uv.lock`** (visto en #10): sin `uv` ni PyPI el lock sale inventado y el CI falla en `uv sync --locked`. Declara las dependencias en `pyproject.toml`; el lock lo genera quien revisa el PR.
