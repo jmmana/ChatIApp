@@ -1,6 +1,7 @@
-import { Menu } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { appRoutes } from "./routes";
@@ -38,12 +39,25 @@ function Nav() {
   );
 }
 
+function SessionFooter() {
+  const { user, logout } = useAuth();
+  return (
+    <div className="mt-auto flex flex-col gap-2 border-t pt-4">
+      <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+      <Button variant="ghost" size="sm" className="justify-start" onClick={() => void logout()}>
+        <LogOut aria-hidden /> Cerrar sesión
+      </Button>
+    </div>
+  );
+}
+
 export function Layout() {
   return (
     <div className="flex min-h-screen">
       <aside className="hidden w-64 shrink-0 flex-col gap-6 border-r bg-card p-4 md:flex">
         <Logo />
         <Nav />
+        <SessionFooter />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b bg-card px-4 py-3 md:hidden">

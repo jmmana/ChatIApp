@@ -1,20 +1,40 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
+import { vi } from "vitest";
 import { App } from "./App";
 import { appRoutes } from "./routes";
 
-function renderAt(path: string) {
-  return render(
+const session = {
+  access_token: "jwt",
+  expires_in: 900,
+  user: { id: "1", email: "ana@example.com", is_admin: false },
+};
+
+beforeEach(() => {
+  // La cookie de refresco vigente: la app recupera la sesión al abrir.
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(JSON.stringify(session), { status: 200 })),
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+async function renderAt(path: string) {
+  render(
     <MemoryRouter initialEntries={[path]}>
       <App />
     </MemoryRouter>,
   );
+  await screen.findByRole("navigation", { name: "Principal" });
 }
 
 describe("Layout", () => {
-  it("muestra la barra lateral con las seis secciones", () => {
-    renderAt("/chat");
+  it("muestra la barra lateral con las seis secciones", async () => {
+    await renderAt("/chat");
     const nav = screen.getByRole("navigation", { name: "Principal" });
     for (const title of [
       "Chat",
@@ -28,13 +48,13 @@ describe("Layout", () => {
     }
   });
 
-  it("redirige la raíz al chat", () => {
-    renderAt("/");
+  it("redirige la raíz al chat", async () => {
+    await renderAt("/");
     expect(screen.getByRole("heading", { level: 1, name: "Chat" })).toBeInTheDocument();
   });
 
   it("cada ruta muestra un estado vacío con su título", async () => {
-    renderAt("/chat");
+    await renderAt("/chat");
     const nav = screen.getByRole("navigation", { name: "Principal" });
     for (const route of appRoutes) {
       await userEvent.click(within(nav).getByRole("link", { name: route.title }));
