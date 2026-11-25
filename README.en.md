@@ -156,7 +156,7 @@ Your backend asks through the `/api/v1` API with an API key, or your frontend em
 <td valign="top">
 
 **📦 One container, your infrastructure**<br/>
-`docker compose up` or Kubernetes. To integrate headless you only need the `chatiapp-api` image and a PostgreSQL database. Your data never goes through a third-party service.
+A single image with SQLite: one `docker run` and you're done, or Kubernetes. PostgreSQL and Ollama are optional. Your data never goes through a third-party service.
 
 </td>
 </tr>
@@ -298,7 +298,7 @@ ChatIApp is in **open design**: documentation and backlog are complete and devel
 
 | Milestone | Delivers | Epics |
 |---|---|---|
-| [**M0 · Foundations**](https://github.com/jmmana/ChatIApp/milestone/1) | Backend and frontend that build, CI, Docker, app database, validated config, demo dataset | [#1](https://github.com/jmmana/ChatIApp/issues/1) |
+| [**M0 · Foundations**](https://github.com/jmmana/ChatIApp/milestone/1) | Backend and frontend that build, CI, single image with SQLite, app database, validated config, demo dataset | [#1](https://github.com/jmmana/ChatIApp/issues/1) |
 | [**M1 · MVP "How much did I sell?"**](https://github.com/jmmana/ChatIApp/milestone/2) | End to end with one provider: semantic model, query engine, agent with clarifications, chat with visible reasoning | [#2](https://github.com/jmmana/ChatIApp/issues/2) [#3](https://github.com/jmmana/ChatIApp/issues/3) [#4](https://github.com/jmmana/ChatIApp/issues/4) [#6](https://github.com/jmmana/ChatIApp/issues/6) |
 | [**M2 · Any AI**](https://github.com/jmmana/ChatIApp/milestone/3) | Full provider hub: direct API, platforms, Chinese and local models; per-task routing | [#5](https://github.com/jmmana/ChatIApp/issues/5) |
 | [**M3 · Enterprise-ready**](https://github.com/jmmana/ChatIApp/milestone/4) | Login and roles, role filters from user attributes, audit log, privacy levels, and embedding into other apps: API keys, embeddable chat and SDKs | [#7](https://github.com/jmmana/ChatIApp/issues/7) [#82](https://github.com/jmmana/ChatIApp/issues/82) |
@@ -312,11 +312,12 @@ Detailed plan in [docs/ROADMAP.md](docs/ROADMAP.md) and live progress on the [pr
 > Available from **v0.1** (end of milestone M1). This is how it will look:
 
 ```bash
-git clone https://github.com/jmmana/ChatIApp.git && cd ChatIApp
-cp .env.example .env          # add at least one API key, or use Ollama
-docker compose up
+docker run -p 8080:8080 -v chatiapp:/data \
+  -e ANTHROPIC_API_KEY=sk-ant-… ghcr.io/jmmana/chatiapp
 # open http://localhost:8080 and ask: how much did I sell?
 ```
+
+Everything lives in the `chatiapp` volume (SQLite database, demo and encryption key). For PostgreSQL or Ollama, use the profiles in [`docker-compose.yml`](docker-compose.yml).
 
 ## Documentation (Spanish)
 

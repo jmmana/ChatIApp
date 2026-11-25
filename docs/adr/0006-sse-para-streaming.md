@@ -13,6 +13,8 @@ Un turno tarda varios segundos: entender, resolver, validar, ejecutar, redactar.
 
 nginx sirve `/api` con `proxy_buffering off` para que los eventos no se acumulen.
 
+> **Nota (2026-11-25):** desde el [ADR 0008](0008-imagen-unica-con-sqlite.md) no hay nginx en la imagen; uvicorn entrega los eventos directamente. La respuesta lleva `X-Accel-Buffering: no` y `Cache-Control: no-cache` para que un proxy que pongas delante tampoco los acumule.
+
 ## Consecuencias
 
 - ✅ HTTP normal: pasa por proxies, balanceadores y autenticación por cabecera sin infraestructura adicional.

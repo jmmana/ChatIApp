@@ -239,37 +239,27 @@ Revocar la API key invalida al instante todos sus tokens.
 
 ## Desplegar junto a tu app
 
-| Imagen | Contiene | Necesaria para |
-|---|---|---|
-| `ghcr.io/jmmana/chatiapp-api` | API, motor, agente y el script del widget | Todos los modos |
-| `ghcr.io/jmmana/chatiapp-web` | Interfaz completa (chat, Estudio del modelo, administración) | App completa y administración visual |
-
-Para integrar sin interfaz basta con `api` y una base PostgreSQL. Un fragmento para tu `docker-compose.yml`:
+Una sola imagen, `ghcr.io/jmmana/chatiapp`, trae la API, el motor, el agente, la interfaz completa y el script del widget ([ADR 0008](adr/0008-imagen-unica-con-sqlite.md)). Si solo integras por API o widget, la interfaz sigue ahí para administrar fuentes, proveedores y API keys. Un fragmento para tu `docker-compose.yml`:
 
 ```yaml
 services:
   chatiapp:
-    image: ghcr.io/jmmana/chatiapp-api:1
+    image: ghcr.io/jmmana/chatiapp:1
     environment:
-      CHATIAPP_DATABASE_URL: postgresql+psycopg://chatiapp:${CHATIAPP_DB_PASSWORD}@chatiapp-db/chatiapp
       CHATIAPP_SECRET_KEY: ${CHATIAPP_SECRET_KEY}
       CHATIAPP_CONFIG: /config/chatiapp.yaml
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       VENTAS_DB_URL: ${VENTAS_DB_URL}
     volumes:
+      - chatiapp:/data              # base SQLite de la app
       - ./chatiapp:/config:ro       # chatiapp.yaml + semantic-model.yaml
-    ports: ["8090:8000"]
-
-  chatiapp-db:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: chatiapp
-      POSTGRES_PASSWORD: ${CHATIAPP_DB_PASSWORD}
-    volumes: [chatiapp-db:/var/lib/postgresql/data]
+    ports: ["8090:8080"]
 
 volumes:
-  chatiapp-db:
+  chatiapp:
 ```
+
+La base de la app es SQLite en `/data`, suficiente para una réplica. Con varias réplicas, apunta `CHATIAPP_DATABASE_URL` a PostgreSQL (`postgresql+psycopg://…`).
 
 Para Kubernetes habrá un chart de Helm (hito M4).
 
