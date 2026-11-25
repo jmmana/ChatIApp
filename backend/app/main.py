@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.api import auth, health
+from app.api import auth, health, providers
 from app.db.session import get_engine
 from app.security.auth import AuthError, ensure_initial_admin
 from app.version import __version__
@@ -48,6 +48,7 @@ def create_app() -> FastAPI:
     application.add_exception_handler(AuthError, _auth_error_handler)
     application.include_router(health.router, prefix=API_PREFIX)
     application.include_router(auth.router, prefix=API_PREFIX)
+    application.include_router(providers.router, prefix=API_PREFIX)
     return application
 
 
