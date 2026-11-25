@@ -4,8 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
-  # El autoarreglo de las ramas de WarCodex lo dispara tras su commit:
-  # los push hechos con GITHUB_TOKEN no activan otros workflows.
+  # Para relanzar el CI a mano sobre una rama.
   workflow_dispatch:
 
 permissions:
