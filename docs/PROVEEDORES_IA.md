@@ -48,7 +48,7 @@ Los prefijos de LiteLLM se verificaron contra **LiteLLM 1.111.0** (`litellm.prov
 | MiniMax | `minimax/` | `https://api.minimax.io/v1` | Familia MiniMax vigente |
 | Doubao (ByteDance Volcengine Ark) | `volcengine/` | `https://ark.cn-beijing.volces.com/api/v3` | Modelos Doubao (el modelo suele ser el id del endpoint) |
 
-Cada uno permite cambiar `api_base` para usar el endpoint de **China continental** en lugar del internacional. Los endpoints de China de cada proveedor se confirman en su documentación oficial durante la tarea del catálogo; aquí solo se listan los que LiteLLM trae por defecto.
+Cada uno permite cambiar `api_base` para usar el endpoint de **China continental** en lugar del internacional. El catálogo ([`backend/app/llm/catalog.py`](../backend/app/llm/catalog.py)) los ofrece como opciones de `api_base`: Qwen `https://dashscope.aliyuncs.com/compatible-mode/v1`, Kimi `https://api.moonshot.cn/v1`, GLM `https://open.bigmodel.cn/api/paas/v4`, MiniMax `https://api.minimaxi.com/v1`; DeepSeek y Doubao tienen un único endpoint. **Pendiente de confirmar** contra la documentación oficial de cada proveedor desde una máquina con red.
 
 ### Local y compatible con OpenAI
 

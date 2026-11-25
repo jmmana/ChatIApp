@@ -34,24 +34,30 @@ flowchart TB
 
 ## Contenedores
 
+ChatIApp es **una sola imagen** con un volumen ([ADR 0008](adr/0008-imagen-unica-con-sqlite.md)). PostgreSQL y Ollama son opcionales.
+
 ```mermaid
 flowchart LR
-    B["Navegador"] -->|HTTPS| W["web<br/>nginx + React estático"]
-    W -->|"/api · REST + SSE"| A["api<br/>FastAPI · uvicorn"]
+    B["Navegador"] -->|"HTTPS · / y /api/v1"| A
     H["Backend de una app<br/>que integra"] -->|"API key"| A
     E["Chat embebido en<br/>otra app"] -->|"token de sesión"| A
-    A --> P[("app-db<br/>PostgreSQL 16")]
+    subgraph IMG["chatiapp · una imagen"]
+        A["FastAPI · uvicorn<br/>interfaz + API + widget"]
+        S[("SQLite<br/>/data/chatiapp.db")]
+        A --> S
+    end
+    A -.->|"opcional"| P[("PostgreSQL")]
     A -->|"SQLAlchemy"| C[("Bases del cliente")]
     A -->|"LiteLLM · HTTPS"| L["Proveedores de IA"]
-    A -.-> O["ollama<br/>opcional"]
+    A -.->|"opcional"| O["Ollama"]
 ```
 
-| Contenedor | Tecnología | Responsabilidad |
+| Pieza | Tecnología | Responsabilidad |
 |---|---|---|
-| `web` | React 19 + TypeScript + Vite + Tailwind + shadcn/ui, servido por nginx | Interfaz. nginx también hace de proxy de `/api` con el buffering apagado para SSE |
-| `api` | Python 3.12, FastAPI, uvicorn | Toda la lógica: agente, motor, guardián, pasarela de IA, administración. También sirve el script del chat embebido (`/embed/v1/chatiapp.js`), así que basta este contenedor para integrar ChatIApp sin la interfaz completa |
-| `app-db` | PostgreSQL 16 (SQLite en desarrollo) | Configuración, modelos semánticos versionados, conversaciones, auditoría, credenciales cifradas |
-| `ollama` | Ollama | Opcional, para correr modelos locales en el mismo `docker compose` |
+| Imagen `chatiapp` | Python 3.12, FastAPI, uvicorn | Toda la lógica: agente, motor, guardián, pasarela de IA, administración. Sirve también la interfaz (React 19 + TypeScript + Vite + Tailwind + shadcn/ui, compilada en la imagen) en `/` y el script del chat embebido (`/embed/v1/chatiapp.js`) |
+| Volumen `/data` | SQLite en modo WAL | Configuración, modelos semánticos versionados, conversaciones, auditoría y credenciales cifradas; también la demo de ventas y, si no se define `CHATIAPP_SECRET_KEY`, la llave generada |
+| `postgres` | PostgreSQL 16 | Opcional (perfil `postgres` de `docker-compose.yml`). Para más de una réplica o mucha escritura concurrente; se activa con `CHATIAPP_DATABASE_URL` |
+| `ollama` | Ollama | Opcional (perfil `local-ai`), para correr modelos locales |
 
 ## Componentes del backend
 
@@ -293,7 +299,8 @@ ChatIApp/
 ├── examples/                     # modelo semántico, diccionario y DDL de la demo; app anfitriona de ejemplo
 ├── evals/                        # set dorado (YAML)
 ├── docs/
-├── docker-compose.yml
+├── Dockerfile                    # multietapa: interfaz con pnpm + backend con uv → una imagen
+├── docker-compose.yml            # servicio chatiapp; perfiles postgres y local-ai
 └── .github/workflows/ci.yml
 ```
 

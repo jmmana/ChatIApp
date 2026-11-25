@@ -68,4 +68,4 @@ En casi cualquier empresa pasa lo mismo:
 | SQL de escritura ejecutado | 0 | Suite adversarial del guardián en CI |
 | Tiempo hasta la primera señal en el chat | < 500 ms | Primer evento SSE tras enviar la pregunta |
 | Tiempo a respuesta (p50, proveedor cloud) | < 8 s | Trazas por turno |
-| De `docker compose up` a la primera respuesta | < 5 min | Guía de inicio rápido con la demo |
+| De `docker run` a la primera respuesta | < 5 min | Guía de inicio rápido con la demo |

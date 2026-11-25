@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import health
+from app.api import health, providers
 from app.settings.env import get_settings
 from app.settings.startup import load_and_register
 from app.version import __version__
@@ -30,6 +30,7 @@ def create_app() -> FastAPI:
         redoc_url=None,
     )
     application.include_router(health.router, prefix=API_PREFIX)
+    application.include_router(providers.router, prefix=API_PREFIX)
     return application
 
 

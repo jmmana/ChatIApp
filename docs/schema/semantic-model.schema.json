@@ -1,0 +1,551 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Column": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "name",
+          "minLength": 1,
+          "type": "string"
+        },
+        "type": {
+          "title": "type",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "title": "description",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "synonyms": {
+          "title": "synonyms",
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "default": []
+        },
+        "role": {
+          "title": "role",
+          "enum": [
+            "time",
+            "measure",
+            "dimension",
+            "id",
+            "other"
+          ],
+          "type": "string",
+          "default": "other"
+        },
+        "hidden": {
+          "title": "hidden",
+          "type": "boolean",
+          "default": false
+        },
+        "sample_values": {
+          "title": "sample_values",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "type": "array",
+          "default": []
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Column",
+      "type": "object"
+    },
+    "Metric": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "name",
+          "minLength": 1,
+          "type": "string"
+        },
+        "label": {
+          "title": "label",
+          "minLength": 1,
+          "type": "string"
+        },
+        "description": {
+          "title": "description",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "synonyms": {
+          "title": "synonyms",
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "default": []
+        },
+        "table": {
+          "title": "table",
+          "type": "string"
+        },
+        "expression": {
+          "title": "expression",
+          "minLength": 1,
+          "type": "string"
+        },
+        "time_column": {
+          "title": "time_column",
+          "type": "string"
+        },
+        "filters": {
+          "title": "filters",
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "default": []
+        },
+        "dimensions": {
+          "title": "dimensions",
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "default": []
+        },
+        "format": {
+          "title": "format",
+          "anyOf": [
+            {
+              "enum": [
+                "currency",
+                "integer",
+                "number",
+                "percent"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "requires_period": {
+          "title": "requires_period",
+          "type": "boolean",
+          "default": true
+        },
+        "default_period": {
+          "title": "default_period",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "additive": {
+          "title": "additive",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "name",
+        "label",
+        "table",
+        "expression",
+        "time_column"
+      ],
+      "title": "Metric",
+      "type": "object"
+    },
+    "Relationship": {
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "title": "from",
+          "type": "string"
+        },
+        "to": {
+          "title": "to",
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "title": "Relationship",
+      "type": "object"
+    },
+    "Role": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "name",
+          "minLength": 1,
+          "type": "string"
+        },
+        "description": {
+          "title": "description",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "filters": {
+          "title": "filters",
+          "items": {
+            "$ref": "#/$defs/RoleFilter"
+          },
+          "type": "array",
+          "default": []
+        },
+        "hidden_tables": {
+          "title": "hidden_tables",
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "default": []
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Role",
+      "type": "object"
+    },
+    "RoleFilter": {
+      "additionalProperties": false,
+      "properties": {
+        "table": {
+          "title": "table",
+          "type": "string"
+        },
+        "condition": {
+          "title": "condition",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "condition"
+      ],
+      "title": "RoleFilter",
+      "type": "object"
+    },
+    "Security": {
+      "additionalProperties": false,
+      "properties": {
+        "default_role": {
+          "title": "default_role",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "roles": {
+          "title": "roles",
+          "items": {
+            "$ref": "#/$defs/Role"
+          },
+          "type": "array",
+          "default": []
+        }
+      },
+      "title": "Security",
+      "type": "object"
+    },
+    "Settings": {
+      "additionalProperties": false,
+      "properties": {
+        "timezone": {
+          "title": "timezone",
+          "type": "string",
+          "default": "UTC"
+        },
+        "currency": {
+          "title": "currency",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "locale": {
+          "title": "locale",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fiscal_year_start_month": {
+          "title": "fiscal_year_start_month",
+          "type": "integer",
+          "default": 1,
+          "minimum": 1,
+          "maximum": 12
+        },
+        "week_starts_on": {
+          "title": "week_starts_on",
+          "enum": [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday"
+          ],
+          "type": "string",
+          "default": "monday"
+        },
+        "default_row_limit": {
+          "title": "default_row_limit",
+          "type": "integer",
+          "default": 1000,
+          "exclusiveMinimum": 0
+        }
+      },
+      "title": "Settings",
+      "type": "object"
+    },
+    "SummaryTable": {
+      "additionalProperties": false,
+      "properties": {
+        "table": {
+          "title": "table",
+          "type": "string"
+        },
+        "grain": {
+          "title": "grain",
+          "enum": [
+            "day",
+            "week",
+            "month",
+            "quarter",
+            "year"
+          ],
+          "type": "string"
+        },
+        "time_column": {
+          "title": "time_column",
+          "type": "string"
+        },
+        "includes_current_period": {
+          "title": "includes_current_period",
+          "type": "boolean",
+          "default": true
+        },
+        "metrics": {
+          "title": "metrics",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object",
+          "default": {}
+        },
+        "dimensions": {
+          "title": "dimensions",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object",
+          "default": {}
+        }
+      },
+      "required": [
+        "table",
+        "grain",
+        "time_column"
+      ],
+      "title": "SummaryTable",
+      "type": "object"
+    },
+    "Table": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "name",
+          "minLength": 1,
+          "type": "string"
+        },
+        "description": {
+          "title": "description",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "synonyms": {
+          "title": "synonyms",
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "default": []
+        },
+        "primary_key": {
+          "title": "primary_key",
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "default": []
+        },
+        "time_column": {
+          "title": "time_column",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "columns": {
+          "title": "columns",
+          "items": {
+            "$ref": "#/$defs/Column"
+          },
+          "type": "array",
+          "default": []
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Table",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "title": "version",
+      "const": 1,
+      "type": "integer"
+    },
+    "name": {
+      "title": "name",
+      "minLength": 1,
+      "type": "string"
+    },
+    "dialect": {
+      "title": "dialect",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "business_context": {
+      "title": "business_context",
+      "type": "string",
+      "default": ""
+    },
+    "settings": {
+      "title": "settings",
+      "$ref": "#/$defs/Settings"
+    },
+    "tables": {
+      "title": "tables",
+      "items": {
+        "$ref": "#/$defs/Table"
+      },
+      "type": "array",
+      "default": []
+    },
+    "relationships": {
+      "title": "relationships",
+      "items": {
+        "$ref": "#/$defs/Relationship"
+      },
+      "type": "array",
+      "default": []
+    },
+    "metrics": {
+      "title": "metrics",
+      "items": {
+        "$ref": "#/$defs/Metric"
+      },
+      "type": "array",
+      "default": []
+    },
+    "summary_tables": {
+      "title": "summary_tables",
+      "items": {
+        "$ref": "#/$defs/SummaryTable"
+      },
+      "type": "array",
+      "default": []
+    },
+    "security": {
+      "title": "security",
+      "$ref": "#/$defs/Security"
+    }
+  },
+  "required": [
+    "version",
+    "name"
+  ],
+  "title": "SemanticModel",
+  "type": "object"
+}
