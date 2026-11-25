@@ -88,8 +88,7 @@ class Caso(BaseModel):
         ]
         if sum(definidas) != 1:
             raise ValueError(
-                "define exactamente una de `expect`, `expect_clarification` o "
-                "`expect_out_of_scope`"
+                "define exactamente una de `expect`, `expect_clarification` o `expect_out_of_scope`"
             )
         if self.answers and self.expect is None:
             raise ValueError("`answers` solo aplica a casos con `expect`")
