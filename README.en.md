@@ -145,6 +145,20 @@ A golden question set compares providers on accuracy, cost and latency. Pick you
 
 </td>
 </tr>
+<tr>
+<td valign="top">
+
+**🧩 Embed it in your app**<br/>
+Your backend asks through the `/api/v1` API with an API key, or your frontend embeds the chat with `<chatiapp-chat>`. Your login, your brand, your users; role filters apply just the same.
+
+</td>
+<td valign="top">
+
+**📦 One container, your infrastructure**<br/>
+`docker compose up` or Kubernetes. To integrate headless you only need the `chatiapp-api` image and a PostgreSQL database. Your data never goes through a third-party service.
+
+</td>
+</tr>
 </table>
 
 ## Architecture
@@ -257,6 +271,23 @@ summary_tables:
 
 The bundled demo dataset uses Spanish names (`facturas`, `ventas_diarias`…); snippets here are translated for readability. Full example: [`examples/ventas/semantic-model.yaml`](examples/ventas/semantic-model.yaml).
 
+## Embed it in your app
+
+ChatIApp doesn't have to be yet another tab for your users: it can live inside your product.
+
+| Mode | Who calls | Credential |
+|---|---|---|
+| **Full app** | People, through the ChatIApp UI | Username and password |
+| **Headless API** | Your backend: asks and gets SQL, result and answer back | **Server API key** with scopes, allowed data sources and roles |
+| **Embedded chat** | Your frontend, with your colors and your users | **15-minute session token** issued by your backend; the API key never reaches the browser |
+
+```html
+<script src="https://chatiapp.yourcompany.com/embed/v1/chatiapp.js" defer></script>
+<chatiapp-chat base-url="https://chatiapp.yourcompany.com" lang="en" theme="auto"></chatiapp-chat>
+```
+
+Your backend states on whose behalf each question is asked (`id`, `role`, `attributes`) and ChatIApp applies that user's role filters, within the ceiling set by the API key. Full flow, backend examples, Python and TypeScript SDKs and deployment next to your app: [docs/INTEGRACION.md](docs/INTEGRACION.md) (Spanish).
+
 ## Project status
 
 ChatIApp is in **open design**: documentation and backlog are complete and development proceeds by milestones. Every task is an issue with a goal, verifiable acceptance criteria, files and size.
@@ -266,8 +297,10 @@ ChatIApp is in **open design**: documentation and backlog are complete and devel
 | [**M0 · Foundations**](https://github.com/jmmana/ChatIApp/milestone/1) | Backend and frontend that build, CI, Docker, app database, validated config, demo dataset | [#1](https://github.com/jmmana/ChatIApp/issues/1) |
 | [**M1 · MVP "How much did I sell?"**](https://github.com/jmmana/ChatIApp/milestone/2) | End to end with one provider: semantic model, query engine, agent with clarifications, chat with visible reasoning | [#2](https://github.com/jmmana/ChatIApp/issues/2) [#3](https://github.com/jmmana/ChatIApp/issues/3) [#4](https://github.com/jmmana/ChatIApp/issues/4) [#6](https://github.com/jmmana/ChatIApp/issues/6) |
 | [**M2 · Any AI**](https://github.com/jmmana/ChatIApp/milestone/3) | Full provider hub: direct API, platforms, Chinese and local models; per-task routing | [#5](https://github.com/jmmana/ChatIApp/issues/5) |
-| [**M3 · Enterprise-ready**](https://github.com/jmmana/ChatIApp/milestone/4) | Login and roles, role filters from user attributes, audit log, privacy levels | [#7](https://github.com/jmmana/ChatIApp/issues/7) |
+| [**M3 · Enterprise-ready**](https://github.com/jmmana/ChatIApp/milestone/4) | Login and roles, role filters from user attributes, audit log, privacy levels, and embedding into other apps: API keys, embeddable chat and SDKs | [#7](https://github.com/jmmana/ChatIApp/issues/7) [#82](https://github.com/jmmana/ChatIApp/issues/82) |
 | [**M4 · Measurable quality**](https://github.com/jmmana/ChatIApp/milestone/5) | Evaluation set, model comparison, observability, multi-engine tests, v1.0 | [#8](https://github.com/jmmana/ChatIApp/issues/8) [#9](https://github.com/jmmana/ChatIApp/issues/9) |
+
+Detailed plan in [docs/ROADMAP.md](docs/ROADMAP.md) and live progress on the [project board](https://github.com/users/jmmana/projects/2).
 
 ## Quick start
 
@@ -283,7 +316,7 @@ docker compose up
 
 ## Documentation (Spanish)
 
-[Vision](docs/VISION.md) · [Architecture](docs/ARQUITECTURA.md) · [Conversation flow](docs/FLUJO_CONVERSACIONAL.md) · [Semantic model](docs/MODELO_SEMANTICO.md) · [AI providers](docs/PROVEEDORES_IA.md) · [Databases](docs/BASES_DE_DATOS.md) · [Security](docs/SEGURIDAD.md) · [UI](docs/INTERFAZ.md) · [API](docs/API.md) · [ADRs](docs/adr/)
+[Vision](docs/VISION.md) · [Architecture](docs/ARQUITECTURA.md) · [Conversation flow](docs/FLUJO_CONVERSACIONAL.md) · [Semantic model](docs/MODELO_SEMANTICO.md) · [AI providers](docs/PROVEEDORES_IA.md) · [Databases](docs/BASES_DE_DATOS.md) · [Security](docs/SEGURIDAD.md) · [UI](docs/INTERFAZ.md) · [Integration](docs/INTEGRACION.md) · [API](docs/API.md) · [ADRs](docs/adr/)
 
 ## Contributing · Security · License
 

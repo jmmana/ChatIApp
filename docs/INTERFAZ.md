@@ -28,6 +28,7 @@ flowchart LR
     CH --> FD["Fuentes de datos"]
     CH --> AU["Auditoría"]
     CH --> EV["Evaluación de modelos"]
+    CH --> IN["Integraciones<br/>API keys · orígenes · uso"]
 ```
 
 ## Chat

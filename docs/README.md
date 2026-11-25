@@ -10,7 +10,8 @@
 | Conectar PostgreSQL, SQL Server, Oracle, BigQuery… | [BASES_DE_DATOS.md](BASES_DE_DATOS.md) |
 | Revisar el modelo de amenazas | [SEGURIDAD.md](SEGURIDAD.md) |
 | Ver las pantallas | [INTERFAZ.md](INTERFAZ.md) |
-| Integrar por API | [API.md](API.md) |
+| Integrar ChatIApp en tu app (API key, chat embebido, SDKs) | [INTEGRACION.md](INTEGRACION.md) |
+| Consultar los endpoints | [API.md](API.md) |
 | Saber qué viene y cuándo | [ROADMAP.md](ROADMAP.md) |
 | Entender por qué se decidió algo | [adr/](adr/) |
 

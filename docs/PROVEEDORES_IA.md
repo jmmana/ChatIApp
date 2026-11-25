@@ -93,7 +93,7 @@ ai:
 
 ## Probar conexión
 
-El botón **Probar conexión** (y `POST /api/providers/{id}/test`) hace una llamada mínima y responde:
+El botón **Probar conexión** (y `POST /api/v1/providers/{id}/test`) hace una llamada mínima y responde:
 
 | Resultado | Significa |
 |---|---|

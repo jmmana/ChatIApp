@@ -17,6 +17,7 @@ En casi cualquier empresa pasa lo mismo:
 | **Gerente o dueño de negocio** | El dato, ya, y poder confiar en él | Pregunta en lenguaje natural; si algo falta, ChatIApp pregunta; ve el razonamiento y el SQL |
 | **Analista de datos** | Que las respuestas usen las definiciones oficiales del negocio | Estudio del modelo semántico y catálogo de métricas: define «ventas netas» una vez |
 | **TI / administrador de datos** | Que nada toque la base sin control, y elegir el proveedor de IA | Guardián SQL, usuario de solo lectura, filtros por rol, auditoría, niveles de privacidad, cualquier proveedor |
+| **Equipo de producto que integra** | Ofrecer «pregúntale a tus datos» dentro de su propia app, con su login y su marca | Contenedor listo, API `/api/v1` con API keys, chat embebible con tokens de sesión, SDKs de Python y TypeScript |
 
 ## Principios de producto
 
@@ -40,6 +41,8 @@ En casi cualquier empresa pasa lo mismo:
 | 7 | Analista | Define la métrica «margen bruto» | Prueba la métrica con un período y ve el SQL generado antes de publicarla |
 | 8 | TI | Conecta DeepSeek y Claude | Prueba la conexión de ambos y los compara con el set de evaluación en exactitud, costo y latencia |
 | 9 | TI | Un gerente de sucursal pregunta por todas las tiendas | El filtro del rol limita el resultado a sus sucursales; queda en la auditoría |
+| 10 | Producto | Su portal de clientes necesita un chat de datos | Levanta el contenedor `api`, crea una API key y embebe `<chatiapp-chat>`; cada cliente ve solo lo suyo |
+| 11 | Producto | Su backend genera reportes en lenguaje natural | Llama a `POST /api/v1/chat` con su API key y el usuario final; recibe el SQL validado y el resultado |
 
 ## Alcance del MVP (v0.1, hito M1)
 
@@ -54,7 +57,7 @@ En casi cualquier empresa pasa lo mismo:
 - **No escribe en tu base.** Nunca `INSERT`, `UPDATE`, `DELETE` ni DDL. Es una decisión de diseño, no una opción.
 - **No reemplaza tu BI.** No guarda tableros ni hace ETL. Responde preguntas; si una respuesta se vuelve recurrente, el SQL está a la vista para llevarlo a tu herramienta de BI.
 - **No entrena modelos** con tus datos ni los envía a ningún proveedor más allá de lo que permita el nivel de privacidad configurado.
-- **No es multiempresa en v1.** Se instala en tu infraestructura (self-hosted). Un modo SaaS multiempresa queda fuera del alcance de v1.
+- **No es multiempresa en v1.** Se instala en tu infraestructura (self-hosted). Un modo SaaS multiempresa queda fuera del alcance de v1. Integrarlo en tu propio producto sí está en el alcance: ver [INTEGRACION.md](INTEGRACION.md).
 
 ## Cómo sabremos que funciona
 

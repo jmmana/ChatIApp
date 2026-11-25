@@ -10,5 +10,6 @@ Cada decisión importante se registra aquí con su contexto, la decisión, las c
 | [0004](0004-filtro-por-rol-como-tabla-derivada.md) | El filtro por rol reemplaza la tabla por una tabla derivada | Aceptada |
 | [0005](0005-modelo-semantico-como-documento.md) | El modelo semántico se guarda como documento versionado | Aceptada |
 | [0006](0006-sse-para-streaming.md) | Server-Sent Events para el streaming del turno | Aceptada |
+| [0007](0007-api-keys-y-tokens-de-sesion.md) | API keys de servidor y tokens de sesión cortos para integrar ChatIApp | Aceptada |
 
 Plantilla: copia cualquiera de los anteriores y usa el siguiente número.

@@ -147,7 +147,7 @@ El último plan ejecutado se guarda en la conversación. Las preguntas cortas lo
 
 ## Eventos de streaming
 
-El endpoint `POST /api/chat/stream` responde con `text/event-stream`. Cada evento tiene un `type` y un `data` JSON:
+El endpoint `POST /api/v1/chat/stream` responde con `text/event-stream`. Cada evento tiene un `type` y un `data` JSON:
 
 | Evento | Datos | La interfaz… |
 |---|---|---|

@@ -104,7 +104,10 @@ Con un modelo **local** (Ollama, vLLM) nada sale de tu red, en cualquier nivel.
 | Denegación de servicio | Producto cartesiano o consulta enorme | `LIMIT`, tiempo máximo, límites de uso por usuario y presupuesto de tokens |
 | Robo de credenciales | Leer API keys o la URL de la base | Cifrado en reposo, máscara en la API, fuera de logs, rotación de llave |
 | Fuga hacia el proveedor de IA | Filas con datos de clientes en el prompt | Niveles de privacidad por fuente; modelos locales |
-| Abuso de costo | Preguntas en bucle contra un modelo caro | Límites por usuario y por proveedor; costo visible por turno |
+| Abuso de costo | Preguntas en bucle contra un modelo caro | Límites por usuario, por API key y por proveedor; costo visible por turno |
+| API key expuesta | Una key de integración termina en el código del navegador o en un repositorio | El chat embebido solo usa tokens de sesión cortos; prefijo `chia_` detectable por escáneres de secretos; revocación inmediata ([INTEGRACION.md](INTEGRACION.md#la-regla-de-oro)) |
+| App anfitriona que asigna un rol indebido | El backend que integra declara un rol con más alcance | Techo por key: roles permitidos o rol fijo, atributos obligatorios; auditoría con la key y el usuario final ([ADR 0007](adr/0007-api-keys-y-tokens-de-sesion.md)) |
+| Chat embebido en un sitio ajeno | Otro dominio reutiliza un token de sesión | Token atado a un origen; CORS y verificación de `Origin`; vida de 15 minutos |
 
 ## Auditoría
 

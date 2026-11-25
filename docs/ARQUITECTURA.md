@@ -22,9 +22,11 @@ flowchart TB
         TI["TI<br/>conexiones y seguridad"]
     end
     CH["ChatIApp<br/>self-hosted"]
+    APP["Apps que lo integran<br/>API key · chat embebido"]
     G --> CH
     AN --> CH
     TI --> CH
+    APP -->|"/api/v1 · tokens de sesión"| CH
     CH -->|"SQL validado, solo lectura"| DB[("Bases de datos<br/>de la empresa")]
     CH -->|"prompts según nivel<br/>de privacidad"| IA["Proveedores de IA<br/>cloud o locales"]
     CH -.->|"opcional"| IDP["Proveedor de identidad<br/>OIDC (v1.x)"]
@@ -36,6 +38,8 @@ flowchart TB
 flowchart LR
     B["Navegador"] -->|HTTPS| W["web<br/>nginx + React estático"]
     W -->|"/api · REST + SSE"| A["api<br/>FastAPI · uvicorn"]
+    H["Backend de una app<br/>que integra"] -->|"API key"| A
+    E["Chat embebido en<br/>otra app"] -->|"token de sesión"| A
     A --> P[("app-db<br/>PostgreSQL 16")]
     A -->|"SQLAlchemy"| C[("Bases del cliente")]
     A -->|"LiteLLM · HTTPS"| L["Proveedores de IA"]
@@ -45,7 +49,7 @@ flowchart LR
 | Contenedor | Tecnología | Responsabilidad |
 |---|---|---|
 | `web` | React 19 + TypeScript + Vite + Tailwind + shadcn/ui, servido por nginx | Interfaz. nginx también hace de proxy de `/api` con el buffering apagado para SSE |
-| `api` | Python 3.12, FastAPI, uvicorn | Toda la lógica: agente, motor, guardián, pasarela de IA, administración |
+| `api` | Python 3.12, FastAPI, uvicorn | Toda la lógica: agente, motor, guardián, pasarela de IA, administración. También sirve el script del chat embebido (`/embed/v1/chatiapp.js`), así que basta este contenedor para integrar ChatIApp sin la interfaz completa |
 | `app-db` | PostgreSQL 16 (SQLite en desarrollo) | Configuración, modelos semánticos versionados, conversaciones, auditoría, credenciales cifradas |
 | `ollama` | Ollama | Opcional, para correr modelos locales en el mismo `docker compose` |
 
@@ -60,7 +64,8 @@ flowchart LR
 | `app/engine` | Resolutor de períodos, catálogo de métricas, constructor SQL por dialecto, enrutamiento a tablas resumidas, guardián, ejecutor | sqlglot, SQLAlchemy |
 | `app/llm` | Catálogo de proveedores, pasarela (completar, JSON, streaming), prueba de conexión, enrutamiento por tarea y respaldo | LiteLLM, httpx |
 | `app/agent` | Planificador, orquestador (máquina de estados), aclaraciones, SQL libre con reparación, redacción de la respuesta, eventos | — |
-| `app/api` | Routers REST y endpoint SSE | FastAPI |
+| `app/integrations` | API keys (hash, alcances, techo de roles), identidad del usuario final, tokens de sesión del chat embebido, CORS por origen | PyJWT |
+| `app/api` | Routers REST bajo `/api/v1` y endpoint SSE | FastAPI |
 | `app/audit` | Registro de cada turno: pregunta, plan, SQL, filas, proveedor, tokens, costo | — |
 | `app/eval` | Runner del set dorado y reportes por modelo | — |
 
@@ -80,6 +85,8 @@ flowchart TD
     semantic --> db
     llm --> security
     api --> security
+    api --> integrations
+    integrations --> security
 ```
 
 `engine` no depende de `llm`: el motor es 100 % determinista y se prueba sin red. `agent` es el único módulo que combina IA y motor.
@@ -90,7 +97,7 @@ flowchart TD
 sequenceDiagram
     autonumber
     participant UI as Chat (React)
-    participant API as /api/chat/stream
+    participant API as /api/v1/chat/stream
     participant AG as Orquestador
     participant PL as Planificador
     participant GW as Pasarela IA
@@ -141,7 +148,24 @@ erDiagram
     MESSAGE ||--o| QUERY_RUN : produce
     PROVIDER ||--o{ QUERY_RUN : atiende
     PROVIDER ||--o{ EVAL_RUN : "evalúa"
+    API_KEY ||--o{ CONVERSATION : "abre en nombre de un usuario final"
+    API_KEY ||--o{ QUERY_RUN : origina
 
+    API_KEY {
+        uuid id PK
+        string name
+        string prefix "chia_k7Hx… visible"
+        string secret_hash "HMAC-SHA256"
+        json scopes "chat, embed, sql:preview…"
+        json datasources
+        json allowed_roles "o fixed_role"
+        json allowed_origins
+        int rate_limit_per_minute
+        decimal monthly_budget_usd
+        datetime expires_at
+        datetime last_used_at
+        datetime revoked_at
+    }
     USER {
         uuid id PK
         string email
@@ -186,7 +210,9 @@ erDiagram
     }
     CONVERSATION {
         uuid id PK
-        uuid user_id FK
+        uuid user_id FK "null si viene de una API key"
+        uuid api_key_id FK "null si viene de la interfaz"
+        string external_user_id "usuario final de la app que integra"
         uuid datasource_id FK
         string title
         json last_plan "para preguntas de seguimiento"
@@ -202,6 +228,7 @@ erDiagram
         uuid id PK
         uuid message_id FK
         uuid provider_id FK
+        uuid api_key_id FK "si vino de una integración"
         string origin "catalog | llm"
         text sql_final
         string summary_table
@@ -242,7 +269,8 @@ ChatIApp/
 │   │   ├── engine/               # periods, catalog, dialects, builder, summary, guard, executor
 │   │   ├── llm/                  # catalog, gateway, routing
 │   │   ├── agent/                # plan, planner, orchestrator, clarify, answer, events
-│   │   ├── api/                  # health, datasources, semantic, providers, chat, conversations, audit
+│   │   ├── api/                  # routers /api/v1: health, datasources, semantic, providers, chat…
+│   │   ├── integrations/         # API keys, usuario final, tokens de sesión, CORS
 │   │   ├── audit/
 │   │   └── eval/
 │   └── tests/                    # espejo de app/; fixtures con la demo SQLite
@@ -255,9 +283,14 @@ ChatIApp/
 │       │   ├── chat/             # SSE, mensajes, razonamiento, SQL, resultados
 │       │   ├── semantic/         # estudio del modelo
 │       │   ├── providers/        # hub de proveedores
+│       │   ├── integrations/     # administración de API keys
 │       │   └── datasources/
 │       └── lib/                  # cliente API tipado, utilidades
-├── examples/                     # modelo semántico, diccionario y DDL de la demo
+├── embed/                        # chat embebible: web component + paquete React
+├── sdks/
+│   ├── python/                   # cliente generado desde OpenAPI
+│   └── typescript/
+├── examples/                     # modelo semántico, diccionario y DDL de la demo; app anfitriona de ejemplo
 ├── evals/                        # set dorado (YAML)
 ├── docs/
 ├── docker-compose.yml

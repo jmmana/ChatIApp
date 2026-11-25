@@ -143,6 +143,20 @@ Un set de preguntas doradas compara proveedores en exactitud, costo y latencia. 
 
 </td>
 </tr>
+<tr>
+<td valign="top">
+
+**🧩 Intégralo en tu app**<br/>
+Tu backend pregunta por la API `/api/v1` con una API key, o tu frontend embebe el chat con `<chatiapp-chat>`. Tu login, tu marca, tus usuarios; los filtros por rol se aplican igual.
+
+</td>
+<td valign="top">
+
+**📦 Un contenedor, tu infraestructura**<br/>
+`docker compose up` o Kubernetes. Para integrar sin interfaz basta la imagen `chatiapp-api` y una base PostgreSQL. Tus datos nunca pasan por un servicio de terceros.
+
+</td>
+</tr>
 </table>
 
 ## Arquitectura
@@ -259,6 +273,23 @@ summary_tables:
 
 Ejemplo completo: [`examples/ventas/semantic-model.yaml`](examples/ventas/semantic-model.yaml). Referencia de campos y reglas: [docs/MODELO_SEMANTICO.md](docs/MODELO_SEMANTICO.md).
 
+## Intégralo en tu app
+
+ChatIApp no tiene que ser otra pestaña para tus usuarios: puede vivir dentro de tu producto.
+
+| Modo | Quién llama | Credencial |
+|---|---|---|
+| **App completa** | Personas, desde la interfaz de ChatIApp | Usuario y contraseña |
+| **API sin interfaz** | Tu backend: pregunta y recibe SQL, resultado y respuesta | **API key de servidor** con alcances, fuentes y roles permitidos |
+| **Chat embebido** | Tu frontend, con tus colores y tus usuarios | **Token de sesión** de 15 minutos que emite tu backend; la API key nunca llega al navegador |
+
+```html
+<script src="https://chatiapp.tuempresa.com/embed/v1/chatiapp.js" defer></script>
+<chatiapp-chat base-url="https://chatiapp.tuempresa.com" lang="es" theme="auto"></chatiapp-chat>
+```
+
+Tu backend dice en nombre de qué usuario se pregunta (`id`, `role`, `attributes`) y ChatIApp aplica sus filtros por rol, dentro del techo que fija la API key. Flujo completo, ejemplos de backend, SDKs de Python y TypeScript y despliegue junto a tu app: [docs/INTEGRACION.md](docs/INTEGRACION.md).
+
 ## Estado del proyecto
 
 ChatIApp está en **diseño abierto**: la documentación y el backlog están completos y el desarrollo avanza por hitos. Cada tarea es un issue con objetivo, criterios de aceptación verificables, archivos y tamaño.
@@ -268,10 +299,10 @@ ChatIApp está en **diseño abierto**: la documentación y el backlog están com
 | [**M0 · Fundaciones**](https://github.com/jmmana/ChatIApp/milestone/1) | Backend y frontend que compilan, CI, Docker, BD de la app, configuración validada, dataset demo | [#1](https://github.com/jmmana/ChatIApp/issues/1) |
 | [**M1 · MVP «¿Cuánto vendí?»**](https://github.com/jmmana/ChatIApp/milestone/2) | De punta a punta con un proveedor: modelo semántico, motor de consultas, agente con aclaraciones, chat con razonamiento visible | [#2](https://github.com/jmmana/ChatIApp/issues/2) [#3](https://github.com/jmmana/ChatIApp/issues/3) [#4](https://github.com/jmmana/ChatIApp/issues/4) [#6](https://github.com/jmmana/ChatIApp/issues/6) |
 | [**M2 · Cualquier IA**](https://github.com/jmmana/ChatIApp/milestone/3) | Hub completo de proveedores: API directa, plataformas, modelos chinos y locales; enrutamiento por tarea | [#5](https://github.com/jmmana/ChatIApp/issues/5) |
-| [**M3 · Listo para empresa**](https://github.com/jmmana/ChatIApp/milestone/4) | Login y roles, filtros por rol con atributos del usuario, auditoría, niveles de privacidad | [#7](https://github.com/jmmana/ChatIApp/issues/7) |
+| [**M3 · Listo para empresa**](https://github.com/jmmana/ChatIApp/milestone/4) | Login y roles, filtros por rol con atributos del usuario, auditoría, niveles de privacidad, y la integración en otras apps: API keys, chat embebible y SDKs | [#7](https://github.com/jmmana/ChatIApp/issues/7) [#82](https://github.com/jmmana/ChatIApp/issues/82) |
 | [**M4 · Calidad medible**](https://github.com/jmmana/ChatIApp/milestone/5) | Set de evaluación, comparativa de modelos, observabilidad, pruebas multimotor, v1.0 | [#8](https://github.com/jmmana/ChatIApp/issues/8) [#9](https://github.com/jmmana/ChatIApp/issues/9) |
 
-Plan detallado en [docs/ROADMAP.md](docs/ROADMAP.md) y avance en vivo en el [tablero del proyecto](https://github.com/users/jmmana/projects).
+Plan detallado en [docs/ROADMAP.md](docs/ROADMAP.md) y avance en vivo en el [tablero del proyecto](https://github.com/users/jmmana/projects/2).
 
 ## Inicio rápido
 
@@ -299,7 +330,8 @@ La demo trae una base de ventas de ejemplo con su modelo semántico, para probar
 | [Bases de datos](docs/BASES_DE_DATOS.md) | Motores, dialectos, usuario de solo lectura |
 | [Seguridad](docs/SEGURIDAD.md) | Modelo de amenazas y capas de defensa |
 | [Interfaz](docs/INTERFAZ.md) | Pantallas, principios de diseño, accesibilidad |
-| [API](docs/API.md) | Endpoints REST y eventos de streaming |
+| [Integración](docs/INTEGRACION.md) | API keys, chat embebido, SDKs y despliegue junto a tu app |
+| [API](docs/API.md) | Endpoints REST `/api/v1` y eventos de streaming |
 | [Decisiones (ADR)](docs/adr/) | Por qué LiteLLM, sqlglot, SSE, tabla derivada para roles… |
 
 ## Contribuir

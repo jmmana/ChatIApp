@@ -9,7 +9,7 @@ Un turno tarda varios segundos: entender, resolver, validar, ejecutar, redactar.
 
 ## Decisión
 
-`POST /api/chat/stream` responde con `text/event-stream` (Server-Sent Events). Cada evento tiene `event:` con su tipo y `data:` con JSON. El frontend consume el flujo con `fetch` y un lector de SSE (no `EventSource`, que no permite `POST` ni cabeceras de autorización). Cancelar es `POST /api/chat/{turn_id}/cancel`.
+`POST /api/v1/chat/stream` responde con `text/event-stream` (Server-Sent Events). Cada evento tiene `event:` con su tipo y `data:` con JSON. El frontend consume el flujo con `fetch` y un lector de SSE (no `EventSource`, que no permite `POST` ni cabeceras de autorización). Cancelar es `POST /api/v1/chat/{turn_id}/cancel`.
 
 nginx sirve `/api` con `proxy_buffering off` para que los eventos no se acumulen.
 
