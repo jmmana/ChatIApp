@@ -1,8 +1,8 @@
 """Entorno de Alembic: la URL sale de CHATIAPP_DATABASE_URL."""
 
-from alembic import context
 from sqlalchemy import Connection
 
+from alembic import context
 from app.db.models import Base
 from app.db.session import get_database_url, make_engine
 

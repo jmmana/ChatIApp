@@ -3,13 +3,13 @@ from pathlib import Path
 from typing import Annotated
 
 import pytest
-from alembic import command
 from alembic.config import Config
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, inspect, select
 from sqlalchemy.orm import Session
 
+from alembic import command
 from app.db.models import (
     Base,
     Conversation,
