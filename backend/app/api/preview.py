@@ -28,7 +28,7 @@ from app.engine.rls import (
     role_row_filters,
 )
 from app.engine.summary import plan_for_summary, route_summary
-from app.security.auth import get_current_user
+from app.security.auth import get_current_user, require_admin
 from app.semantic.schema import SemanticModel, parse_semantic_model
 
 router = APIRouter(prefix="/datasources", tags=["vista previa"])
@@ -247,7 +247,12 @@ def preview(
     )
 
 
-@router.post("/{datasource_id}/validate-sql", summary="Resultado del guardián para un SQL")
+@router.post(
+    "/{datasource_id}/validate-sql",
+    summary="Resultado del guardián para un SQL",
+    # Revela qué columnas están ocultas: igual que leer el modelo, es administración.
+    dependencies=[Depends(require_admin)],
+)
 def validate_sql(
     datasource_id: uuid.UUID, body: ValidateSqlRequest, session: SessionDep, user: UserDep
 ) -> ValidateSqlOut:

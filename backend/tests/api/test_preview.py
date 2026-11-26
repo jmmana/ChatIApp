@@ -237,3 +237,15 @@ def test_view_as_solo_para_administradores(
         client, datasource_id, metric="ventas_netas", period="este mes", view_as=SUCURSALES
     )
     assert ajeno.status_code == 403
+
+
+def test_validate_sql_es_solo_para_administradores(client: TestClient, datasource_id: str) -> None:
+    # Revela qué columnas están ocultas, igual que leer el modelo.
+    app.dependency_overrides[get_current_user] = lambda: User(
+        id=uuid.uuid4(), email="u@b.co", is_admin=False
+    )
+    response = client.post(
+        f"/api/v1/datasources/{datasource_id}/validate-sql",
+        json={"sql": "SELECT documento FROM clientes"},
+    )
+    assert response.status_code == 403
