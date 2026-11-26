@@ -57,7 +57,7 @@ Ver la lista exige sesión; crear, cambiar, borrar y probar la conexión exigen 
 | `PUT` | `/api/v1/datasources/{id}/semantic` | Publica una versión nueva (valida antes de guardar; 422 con la lista de errores) |
 | `GET` | `/api/v1/datasources/{id}/semantic/versions` | Historial |
 | `POST` | `/api/v1/datasources/{id}/semantic/import` | `multipart`: archivo `.sql` · `.csv` · `.xlsx` · `.yaml` · `.json`. Devuelve **vista previa** (modelo fusionado + diferencias); no guarda |
-| `POST` | `/api/v1/datasources/{id}/semantic/introspect` | Lee la base conectada y devuelve vista previa; no guarda |
+| `POST` | `/api/v1/datasources/{id}/semantic/introspect` | Lee la base conectada y devuelve vista previa (`schemas`, `tables`, `relationships`, `warnings`); no guarda. Cuerpo opcional: `schemas` (lista), `table_pattern` (comodines `*` y `?`), `sample_values` (hasta 20 valores de columnas de texto de baja cardinalidad; solo con privacidad `samples`, y cada consulta pasa por el guardián). Con más de 500 tablas responde `422 too_many_tables`: hay que filtrar. Solo administración |
 | `POST` | `/api/v1/datasources/{id}/semantic/suggest` | Sugerencias de IA para descripciones, sinónimos y roles vacíos |
 | `GET` | `/api/v1/datasources/{id}/semantic/export?format=yaml` | Exporta el modelo |
 | `POST` | `/api/v1/datasources/{id}/preview` | Métrica + período + dimensiones + filtros + rol → `{sql, summary_table, period, filters_applied}`, sin IA |
