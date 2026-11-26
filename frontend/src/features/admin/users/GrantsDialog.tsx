@@ -62,7 +62,7 @@ export function GrantsDialog({ user, pending, error, onSubmit, onClose }: Props)
   function update(id: string, patch: Partial<Draft[string]>) {
     setDraft((current) => ({
       ...current,
-      [id]: { role: "", attributes: {}, ...current[id], ...patch },
+      [id]: { ...(current[id] ?? { role: "", attributes: {} }), ...patch },
     }));
   }
 

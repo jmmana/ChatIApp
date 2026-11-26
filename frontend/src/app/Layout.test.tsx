@@ -55,7 +55,7 @@ describe("Layout", () => {
 
   it("redirige la raíz al chat", async () => {
     await renderAt("/");
-    expect(screen.getByRole("heading", { level: 1, name: "Chat" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Chat" })).toBeInTheDocument();
   });
 
   it("cada ruta muestra un estado vacío con su título", async () => {
