@@ -11,6 +11,7 @@ from app.db.models import Datasource, Provider
 from app.settings.project import SECRET_PROVIDER_FIELDS, ConfigError, ProjectConfig
 
 MANAGED_BY = "config"
+_ROUTING_KEYS = ("tasks", "fallback")
 _NAMESPACE = uuid.UUID("6f0c2f8e-5d57-4c0e-9a0e-1c4f0d6f9a11")
 
 
@@ -43,6 +44,8 @@ def sync_config_to_db(session: Session, config: ProjectConfig, cipher: MultiFern
         )
         provider.managed_by = MANAGED_BY
 
+    _apply_routing(session, config)
+
     for d in config.datasources:
         datasource = session.get(Datasource, datasource_uuid(d.id))
         if datasource is None:
@@ -59,6 +62,26 @@ def sync_config_to_db(session: Session, config: ProjectConfig, cipher: MultiFern
         datasource.privacy = config.ai.privacy
         datasource.managed_by = MANAGED_BY
     session.commit()
+
+
+def _apply_routing(session: Session, config: ProjectConfig) -> None:
+    """Guarda en `params` de cada proveedor del archivo sus tareas y su lugar en el respaldo."""
+    routing = config.ai.routing
+    assigned = {
+        "planner": routing.planner,
+        "sql": routing.sql,
+        "answer": routing.answer,
+        "suggest": routing.suggest,
+    }
+    for p in config.ai.providers:
+        provider = session.get(Provider, provider_uuid(p.id))
+        if provider is None:
+            continue
+        params = {k: v for k, v in (provider.params or {}).items() if k not in _ROUTING_KEYS}
+        params["tasks"] = [task for task, provider_id in assigned.items() if provider_id == p.id]
+        if p.id in routing.fallback:
+            params["fallback"] = routing.fallback.index(p.id)
+        provider.params = params
 
 
 def _name_taken(where: str, name: str) -> str:
