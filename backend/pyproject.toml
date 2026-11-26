@@ -20,6 +20,9 @@ dependencies = [
     "sqlguardllm>=0.3.0a1,<0.4",
 ]
 
+[project.scripts]
+chatiapp = "app.cli:main"
+
 # Drivers de bases de datos: se instala solo lo que se usa (docs/BASES_DE_DATOS.md).
 [project.optional-dependencies]
 postgres = ["psycopg[binary]>=3.2"]
