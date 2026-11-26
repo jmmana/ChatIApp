@@ -64,6 +64,8 @@ Ver la lista exige sesión; crear, cambiar, borrar y probar la conexión exigen 
 | `POST` | `/api/v1/datasources/{id}/preview` | Métrica + período + dimensiones + filtros + rol → `{sql, summary_table, period, filters_applied}`, sin IA |
 | `POST` | `/api/v1/datasources/{id}/validate-sql` | SQL + rol → resultado del guardián (para pruebas) |
 
+Leer y publicar el modelo exigen administrador (403 `forbidden` si no): el modelo incluye columnas ocultas y filtros por rol.
+
 ## Proveedores de IA
 
 | Método | Ruta | Descripción |
@@ -76,7 +78,9 @@ Ver la lista exige sesión; crear, cambiar, borrar y probar la conexión exigen 
 | `POST` | `/api/v1/providers/{id}/test` | Prueba la conexión guardada |
 | `POST` | `/api/v1/providers/test` | Prueba una configuración **sin guardarla** |
 | `GET` | `/api/v1/providers/{id}/models` | Modelos disponibles, si la API del proveedor lo permite |
-| `PUT` | `/api/v1/providers/routing` | Asigna tareas (`planner`, `sql`, `answer`, `suggest`) y cadena de respaldo |
+| `PUT` | `/api/v1/providers/routing` | Asigna tareas (`planner`, `sql`, `answer`, `suggest`) y cadena de respaldo. Cuerpo: `{"tasks": {"sql": "<id>"}, "fallback": ["<id>"]}` |
+
+Los secretos se guardan cifrados y se devuelven enmascarados (`secrets: {"api_key": "…1234"}`). `config` y `secrets` se validan contra los campos del catálogo del `kind` (422 `invalid_provider`). Solo hay un proveedor `is_default`. Los proveedores con `managed_by = "config"` no se editan ni se eliminan desde la API (409 `managed_by_config`); un nombre repetido da 409 `name_taken`.
 
 ## Chat y conversaciones
 

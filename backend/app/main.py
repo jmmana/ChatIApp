@@ -9,10 +9,10 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.api import auth, datasources, health, providers, semantic
+from app.api import api_keys, auth, datasources, health, providers, semantic
 from app.api.errors import register_error_handlers
 from app.db.session import get_engine
-from app.security.auth import AuthError, ensure_initial_admin, get_current_user
+from app.security.auth import AuthError, ensure_initial_admin, get_current_user, require_admin
 from app.settings.env import get_settings
 from app.settings.startup import load_and_register
 from app.version import __version__
@@ -59,6 +59,10 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     # Todo lo que no es health ni auth exige sesión (tests/security/test_routes.py lo vigila).
     protected = [Depends(get_current_user)]
     application.include_router(providers.router, prefix=API_PREFIX, dependencies=protected)
+    # Administración de keys: solo administradores con JWT de usuario, nunca una API key.
+    application.include_router(
+        api_keys.router, prefix=API_PREFIX, dependencies=[Depends(require_admin)]
+    )
     application.include_router(datasources.router, prefix=API_PREFIX, dependencies=protected)
     application.include_router(semantic.router, prefix=API_PREFIX, dependencies=protected)
     register_error_handlers(application)

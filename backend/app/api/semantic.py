@@ -17,6 +17,7 @@ from app.semantic.schema import SemanticModelError, parse_semantic_model
 
 router = APIRouter(prefix="/datasources/{datasource_id}/semantic", tags=["modelo semántico"])
 # Ver el modelo basta con sesión; publicar versiones es administración.
+# El modelo incluye columnas ocultas y filtros por rol: leerlo también es administración.
 ADMIN = [Depends(require_admin)]
 
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -62,7 +63,7 @@ def _current_or_404(session: Session, datasource_id: uuid.UUID) -> SemanticModel
     return row
 
 
-@router.get("", summary="Versión vigente del modelo semántico")
+@router.get("", summary="Versión vigente del modelo semántico", dependencies=ADMIN)
 def get_semantic(datasource_id: uuid.UUID, session: SessionDep) -> VersionOut:
     return _out(_current_or_404(session, datasource_id))
 
@@ -96,13 +97,17 @@ def put_semantic(
     return _out(row)
 
 
-@router.get("/versions", summary="Historial de versiones (la más reciente primero)")
+@router.get(
+    "/versions", summary="Historial de versiones (la más reciente primero)", dependencies=ADMIN
+)
 def list_versions(datasource_id: uuid.UUID, session: SessionDep) -> list[VersionInfo]:
     _check_datasource(session, datasource_id)
     return [_info(row) for row in store.list_versions(session, datasource_id)]
 
 
-@router.get("/versions/{version}", summary="Una versión del historial, con su modelo")
+@router.get(
+    "/versions/{version}", summary="Una versión del historial, con su modelo", dependencies=ADMIN
+)
 def get_version(datasource_id: uuid.UUID, version: int, session: SessionDep) -> VersionOut:
     _check_datasource(session, datasource_id)
     row = store.get_version(session, datasource_id, version)
@@ -111,7 +116,7 @@ def get_version(datasource_id: uuid.UUID, version: int, session: SessionDep) -> 
     return _out(row)
 
 
-@router.get("/export", summary="Exporta el modelo vigente a YAML o JSON")
+@router.get("/export", summary="Exporta el modelo vigente a YAML o JSON", dependencies=ADMIN)
 def export_semantic(
     datasource_id: uuid.UUID, session: SessionDep, format: Literal["yaml", "json"] = "yaml"
 ) -> Response:

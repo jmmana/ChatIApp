@@ -187,3 +187,14 @@ def test_solo_administradores_publican(
     response = _put(client, datasource_id, model, 0)
 
     assert response.status_code == 403
+
+
+def test_solo_administradores_leen_el_modelo(
+    client: TestClient, datasource_id: uuid.UUID, model: dict[str, Any]
+) -> None:
+    assert _put(client, datasource_id, model, 0).status_code in (200, 201)
+    app.dependency_overrides[get_current_user] = lambda: User(email="u@b.co", is_admin=False)
+    base = f"/api/v1/datasources/{datasource_id}/semantic"
+
+    for path in ("", "/versions", "/versions/1", "/export?format=yaml"):
+        assert client.get(base + path).status_code == 403, path
