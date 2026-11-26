@@ -8,7 +8,7 @@ las dimensiones y los filtros existen y están permitidos para el rol. Cada rech
 import unicodedata
 from collections import deque
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Final
 
 from app.semantic.schema import Column, Metric, SemanticModel, Table
@@ -102,6 +102,21 @@ class HiddenFieldError(CatalogError):
         super().__init__(f"El campo «{field}» no está disponible {who}")
 
 
+class TimeFilterError(CatalogError):
+    def __init__(self, field: str) -> None:
+        self.field = field
+        super().__init__(
+            f"«{field}» es una fecha: el período se pide aparte y lo resuelve el motor, "
+            "no un filtro (ADR 0001)"
+        )
+
+
+class UnknownRoleError(CatalogError):
+    def __init__(self, role: str) -> None:
+        self.role = role
+        super().__init__(f"El rol «{role}» no existe en el modelo semántico")
+
+
 class InvalidOperatorError(CatalogError):
     def __init__(self, field: str, op: str) -> None:
         self.field = field
@@ -126,11 +141,11 @@ class Catalog:
         self._model = model
         self._tables = {t.name: t for t in model.tables}
         self._by_name = {m.name: m for m in model.metrics}
+        # Solo de muchos a uno (from → to): ir al revés multiplicaría las filas de la métrica.
         self._adjacency: dict[str, set[str]] = {}
         for rel in model.relationships:
             origin, target = rel.from_.rpartition(".")[0], rel.to.rpartition(".")[0]
             self._adjacency.setdefault(origin, set()).add(target)
-            self._adjacency.setdefault(target, set()).add(origin)
 
     @property
     def metrics(self) -> list[Metric]:
@@ -162,23 +177,30 @@ class Catalog:
         filters: Sequence[PlanFilter] = (),
         role: str | None = None,
     ) -> VerifiedPlan:
-        """Verifica métrica, dimensiones y filtros; lanza el primer `CatalogError` que halle."""
+        """Verifica métrica, dimensiones y filtros; lanza el primer `CatalogError` que halle.
+
+        El plan verificado usa los nombres canónicos del modelo (`tabla.columna`), sin repetidos.
+        """
         found = self.find_metric(metric)
         role_name = role or self._model.security.default_role
         hidden_tables = self._hidden_tables(role_name)
         if found.table in hidden_tables:
             raise MetricNotAllowedError(found.name, role_name or "")
+        canonical_dimensions: list[str] = []
         for dimension in dimensions:
-            self._check_dimension(found, dimension, hidden_tables, role_name)
-        for item in filters:
-            self._check_filter(found, item, hidden_tables, role_name)
-        return VerifiedPlan(found, tuple(dimensions), tuple(filters))
+            match = self._check_dimension(found, dimension, hidden_tables, role_name)
+            if match not in canonical_dimensions:
+                canonical_dimensions.append(match)
+        canonical_filters = tuple(
+            self._check_filter(found, item, hidden_tables, role_name) for item in filters
+        )
+        return VerifiedPlan(found, tuple(canonical_dimensions), canonical_filters)
 
     # ------------------------------------------------------------------ dimensiones
 
     def _check_dimension(
         self, metric: Metric, dimension: str, hidden_tables: set[str], role: str | None
-    ) -> None:
+    ) -> str:
         wanted = normalize(dimension)
         match = next((d for d in metric.dimensions if normalize(d) == wanted), None)
         if match is None:
@@ -186,12 +208,13 @@ class Catalog:
             raise DimensionNotAllowedError(metric.name, dimension, allowed)
         if self._is_hidden(match, hidden_tables):
             raise HiddenFieldError(match, role)
+        return match
 
     # ------------------------------------------------------------------ filtros
 
     def _check_filter(
         self, metric: Metric, item: PlanFilter, hidden_tables: set[str], role: str | None
-    ) -> None:
+    ) -> PlanFilter:
         resolved = self._resolve_field(metric, item.field)
         if resolved is None:
             raise UnknownFilterFieldError(metric.name, item.field)
@@ -199,9 +222,12 @@ class Catalog:
         qualified = f"{table.name}.{column.name}"
         if column.hidden or table.name in hidden_tables:
             raise HiddenFieldError(qualified, role)
+        if column.role == "time":
+            raise TimeFilterError(qualified)
         if item.op not in OPERATORS:
             raise InvalidOperatorError(qualified, item.op)
         self._check_value(qualified, item.op, item.value)
+        return replace(item, field=qualified)
 
     def _resolve_field(self, metric: Metric, field: str) -> tuple[Table, Column] | None:
         """`tabla.columna` (o solo `columna` de la tabla base) alcanzable desde la métrica."""
@@ -244,10 +270,12 @@ class Catalog:
     # ------------------------------------------------------------------ seguridad
 
     def _hidden_tables(self, role: str | None) -> set[str]:
+        if role is None:
+            return set()
         for candidate in self._model.security.roles:
             if candidate.name == role:
                 return set(candidate.hidden_tables)
-        return set()
+        raise UnknownRoleError(role)  # falla cerrado: un rol desconocido no ve todo
 
     def _is_hidden(self, ref: str, hidden_tables: set[str]) -> bool:
         table_name, _, column_name = ref.rpartition(".")

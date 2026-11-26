@@ -13,8 +13,10 @@ from app.engine.catalog import (
     InvalidOperatorError,
     MetricNotAllowedError,
     PlanFilter,
+    TimeFilterError,
     UnknownFilterFieldError,
     UnknownMetricError,
+    UnknownRoleError,
     normalize,
 )
 from app.semantic.schema import parse_semantic_model
@@ -113,15 +115,45 @@ def test_campo_de_filtro_inexistente(catalog: Catalog) -> None:
         catalog.verify("ventas_netas", filters=[PlanFilter("facturas.color", "=", "rojo")])
 
 
-def test_campo_de_filtro_sin_relacion_con_la_metrica() -> None:
-    data = _load()
-    data["relationships"] = [
-        r for r in data["relationships"] if not r["from"].startswith("ventas_diarias")
-    ]
-    catalog = Catalog(parse_semantic_model(data))
-
+@pytest.mark.parametrize(
+    ("metric", "field"),
+    [
+        # facturas → sucursales ← ventas_diarias: el segundo tramo va de uno a muchos.
+        ("num_facturas", "ventas_diarias.canal"),
+        # facturas ← factura_detalle → productos: sumar facturas por producto las repetiría.
+        ("ventas_netas", "productos.categoria"),
+    ],
+)
+def test_filtro_por_camino_de_uno_a_muchos_se_rechaza(
+    catalog: Catalog, metric: str, field: str
+) -> None:
     with pytest.raises(UnknownFilterFieldError):
-        catalog.verify("num_facturas", filters=[PlanFilter("ventas_diarias.canal", "=", "TIENDA")])
+        catalog.verify(metric, filters=[PlanFilter(field, "=", "X")])
+
+
+def test_filtro_por_relacion_de_muchos_a_uno(catalog: Catalog) -> None:
+    plan = catalog.verify("ventas_netas", filters=[PlanFilter("sucursales.ciudad", "=", "Cali")])
+    assert plan.filters == (PlanFilter("sucursales.ciudad", "=", "Cali"),)
+
+
+def test_filtro_por_fecha_se_rechaza(catalog: Catalog) -> None:
+    with pytest.raises(TimeFilterError):
+        catalog.verify("ventas_netas", filters=[PlanFilter("facturas.fecha", ">=", "2026-11-01")])
+
+
+def test_rol_desconocido_falla_cerrado(catalog: Catalog) -> None:
+    with pytest.raises(UnknownRoleError):
+        catalog.verify("ventas_netas", ["sucursales.ciudad"], role="mercadeoo")
+
+
+def test_el_plan_usa_nombres_canonicos_sin_repetidos(catalog: Catalog) -> None:
+    plan = catalog.verify(
+        "ventas_netas",
+        [" sucursales.ciudad ", "SUCURSALES.Ciudad"],
+        filters=[PlanFilter("canal", "=", "TIENDA")],
+    )
+    assert plan.dimensions == ("sucursales.ciudad",)
+    assert plan.filters == (PlanFilter("facturas.canal", "=", "TIENDA"),)
 
 
 def test_columna_oculta_en_filtro(catalog: Catalog) -> None:
