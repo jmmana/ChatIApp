@@ -99,3 +99,33 @@ def test_binarios_de_la_base_salen_como_null_con_advertencia(
     res = ex.execute_sync("a", db_url, "sqlite", "SELECT X'00FF' AS blob")
     assert res.rows == [[None]]
     assert res.warnings
+
+
+# ---------------------------------------------------------------------- demo «Ventas»
+
+
+@pytest.fixture(scope="module")
+def demo_url(tmp_path_factory: pytest.TempPathFactory) -> str:
+    from app.demo.seed import generar
+
+    path = tmp_path_factory.mktemp("demo") / "ventas.db"
+    generar(path, seed=42, hasta=date(2026, 11, 25))
+    return f"sqlite:///{path}"
+
+
+def test_demo_con_porcentajes_en_el_sql(ex: QueryExecutor, demo_url: str) -> None:
+    # `%` en strftime y LIKE no debe confundirse con un marcador de parámetro del driver.
+    sql = (
+        "SELECT strftime('%Y-%m-01', fecha) AS mes, COUNT(*) AS n FROM facturas "
+        "WHERE canal LIKE '%' GROUP BY 1 ORDER BY 1"
+    )
+    result = ex.execute_sync("demo", demo_url, "sqlite", sql, max_rows=500)
+    assert result.columns == ["mes", "n"]
+    assert result.rows and all(str(row[0]).endswith("-01") for row in result.rows)
+
+
+def test_demo_es_solo_lectura(ex: QueryExecutor, demo_url: str) -> None:
+    with pytest.raises(QueryExecutionError):
+        ex.execute_sync("demo", demo_url, "sqlite", "DROP TABLE facturas")
+    result = ex.execute_sync("demo", demo_url, "sqlite", "SELECT COUNT(*) FROM facturas")
+    assert result.rows[0][0] > 0

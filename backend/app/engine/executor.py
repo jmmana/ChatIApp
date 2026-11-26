@@ -16,7 +16,7 @@ from uuid import UUID
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Connection, Engine
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 
 from app.engine.dialects import Dialect
 
@@ -110,7 +110,9 @@ class QueryExecutor:
             with engine.connect() as conn:
                 timer = self._prepare(conn, dialect, timeout_seconds, timed_out)
                 try:
-                    result = conn.exec_driver_sql(sql)
+                    # no_parameters: el SQL ya viene completo; un `%` (DATE_FORMAT, LIKE) no es
+                    # un marcador de parámetro del driver.
+                    result = conn.execution_options(no_parameters=True).exec_driver_sql(sql)
                     columns = list(result.keys())
                     fetched = result.fetchmany(max_rows + 1)
                 finally:
@@ -124,6 +126,11 @@ class QueryExecutor:
                 ) from exc
             detail = type(exc.orig).__name__
             raise QueryExecutionError(f"La base rechazó la consulta ({detail})") from exc
+        except (SQLAlchemyError, ValueError) as exc:
+            # ResourceClosedError (sentencias sin filas) o errores del driver fuera de la DB-API.
+            raise QueryExecutionError(
+                f"La base rechazó la consulta ({type(exc).__name__})"
+            ) from exc
         truncated = len(fetched) > max_rows
         warnings: list[str] = []
         rows = [
@@ -165,8 +172,16 @@ class QueryExecutor:
             conn.exec_driver_sql(f"SET LOCAL statement_timeout = {int(timeout_seconds) * 1000}")
         elif dialect == "mysql":
             conn.exec_driver_sql("SET SESSION TRANSACTION READ ONLY")
-            conn.exec_driver_sql(f"SET SESSION max_execution_time = {int(timeout_seconds) * 1000}")
+            if getattr(conn.dialect, "is_mariadb", False):
+                # MariaDB no tiene max_execution_time: usa max_statement_time, en segundos.
+                conn.exec_driver_sql(f"SET SESSION max_statement_time = {int(timeout_seconds)}")
+            else:
+                conn.exec_driver_sql(
+                    f"SET SESSION max_execution_time = {int(timeout_seconds) * 1000}"
+                )
         elif dialect == "sqlite":
+            # SQLite confirma el DDL por su cuenta y el rollback no lo deshace: solo lectura aquí.
+            conn.exec_driver_sql("PRAGMA query_only = ON")
             raw = conn.connection.driver_connection
 
             def interrupt() -> None:
@@ -180,10 +195,21 @@ class QueryExecutor:
         return None
 
 
+# MySQL 3024 (ER_QUERY_TIMEOUT), MariaDB 1969 (ER_STATEMENT_TIMEOUT); PostgreSQL SQLSTATE 57014.
+_TIMEOUT_ERRNOS = frozenset({3024, 1969})
+_TIMEOUT_SQLSTATES = frozenset({"57014"})
+
+
 def _is_timeout(exc: DBAPIError) -> bool:
-    text = str(exc.orig or exc).lower()
-    markers = ("statement timeout", "max_execution_time", "maximum execution")
-    return any(marker in text for marker in markers)
+    """Por código de error, no por texto: «Unknown system variable max_execution_time» no es un
+    timeout."""
+    orig = exc.orig
+    if getattr(orig, "sqlstate", None) in _TIMEOUT_SQLSTATES:
+        return True
+    args = getattr(orig, "args", ())
+    if args and isinstance(args[0], int) and args[0] in _TIMEOUT_ERRNOS:
+        return True
+    return "canceling statement due to statement timeout" in str(orig or exc).lower()
 
 
 executor = QueryExecutor()
