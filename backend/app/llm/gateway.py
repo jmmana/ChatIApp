@@ -11,7 +11,7 @@ import re
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Literal
 
 import litellm
 from pydantic import BaseModel, ValidationError
@@ -46,7 +46,6 @@ _MESSAGES: dict[ErrorKind, str] = {
 _RENAMED = {"aws_region": "aws_region_name"}
 DEFAULT_TIMEOUT = 60.0
 
-T = TypeVar("T", bound=BaseModel)
 CompletionFn = Callable[..., Any]
 
 
@@ -92,7 +91,7 @@ class Completion:
 
 
 @dataclass(frozen=True)
-class JsonCompletion(Generic[T]):
+class JsonCompletion[T: BaseModel]:
     data: T
     usage: Usage
 
@@ -211,7 +210,7 @@ class Gateway:
         text = response.choices[0].message.content or ""
         return Completion(text, self._usage(response, started))
 
-    def complete_json(
+    def complete_json[T: BaseModel](
         self, messages: list[dict[str, str]], schema: type[T], **params: Any
     ) -> JsonCompletion[T]:
         """Completa y valida contra `schema`; reintenta una vez pasando el error al modelo."""
