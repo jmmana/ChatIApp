@@ -125,9 +125,12 @@ def _validate_fields(spec: ProviderSpec, config: dict[str, Any], secrets: dict[s
         field = by_name.get(name)
         if field is None or field.type == "secret":
             errors[name] = "Campo no permitido en `config` para este tipo."
-        elif field.type == "select" and field.options:
-            if str(config[name]) not in {o.value for o in field.options}:
-                errors[name] = "Valor fuera de las opciones permitidas."
+        elif (
+            field.type == "select"
+            and field.options
+            and str(config[name]) not in {o.value for o in field.options}
+        ):
+            errors[name] = "Valor fuera de las opciones permitidas."
     for name in secrets:
         field = by_name.get(name)
         if field is None or field.type != "secret":
