@@ -162,9 +162,9 @@ def apply_reply(
         kept = [d for d in plan.dimensions if d in pending.options]
         if normalize(text).strip(" .!") in _NO_BREAKDOWN:
             return plan.model_copy(update={"dimensions": kept})
-        choice = _match_option(text, pending.options)
-        if choice is None:
+        picked = _match_option(text, pending.options)
+        if picked is None:
             return None
-        dimensions = kept if choice in kept else [*kept, choice]
+        dimensions = kept if picked in kept else [*kept, picked]
         return plan.model_copy(update={"dimensions": dimensions})
     return None
