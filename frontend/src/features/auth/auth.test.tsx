@@ -42,9 +42,11 @@ describe("autenticación", () => {
   });
 
   it("inicia sesión, guarda el token solo en memoria y entra a la app", async () => {
-    const fetchMock = vi.fn(async (url: string) =>
-      url.endsWith("/refresh") ? json({}, 401) : json(session),
-    );
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith("/refresh")) return json({}, 401);
+      if (url.endsWith("/me")) return json(session.user);
+      return json(session);
+    });
     vi.stubGlobal("fetch", fetchMock);
     renderAt("/chat");
 
@@ -79,7 +81,11 @@ describe("autenticación", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) =>
-        url.endsWith("/logout") ? new Response(null, { status: 204 }) : json(session),
+        url.endsWith("/logout")
+          ? new Response(null, { status: 204 })
+          : url.endsWith("/me")
+            ? json(session.user)
+            : json(session),
       ),
     );
     renderAt("/chat");

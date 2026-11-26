@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/features/auth/AuthProvider";
 import { LoginPage } from "@/features/auth/LoginPage";
+import { RequireAdmin } from "@/features/auth/RequireAdmin";
 import { RequireAuth } from "@/features/auth/RequireAuth";
 import { DatasourcesPage } from "@/features/datasources/DatasourcesPage";
 import { IntegrationsPage } from "@/features/integrations/IntegrationsPage";
@@ -27,13 +29,15 @@ export function App() {
                     key={route.path}
                     path={route.path}
                     element={
-                      route.path === "/integraciones" ? (
-                        <IntegrationsPage />
-                      ) : route.path === "/fuentes-de-datos" ? (
-                        <DatasourcesPage />
-                      ) : (
-                        <EmptyState route={route} />
-                      )
+                      <RequireAdminIfNeeded adminOnly={route.adminOnly}>
+                        {route.path === "/integraciones" ? (
+                          <IntegrationsPage />
+                        ) : route.path === "/fuentes-de-datos" ? (
+                          <DatasourcesPage />
+                        ) : (
+                          <EmptyState route={route} />
+                        )}
+                      </RequireAdminIfNeeded>
                     }
                   />
                 ))}
@@ -45,4 +49,14 @@ export function App() {
       </TooltipProvider>
     </QueryClientProvider>
   );
+}
+
+function RequireAdminIfNeeded({
+  adminOnly,
+  children,
+}: {
+  adminOnly: boolean;
+  children: ReactNode;
+}) {
+  return adminOnly ? <RequireAdmin>{children}</RequireAdmin> : children;
 }

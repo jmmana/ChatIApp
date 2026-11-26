@@ -69,6 +69,12 @@ export async function refresh(): Promise<AuthUser | null> {
   return readSession(response);
 }
 
+export async function me(): Promise<AuthUser> {
+  const response = await apiFetch("/api/v1/auth/me");
+  if (!response.ok) throw new AuthApiError(response.status, "No se pudo obtener el usuario.");
+  return (await response.json()) as AuthUser;
+}
+
 export async function logout(): Promise<void> {
   setAccessToken(null);
   await post("logout").catch(() => undefined);

@@ -23,10 +23,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api
       .refresh()
       .catch(() => null)
-      .then((restored) => {
+      .then(async (restored) => {
         if (!active) return;
-        setUser(restored);
-        setStatus(restored ? "authenticated" : "anonymous");
+        const currentUser = restored ? await api.me().catch(() => null) : null;
+        if (!active) return;
+        setUser(currentUser);
+        setStatus(currentUser ? "authenticated" : "anonymous");
       });
     return () => {
       active = false;
@@ -34,8 +36,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const loggedIn = await api.login(email, password);
-    setUser(loggedIn);
+    await api.login(email, password);
+    setUser(await api.me());
     setStatus("authenticated");
   }, []);
 
