@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import ApiKey, Datasource, QueryRun, User
@@ -71,7 +71,7 @@ def _day_start(day: date) -> datetime:
     return datetime(day.year, day.month, day.day, tzinfo=UTC)
 
 
-def _query(filters: AuditFilters) -> Select[Any]:
+def _query(filters: AuditFilters) -> Any:
     stmt = (
         select(QueryRun, User.email, Datasource.name, ApiKey.name)
         .outerjoin(User, User.id == QueryRun.user_id)
