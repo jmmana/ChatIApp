@@ -63,3 +63,6 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: contra PostgreSQL, MySQL o SQL Server reales (se omiten sin CHATIAPP_IT_*_URL)",
+]
