@@ -64,10 +64,29 @@ function renderPage() {
 }
 
 function bodyOf(fetchMock: ReturnType<typeof mockApi>, method: string) {
-  const call = fetchMock.mock.calls.find(([, init]) => init?.method === method);
+  const call = writeCall(fetchMock, method);
   expect(call).toBeDefined();
   return JSON.parse(call![1]!.body as string) as Record<string, unknown>;
 }
+
+// Escrituras a /datasources (el refresco de sesión también es POST, pero a /auth).
+function writeCall(fetchMock: ReturnType<typeof mockApi>, method: string) {
+  return fetchMock.mock.calls.find(
+    ([url, init]) => url.startsWith("/api/v1/datasources") && init?.method === method,
+  );
+}
+
+beforeEach(() => {
+  // jsdom no trae ResizeObserver y el Switch de Radix lo usa.
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -141,7 +160,7 @@ describe("formulario", () => {
     await userEvent.click(screen.getByRole("button", { name: "Guardar" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Escribe la URL de conexión.");
-    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+    expect(writeCall(fetchMock, "POST")).toBeUndefined();
   });
 
   it("al editar muestra la URL enmascarada y no la reenvía si no cambia", async () => {
