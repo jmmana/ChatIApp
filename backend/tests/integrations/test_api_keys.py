@@ -326,15 +326,16 @@ def test_cli_crea_lista_y_revoca(engine: Engine, capsys: pytest.CaptureFixture[s
         assert key.scopes == ["chat", "embed"]
         assert key.datasources == ["ventas"]
         assert key.rate_limit_per_minute == 30
+        prefix = key.prefix  # authenticate_api_key hace commit y expira el objeto
         authenticate_api_key(s, secret)
 
     assert cli.main(["keys", "list"], factory) == 0
     listado = capsys.readouterr().out
-    assert key.prefix in listado
+    assert prefix in listado
     assert "activa" in listado
     assert secret not in listado
 
-    assert cli.main(["keys", "revoke", key.prefix], factory) == 0
+    assert cli.main(["keys", "revoke", prefix], factory) == 0
     with Session(engine) as s, pytest.raises(AuthError):
         authenticate_api_key(s, secret)
     cli.main(["keys", "list"], factory)
