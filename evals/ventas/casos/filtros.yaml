@@ -1,0 +1,101 @@
+# Métricas con filtros sobre dimensiones.
+# Formato: evals/README.md. Los SQL son escritos a mano; los valores esperados
+# viven en ../valores.json (se generan con `python -m app.eval.golden --congelar`).
+
+- id: fil-es-online
+  lang: es
+  question: "Ventas online este mes"
+  tags: [filtro, canal]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-01' AND f.fecha < '2026-12-01' AND f.canal = 'ONLINE'"
+
+- id: fil-es-medellin
+  lang: es
+  question: "¿Cuánto vendimos en Medellín el mes pasado?"
+  tags: [filtro, ciudad]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01' AND s.ciudad = 'Medellín'"
+
+- id: fil-es-cali
+  lang: es
+  question: "Ventas en Cali este año"
+  tags: [filtro, ciudad]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01' AND s.ciudad = 'Cali'"
+
+- id: fil-es-mayorista
+  lang: es
+  question: "¿Cuánto vendimos a mayoristas el año pasado?"
+  tags: [filtro, canal]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01' AND f.canal = 'MAYORISTA'"
+
+- id: fil-es-empresas
+  lang: es
+  question: "Ventas a clientes empresa este año"
+  tags: [filtro, segmento]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f JOIN clientes c ON c.id = f.cliente_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01' AND c.segmento = 'EMPRESA'"
+
+- id: fil-es-celulares
+  lang: es
+  question: "Unidades de celulares vendidas el mes pasado"
+  tags: [filtro, categoria]
+  expect:
+    sql: "SELECT SUM(d.cantidad) AS unidades_vendidas FROM factura_detalle d JOIN facturas f ON f.id = d.factura_id JOIN productos p ON p.id = d.producto_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01' AND p.categoria = 'Celulares'"
+
+- id: fil-es-samsung
+  lang: es
+  question: "¿Cuántas unidades Samsung vendimos este año?"
+  tags: [filtro, marca]
+  expect:
+    sql: "SELECT SUM(d.cantidad) AS unidades_vendidas FROM factura_detalle d JOIN facturas f ON f.id = d.factura_id JOIN productos p ON p.id = d.producto_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01' AND p.marca = 'Samsung'"
+
+- id: fil-es-sucursal
+  lang: es
+  question: "Ventas de Bogotá Andino el mes pasado"
+  tags: [filtro, sucursal]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01' AND s.nombre = 'Bogotá Andino'"
+
+- id: fil-es-caribe
+  lang: es
+  question: "Facturas de la región Caribe en 2025"
+  tags: [filtro, region]
+  expect:
+    sql: "SELECT COUNT(*) AS num_facturas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01' AND s.region = 'Caribe'"
+
+- id: fil-es-dos-filtros
+  lang: es
+  question: "Ventas en línea en Cali el mes pasado"
+  tags: [filtro, canal, ciudad]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01' AND f.canal = 'ONLINE' AND s.ciudad = 'Cali'"
+
+- id: fil-es-varias-sucursales
+  lang: es
+  question: "Ventas de Cali Chipichape y Barranquilla Buenavista este año"
+  tags: [filtro, sucursal]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01' AND s.nombre IN ('Cali Chipichape', 'Barranquilla Buenavista')"
+
+- id: fil-en-online
+  lang: en
+  question: "Online sales this month"
+  tags: [filtro, canal]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-01' AND f.fecha < '2026-12-01' AND f.canal = 'ONLINE'"
+
+- id: fil-en-medellin
+  lang: en
+  question: "How much did we sell in Medellín last year?"
+  tags: [filtro, ciudad]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01' AND s.ciudad = 'Medellín'"
+
+- id: fil-en-phones
+  lang: en
+  question: "Units sold in the Celulares category this year"
+  tags: [filtro, categoria]
+  expect:
+    sql: "SELECT SUM(d.cantidad) AS unidades_vendidas FROM factura_detalle d JOIN facturas f ON f.id = d.factura_id JOIN productos p ON p.id = d.producto_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01' AND p.categoria = 'Celulares'"

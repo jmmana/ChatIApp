@@ -1,0 +1,14 @@
+# Set dorado «Ventas»: describe sobre qué datos se calcularon los resultados esperados.
+# Formato y flujo de trabajo: evals/README.md
+name: ventas
+# Base de demostración (backend/app/demo/seed.py): `--seed` y `--hasta` fijan los datos.
+dataset:
+  seed: 42
+  hasta: 2026-11-25
+# «Hoy» para las preguntas del set es `dataset.hasta` (miércoles 25 de noviembre de 2026).
+# Rol con el que se formulan las preguntas: ve todas las sucursales.
+role: gerencia_general
+# Mínimos que exige el validador.
+minimos:
+  es: 60
+  en: 20
