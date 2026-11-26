@@ -17,8 +17,7 @@ CONSULTAS = {
     "detalle": "SELECT SUM(cantidad), SUM(total_linea) FROM factura_detalle",
     "clientes sin correo": "SELECT COUNT(*) FROM clientes WHERE email IS NULL",
     "resumidas": (
-        "SELECT SUM(total_ventas), SUM(num_facturas), SUM(unidades), COUNT(*) "
-        "FROM ventas_diarias"
+        "SELECT SUM(total_ventas), SUM(num_facturas), SUM(unidades), COUNT(*) FROM ventas_diarias"
     ),
     "resumidas por mes": (
         "SELECT MIN(mes), MAX(mes), SUM(total_ventas), COUNT(*) FROM ventas_mensuales"

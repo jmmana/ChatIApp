@@ -20,8 +20,7 @@ CASOS = {
     "facturas": (
         "SELECT COUNT(*) FROM (SELECT * FROM facturas WHERE sucursal_id IN (1, 2)) AS f "
         "WHERE f.estado = 'PAGADA'",
-        "SELECT COUNT(*) FROM facturas AS f WHERE f.sucursal_id IN (1, 2) "
-        "AND f.estado = 'PAGADA'",
+        "SELECT COUNT(*) FROM facturas AS f WHERE f.sucursal_id IN (1, 2) AND f.estado = 'PAGADA'",
     ),
     "join": (
         "SELECT s.nombre, SUM(f.total) FROM "

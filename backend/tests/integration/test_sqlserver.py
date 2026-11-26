@@ -60,9 +60,7 @@ def test_con_british_yyyymmdd_se_lee_bien_en_columnas_datetime(sqlserver: Motor)
             ).scalar_one()
             # La trampa que evita el formato: con `british` (día-mes-año), el ISO con guiones
             # se lee como año-día-mes en columnas `datetime`.
-            mes = conn.exec_driver_sql(
-                "SELECT MONTH(CAST('2025-03-04' AS DATETIME))"
-            ).scalar_one()
+            mes = conn.exec_driver_sql("SELECT MONTH(CAST('2025-03-04' AS DATETIME))").scalar_one()
             mes_compacto = conn.exec_driver_sql(
                 "SELECT MONTH(CAST('20250304' AS DATETIME))"
             ).scalar_one()
