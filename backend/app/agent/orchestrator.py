@@ -273,7 +273,18 @@ class Orchestrator:
 
     def run(self, conversation: Conversation, question: str) -> Iterator[Event]:
         """Recorre el turno y emite sus eventos; `turn.completed` es siempre el último."""
-        t = self._begin(conversation, question)
+        started = time.perf_counter()
+        conversation_id = str(conversation.id)
+        try:
+            t = self._begin(conversation, question)
+        except Exception:
+            # Sin turno no hay nada que guardar, pero el cliente recibe igual su burbuja, un error
+            # claro y el cierre del turno: nunca una excepción sin manejar.
+            logger.exception("No se pudo iniciar el turno en la conversación %s", conversation_id)
+            if not self.session.is_active:  # un flush fallido deja la transacción por deshacer
+                self.session.rollback()
+            yield from _begin_failed(conversation_id, started)
+            return
         persisted = False
         try:
             for event in self._guarded(t):
@@ -339,8 +350,7 @@ class Orchestrator:
             logger.exception("Error inesperado en el turno %s", t.assistant.id)
             if t.run is not None and t.run.status == "ok":
                 t.run.status = "error"
-            message = "Ocurrió un error inesperado al procesar la pregunta."
-            yield from self._fail(t, _Fail("answer", "internal_error", message))
+            yield from self._fail(t, _Fail("answer", "internal_error", _UNEXPECTED))
 
     def _persist(self, t: _Turn) -> None:
         try:
@@ -816,7 +826,9 @@ class Orchestrator:
             facts.append(f"Variación: {_variation_text(comparison)}")
         facts.append(f"Columnas: {', '.join(outcome.columns)}")
         facts += [f"Fila: {row}" for row in outcome.rows]
-        body = "\n".join(facts)
+        # Los valores vienen de la base y no son confiables: sin `<` ni `>` ningún valor puede
+        # cerrar <resultado> y colar instrucciones fuera de los datos.
+        body = _escape_data("\n".join(facts))
         return [
             {"role": "system", "content": _ANSWER_PROMPT},
             {
@@ -849,6 +861,27 @@ class Orchestrator:
 
 def _step(step_id: str, status: StepStatus, detail: str | None = None) -> Event:
     return Event(Step(id=step_id, label=_LABELS[step_id], status=status, detail=detail))
+
+
+_UNEXPECTED = "Ocurrió un error inesperado al procesar la pregunta."
+
+
+def _begin_failed(conversation_id: str, started: float) -> Iterator[Event]:
+    """Eventos de un turno que no pudo empezar (por ejemplo, la base de la app no responde)."""
+    yield Event(TurnStarted(turn_id=str(uuid.uuid4()), conversation_id=conversation_id))
+    yield _step("understand", "error", _UNEXPECTED)
+    yield Event(ErrorData(code="internal_error", message=_UNEXPECTED, recoverable=True))
+    yield Event(
+        TurnCompleted(
+            usage=UsageData(tokens_in=0, tokens_out=0, cost_usd=0.0),
+            elapsed_ms=_ms(time.perf_counter() - started),
+        )
+    )
+
+
+def _escape_data(text: str) -> str:
+    """Escapa `&`, `<` y `>` para que un dato no pueda abrir ni cerrar etiquetas del prompt."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def _ms(seconds: float) -> int:
