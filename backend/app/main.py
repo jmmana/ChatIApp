@@ -9,7 +9,8 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.api import auth, health, providers
+from app.api import auth, datasources, health, providers
+from app.api.errors import register_error_handlers
 from app.db.session import get_engine
 from app.security.auth import AuthError, ensure_initial_admin, get_current_user
 from app.settings.env import get_settings
@@ -58,6 +59,8 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     # Todo lo que no es health ni auth exige sesión (tests/security/test_routes.py lo vigila).
     protected = [Depends(get_current_user)]
     application.include_router(providers.router, prefix=API_PREFIX, dependencies=protected)
+    application.include_router(datasources.router, prefix=API_PREFIX, dependencies=protected)
+    register_error_handlers(application)
 
     if static_dir is None and (env_dir := os.environ.get("CHATIAPP_STATIC_DIR")):
         static_dir = Path(env_dir)
