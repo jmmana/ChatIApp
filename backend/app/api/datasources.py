@@ -16,12 +16,15 @@ from app.engine.connections import (
     ConnectionFailure,
     InvalidUrlError,
     check_connection,
+    classify_error,
     mask_url,
     validate_url,
 )
 from app.engine.dialects import Dialect
 from app.security.auth import require_admin
 from app.security.crypto import SecretKeyError, decrypt, encrypt, get_cipher
+from app.semantic.introspect import MAX_TABLES, TooManyTablesError, introspect
+from app.semantic.schema import Relationship, Table
 
 router = APIRouter(prefix="/datasources", tags=["fuentes de datos"])
 # Ver la lista basta con sesión; crear, cambiar, borrar y probar es administración (API.md).
@@ -83,6 +86,28 @@ class TestResult(BaseModel):
     latency_ms: int | None = None
     server_version: str | None = None
     error: TestError | None = None
+
+
+class IntrospectRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schemas: list[str] | None = Field(default=None, description="Solo estos esquemas")
+    table_pattern: str | None = Field(
+        default=None, description="Comodines `*` y `?` sobre el nombre de la tabla"
+    )
+    sample_values: bool = False
+
+
+class IssueOut(BaseModel):
+    path: str
+    message: str
+
+
+class IntrospectPreview(BaseModel):
+    schemas: list[str]
+    tables: list[Table]
+    relationships: list[Relationship]
+    warnings: list[IssueOut]
 
 
 def get_request_cipher() -> MultiFernet:
@@ -197,6 +222,37 @@ def delete_datasource(datasource_id: uuid.UUID, session: SessionDep) -> Response
     session.delete(datasource)
     session.commit()
     return Response(status_code=204)
+
+
+@router.post(
+    "/{datasource_id}/semantic/introspect",
+    summary="Lee la estructura de la base conectada (vista previa, no guarda)",
+    dependencies=ADMIN,
+)
+def introspect_datasource(
+    datasource_id: uuid.UUID, body: IntrospectRequest, session: SessionDep, cipher: CipherDep
+) -> IntrospectPreview:
+    datasource = _get_or_404(session, datasource_id)
+    try:
+        url = decrypt(datasource.url_encrypted, cipher)
+    except SecretKeyError as exc:
+        raise ApiError(409, "secret_key_changed", str(exc)) from exc
+    dialect: Dialect = datasource.dialect  # type: ignore[assignment]
+    try:
+        found = introspect(url, datasource, body.schemas, body.table_pattern, body.sample_values)
+    except TooManyTablesError as exc:
+        raise ApiError(
+            422, "too_many_tables", str(exc), {"tables": exc.found, "max": MAX_TABLES}
+        ) from exc
+    except Exception as exc:  # fallo de conexión o de lectura: se clasifica sin filtrar la URL
+        failure = classify_error(exc, dialect)
+        raise ApiError(502, f"introspection_{failure.kind}", failure.message) from exc
+    return IntrospectPreview(
+        schemas=found.schemas,
+        tables=found.tables,
+        relationships=found.relationships,
+        warnings=[IssueOut(path=i.path, message=i.message) for i in found.warnings],
+    )
 
 
 @router.post("/{datasource_id}/test", summary="Prueba la conexión", dependencies=ADMIN)
