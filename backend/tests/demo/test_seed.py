@@ -6,8 +6,9 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+from sqlalchemy import create_engine
 
-from app.demo.seed import generar
+from app.demo.seed import cargar, generar
 
 HASTA = date(2026, 11, 25)
 EJEMPLOS = Path(__file__).resolve().parents[3] / "examples" / "ventas"
@@ -177,6 +178,26 @@ def _esquema_sql() -> dict[str, set[str]]:
 def _base_generada(conn: sqlite3.Connection) -> dict[str, set[str]]:
     nombres = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")]
     return {t: {r[1] for r in conn.execute(f"PRAGMA table_info({t})")} for t in nombres}
+
+
+def test_cargar_con_sqlalchemy_deja_los_mismos_datos(
+    db_path: Path, tmp_path: Path, conn: sqlite3.Connection
+) -> None:
+    # `cargar` es el camino de las pruebas multimotor: aquí se comprueba sobre SQLite.
+    otra = tmp_path / "sqlalchemy.db"
+    engine = create_engine(f"sqlite:///{otra}")
+    try:
+        cargar(engine, seed=42, hasta=HASTA)
+    finally:
+        engine.dispose()
+    copia = sqlite3.connect(otra)
+    try:
+        for tabla in TABLAS:
+            consulta = f"SELECT * FROM {tabla} ORDER BY 1, 2"
+            assert copia.execute(consulta).fetchall() == conn.execute(consulta).fetchall(), tabla
+        assert copia.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        copia.close()
 
 
 def test_modelo_semantico_y_ddl_describen_la_base(conn: sqlite3.Connection) -> None:
