@@ -61,8 +61,10 @@ Ver la lista exige sesión; crear, cambiar, borrar y probar la conexión exigen 
 | `POST` | `/api/v1/datasources/{id}/semantic/introspect` | Lee la base conectada y devuelve vista previa; no guarda |
 | `POST` | `/api/v1/datasources/{id}/semantic/suggest` | Sugerencias de IA para descripciones, sinónimos y roles vacíos |
 | `GET` | `/api/v1/datasources/{id}/semantic/export?format=yaml` | Exporta el modelo vigente (`format=yaml` o `json`); reimportarlo da un modelo idéntico |
-| `POST` | `/api/v1/datasources/{id}/preview` | Métrica + período + dimensiones + filtros + rol → `{sql, summary_table, period, filters_applied}`, sin IA |
-| `POST` | `/api/v1/datasources/{id}/validate-sql` | SQL + rol → resultado del guardián (para pruebas) |
+| `POST` | `/api/v1/datasources/{id}/preview` | Cuerpo `{metric, period?, dimensions?, filters?, granularity?, view_as?}` → `{sql, metric, role, summary_table, reason, period, filters_applied, guard}`, sin IA. Errores de catálogo, de período o de plan: `422` |
+| `POST` | `/api/v1/datasources/{id}/validate-sql` | Cuerpo `{sql, view_as?}` → resultado del guardián `{allowed, sql, tables, violations, role}` (para pruebas; solo administradores, porque revela qué columnas están ocultas) |
+
+Ambas usan la última versión del modelo semántico y el rol y atributos del permiso (`grant`) del usuario; `view_as` (`{role, attributes}`) solo lo usan administradores (`403` para los demás). Sin modelo publicado responden `404`.
 
 Leer y publicar el modelo exigen administrador (403 `forbidden` si no): el modelo incluye columnas ocultas y filtros por rol.
 
