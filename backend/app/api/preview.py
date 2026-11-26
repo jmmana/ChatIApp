@@ -122,7 +122,9 @@ def _guard_out(result: GuardResult) -> GuardOut:
     )
 
 
-def _load(session: Session, datasource_id: uuid.UUID) -> tuple[Datasource, SemanticModel, int]:
+def load_model(
+    session: Session, datasource_id: uuid.UUID
+) -> tuple[Datasource, SemanticModel, int]:
     datasource = session.get(Datasource, datasource_id)
     if datasource is None:
         raise ApiError(404, "datasource_not_found", "La fuente de datos no existe")
@@ -137,7 +139,7 @@ def _load(session: Session, datasource_id: uuid.UUID) -> tuple[Datasource, Seman
     return datasource, parse_semantic_model(version.model), version.version
 
 
-def _identity(
+def resolve_identity(
     session: Session,
     user: User,
     datasource: Datasource,
@@ -179,8 +181,8 @@ def _period_config(model: SemanticModel) -> PeriodConfig:
 def preview(
     datasource_id: uuid.UUID, body: PreviewRequest, session: SessionDep, user: UserDep
 ) -> PreviewOut:
-    datasource, model, version = _load(session, datasource_id)
-    role, context = _identity(session, user, datasource, model, body.view_as)
+    datasource, model, version = load_model(session, datasource_id)
+    role, context = resolve_identity(session, user, datasource, model, body.view_as)
 
     period = None
     if body.period is not None:
@@ -256,8 +258,8 @@ def preview(
 def validate_sql(
     datasource_id: uuid.UUID, body: ValidateSqlRequest, session: SessionDep, user: UserDep
 ) -> ValidateSqlOut:
-    datasource, model, version = _load(session, datasource_id)
-    role, context = _identity(session, user, datasource, model, body.view_as)
+    datasource, model, version = load_model(session, datasource_id)
+    role, context = resolve_identity(session, user, datasource, model, body.view_as)
     try:
         result = check_sql(body.sql, model, datasource, version, role, context=context)
     except UnknownRoleError as exc:
