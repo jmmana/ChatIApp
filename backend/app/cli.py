@@ -111,7 +111,10 @@ def _run(args: argparse.Namespace, session: Session) -> int:
             monthly_budget_usd=args.monthly_budget,
             expires_at=args.expires_at,
         )
-        print(f"Key creada: {api_key.id} ({api_key.prefix}). Secreto, una sola vez:", file=sys.stderr)
+        print(
+            f"Key creada: {api_key.id} ({api_key.prefix}). Secreto, una sola vez:",
+            file=sys.stderr,
+        )
         print(secret)
     elif args.action == "list":
         for api_key in service.list_api_keys(session):

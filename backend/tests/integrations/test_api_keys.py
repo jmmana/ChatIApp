@@ -38,8 +38,9 @@ def engine(tmp_path: Path) -> Iterator[Engine]:
     eng = make_engine(f"sqlite:///{tmp_path / 'app.db'}")
     Base.metadata.create_all(eng)
     with Session(eng) as session:
-        session.add(User(email="admin@example.com", password_hash=hash_password("x"), is_admin=True))
-        session.add(User(email="ana@example.com", password_hash=hash_password("x"), is_admin=False))
+        pw = hash_password("x")
+        session.add(User(email="admin@example.com", password_hash=pw, is_admin=True))
+        session.add(User(email="ana@example.com", password_hash=pw, is_admin=False))
         session.commit()
     yield eng
     eng.dispose()
