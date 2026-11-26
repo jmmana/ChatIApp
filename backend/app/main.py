@@ -32,10 +32,16 @@ async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
 
 def _auth_error_handler(_request: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, AuthError)
+    headers: dict[str, str] = {}
+    if exc.status_code == 401:
+        headers["WWW-Authenticate"] = "Bearer"
+    retry_after = getattr(exc, "retry_after", None)
+    if retry_after:
+        headers["Retry-After"] = str(retry_after)
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": {"code": exc.code, "message": exc.message, "details": {}}},
-        headers={"WWW-Authenticate": "Bearer"} if exc.status_code == 401 else None,
+        headers=headers or None,
     )
 
 
