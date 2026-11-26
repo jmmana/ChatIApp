@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.api import auth, health, providers
+from app.api.providers import ApiError
 from app.db.session import get_engine
 from app.security.auth import AuthError, ensure_initial_admin, get_current_user
 from app.settings.env import get_settings
@@ -38,6 +39,14 @@ def _auth_error_handler(_request: Request, exc: Exception) -> JSONResponse:
     )
 
 
+def _api_error_handler(_request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, ApiError)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+    )
+
+
 def create_app(static_dir: Path | None = None) -> FastAPI:
     """Crea la app. Si hay interfaz compilada (`CHATIAPP_STATIC_DIR`), la sirve en `/`.
 
@@ -53,6 +62,7 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     application.add_exception_handler(AuthError, _auth_error_handler)
+    application.add_exception_handler(ApiError, _api_error_handler)
     application.include_router(health.router, prefix=API_PREFIX)
     application.include_router(auth.router, prefix=API_PREFIX)
     # Todo lo que no es health ni auth exige sesión (tests/security/test_routes.py lo vigila).
