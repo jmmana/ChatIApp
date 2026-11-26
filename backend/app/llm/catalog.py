@@ -158,9 +158,17 @@ CATALOG: tuple[ProviderSpec, ...] = (
                 required=False,
                 help="Déjalo vacío para usar el rol IAM de la máquina.",
             ),
+            ProviderField(
+                name="model_id",
+                label="ARN del perfil de inferencia",
+                required=False,
+                help="Solo para perfiles de inferencia de aplicación: indica el modelo base "
+                "como modelo y aquí el ARN del perfil.",
+            ),
         ),
         suggested_models=(
             "anthropic.claude-3-5-sonnet-20241022-v2:0",
+            "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
             "amazon.nova-pro-v1:0",
             "meta.llama3-70b-instruct-v1:0",
         ),
@@ -200,8 +208,8 @@ CATALOG: tuple[ProviderSpec, ...] = (
             ProviderField(
                 name="vertex_credentials",
                 label="Credenciales de cuenta de servicio (JSON)",
-                type="json",
-                help="Contenido del JSON de la cuenta de servicio.",
+                type="secret",
+                help="Pega el contenido completo del JSON de la cuenta de servicio.",
             ),
         ),
         suggested_models=("gemini-2.5-pro", "gemini-2.5-flash"),
