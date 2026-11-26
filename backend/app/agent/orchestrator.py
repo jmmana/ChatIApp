@@ -41,6 +41,7 @@ from app.agent.events import (
     TurnStarted,
     UsageData,
 )
+from app.agent.free_sql import RepairError, repair_sql
 from app.agent.plan import Plan
 from app.agent.planner import PlannerError, Turn, plan_question
 from app.db.models import Conversation, Datasource, Message, QueryRun
@@ -68,7 +69,7 @@ from app.engine.periods import PeriodConfig, PeriodRange, resolve_period
 from app.engine.rls import role_row_filters
 from app.engine.summary import plan_for_summary, route_summary
 from app.llm.gateway import Gateway, GatewayError, Usage
-from app.semantic.context import Privacy, build_context
+from app.semantic.context import Privacy
 from app.semantic.schema import Metric, SemanticModel
 
 logger = logging.getLogger(__name__)
@@ -90,14 +91,6 @@ _LABELS = {
     "execute": "Ejecutando la consulta",
     "answer": "Redactando la respuesta",
 }
-
-_REPAIR_PROMPT = """\
-Eres el reparador de SQL de ChatIApp. El SQL de abajo falló. Corrígelo con el mensaje de error
-exacto y devuelve ÚNICAMENTE el SQL corregido: una sola sentencia SELECT de solo lectura, sin
-explicaciones ni bloques de código. Usa solo tablas y columnas del modelo.
-
-{contexto}
-"""
 
 _ANSWER_PROMPT = """\
 Redactas la respuesta final de ChatIApp, en español, breve y clara (de 1 a 3 frases). Usa solo
@@ -615,22 +608,20 @@ class Orchestrator:
 
     def _repair(self, t: _Turn, sql: str, problem: str) -> str:
         """Pide a la IA una corrección con el mensaje exacto del guardián o de la base."""
-        context = build_context(self.model, t.question, privacy=self.privacy, role=self.role)
-        messages = [
-            {"role": "system", "content": _REPAIR_PROMPT.format(contexto=context)},
-            {
-                "role": "user",
-                "content": f"Pregunta: {t.question}\nSQL: {sql}\nError exacto: {problem}",
-            },
-        ]
         try:
-            completion = self.gateway.complete(messages)
-        except GatewayError as exc:
-            raise _Fail("repair", "provider_error", exc.message) from exc
-        t.usage += completion.usage
-        fixed = _strip_sql(completion.text)
-        if not fixed:
-            raise _Fail("repair", "invalid_plan", "La IA no devolvió un SQL corregido.")
+            fixed, usage = repair_sql(
+                self.gateway,
+                self.model,
+                t.question,
+                sql,
+                problem,
+                dialect=self.dialect,
+                privacy=self.privacy,
+                role=self.role,
+            )
+        except RepairError as exc:
+            raise _Fail("repair", exc.kind, exc.message) from exc
+        t.usage += usage
         return fixed
 
     # -- validación y ejecución
@@ -902,14 +893,6 @@ def _comparison_skipped(
     if not can_execute:
         return "La fuente no ejecuta consultas: no se puede comparar"
     return None
-
-
-def _strip_sql(text: str) -> str:
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1] if "\n" in text else ""
-        text = text.rsplit("```", 1)[0]
-    return text.strip()
 
 
 def _number(value: Any) -> float | None:
