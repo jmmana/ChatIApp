@@ -154,9 +154,7 @@ class _Builder:
             needed.update(col.table for col in tree.find_all(exp.Column))
         joins = self._joins(needed)
 
-        period_expr = None
-        if self.time_grain is not None:
-            period_expr = self._trunc(time_ref)
+        period_expr = self._trunc(time_ref) if self.time_grain is not None else None
 
         select = self._select_items(period_expr, dimensions, value)
         where = [self._condition_sql(c) for c in conditions] + user_conditions
