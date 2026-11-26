@@ -43,7 +43,7 @@ from app.agent.events import (
 )
 from app.agent.plan import Plan
 from app.agent.planner import PlannerError, Turn, plan_question
-from app.db.models import Conversation, Datasource, Message, QueryRun
+from app.db.models import Conversation, Datasource, Message, QueryRun, User
 from app.engine.builder import BuilderError, OrderTerm, build_sql
 from app.engine.catalog import (
     AmbiguousMetricError,
@@ -68,6 +68,7 @@ from app.engine.periods import PeriodConfig, PeriodRange, resolve_period
 from app.engine.rls import role_row_filters
 from app.engine.summary import plan_for_summary, route_summary
 from app.llm.gateway import Gateway, GatewayError, Usage
+from app.security.grants import ViewAs, resolve_access
 from app.semantic.context import Privacy, build_context
 from app.semantic.schema import Metric, SemanticModel
 
@@ -232,6 +233,37 @@ class Orchestrator:
             week_starts_on=settings.week_starts_on,
             fiscal_year_start_month=settings.fiscal_year_start_month,
             locale=settings.locale or "es-CO",
+        )
+
+    @classmethod
+    def for_user(
+        cls,
+        session: Session,
+        gateway: Gateway,
+        datasource: Datasource,
+        model: SemanticModel,
+        version: int,
+        url: str,
+        user: User,
+        *,
+        view_as: ViewAs | None = None,
+        **kwargs: Any,
+    ) -> "Orchestrator":
+        """Orquestador con el rol y los atributos del usuario autenticado en la fuente.
+
+        Sin permiso lanza `GrantError` (403); `view_as` solo lo acepta un administrador.
+        """
+        access = resolve_access(session, user, datasource, model, view_as)
+        return cls(
+            session,
+            gateway,
+            datasource,
+            model,
+            version,
+            url,
+            role=access.role,
+            context=access.context,
+            **kwargs,
         )
 
     def now(self) -> datetime:
