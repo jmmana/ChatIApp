@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import random
+import re
 import sqlite3
 from collections import defaultdict
 from collections.abc import Sequence
@@ -541,17 +542,29 @@ def _metadata() -> MetaData:
     return md
 
 
+_PALABRAS_DE_PRUEBA = frozenset({"it", "test", "tests", "testing", "demo"})
+
+
+def es_base_de_pruebas(nombre: str | None) -> bool:
+    """¿El nombre tiene la palabra it, test o demo? Se compara por palabras, no por fragmentos.
+
+    `chatiapp_it`, `test-db` o `demo` sí; `capital`, `audit`, `digital` o `produccion` no.
+    """
+    palabras = re.split(r"[^a-z0-9]+", (nombre or "").lower())
+    return any(p in _PALABRAS_DE_PRUEBA for p in palabras)
+
+
 def cargar(engine: Engine, seed: int = 42, hasta: date | None = None) -> None:
     """Carga en cualquier base de SQLAlchemy los mismos datos que `generar` deja en SQLite.
 
     Lo usan las pruebas de integración (PostgreSQL, MySQL, SQL Server). Reemplaza las tablas de
     la demo si ya existen; con la misma `seed` y `hasta` las filas son idénticas.
     """
-    nombre = (engine.url.database or "").lower()
-    if engine.dialect.name != "sqlite" and not any(m in nombre for m in ("it", "test", "demo")):
+    if engine.dialect.name != "sqlite" and not es_base_de_pruebas(engine.url.database):
         # drop_all borra las tablas de la demo: nunca sobre una base que no sea de pruebas.
         raise ValueError(
-            "cargar() reemplaza tablas; el nombre de la base debe contener «it», «test» o «demo»"
+            "cargar() reemplaza tablas; el nombre de la base debe tener la palabra «it», «test» "
+            "o «demo» (por ejemplo chatiapp_it)"
         )
     datos = _datos(seed, hasta)
     md = _metadata()

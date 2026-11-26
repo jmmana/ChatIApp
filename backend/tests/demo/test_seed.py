@@ -216,5 +216,19 @@ def test_cargar_rechaza_una_base_que_no_parece_de_pruebas(monkeypatch: pytest.Mo
     falso = SimpleNamespace(
         url=SimpleNamespace(database="produccion"), dialect=SimpleNamespace(name="postgresql")
     )
-    with pytest.raises(ValueError, match="debe contener"):
+    with pytest.raises(ValueError, match="debe tener la palabra"):
         cargar(falso)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("nombre", ["chatiapp_it", "test-db", "demo", "IT", "ventas_test_2026"])
+def test_reconoce_bases_de_pruebas(nombre: str) -> None:
+    from app.demo.seed import es_base_de_pruebas
+
+    assert es_base_de_pruebas(nombre)
+
+
+@pytest.mark.parametrize("nombre", ["produccion", "capital", "audit", "digital", "units", "", None])
+def test_no_confunde_fragmentos_con_bases_de_pruebas(nombre: str | None) -> None:
+    from app.demo.seed import es_base_de_pruebas
+
+    assert not es_base_de_pruebas(nombre)
