@@ -231,3 +231,68 @@ def test_plan_para_resumida_de_una_tabla_desconocida(
 
     with pytest.raises(ValueError, match="no es una tabla resumida"):
         plan_for_summary(model, plan, "facturas")
+
+
+# ---------------------------------------------------------------------- regla 7: rol
+
+
+def _sin_filtro_en(model: SemanticModel, table: str) -> SemanticModel:
+    roles = []
+    for role in model.security.roles:
+        filters = [f for f in role.filters if f.table != table]
+        roles.append(role.model_copy(update={"filters": filters}))
+    security = model.security.model_copy(update={"roles": roles})
+    return model.model_copy(update={"security": security})
+
+
+def test_resumida_sin_filtro_del_rol_no_reemplaza_a_la_base(
+    model: SemanticModel, catalog: Catalog
+) -> None:
+    sin_filtro = _sin_filtro_en(model, "ventas_mensuales")
+    plan = catalog.verify("ventas_netas", role="gerente_sucursal")
+
+    decision = route_summary(sin_filtro, plan, period=MES_PASADO, role="gerente_sucursal")
+
+    assert decision.table != "ventas_mensuales"
+    assert any("regla 7" in why for table, why in decision.rejected if table == "ventas_mensuales")
+
+
+def test_rol_sin_filtros_si_puede_usar_la_resumida(model: SemanticModel, catalog: Catalog) -> None:
+    sin_filtro = _sin_filtro_en(model, "ventas_mensuales")
+    plan = catalog.verify("ventas_netas", role="gerencia_general")
+
+    decision = route_summary(sin_filtro, plan, period=MES_PASADO, role="gerencia_general")
+
+    assert decision.table == "ventas_mensuales"
+
+
+def test_rol_desconocido_usa_las_tablas_base(model: SemanticModel, catalog: Catalog) -> None:
+    plan = catalog.verify("ventas_netas", role="gerencia_general")
+
+    decision = route_summary(model, plan, period=MES_PASADO, role="no-existe")
+
+    assert decision.table is None
+
+
+# ---------------------------------------------------------------------- conteos
+
+
+def test_conteo_desde_resumida_da_cero_en_un_periodo_vacio(
+    model: SemanticModel, catalog: Catalog, conn: sqlite3.Connection
+) -> None:
+    anio_2024 = PeriodRange(date(2024, 1, 1), date(2025, 1, 1), "2024", "year", False)
+    plan = catalog.verify("num_facturas", role="gerencia_general")
+    decision = route_summary(model, plan, period=anio_2024, role="gerencia_general")
+    assert decision.table is not None
+
+    routed = plan_for_summary(model, plan, decision.table)
+    assert routed.metric.expression.startswith("COALESCE(")
+    sql = build_sql(model, routed, "sqlite", period=anio_2024).sql
+    base = build_sql(model, plan, "sqlite", period=anio_2024).sql
+    assert conn.execute(sql).fetchall() == conn.execute(base).fetchall() == [(0,)]
+
+
+def test_suma_desde_resumida_no_lleva_coalesce(model: SemanticModel, catalog: Catalog) -> None:
+    plan = catalog.verify("ventas_netas", role="gerencia_general")
+    routed = plan_for_summary(model, plan, "ventas_mensuales")
+    assert not routed.metric.expression.startswith("COALESCE(")

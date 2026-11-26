@@ -12,6 +12,10 @@ from dataclasses import dataclass, replace
 from datetime import date
 from typing import Final
 
+import sqlglot
+from sqlglot import exp
+from sqlglot.errors import SqlglotError
+
 from app.engine.catalog import VerifiedPlan
 from app.engine.dialects import GRANULARITIES, Granularity
 from app.engine.periods import PeriodRange
@@ -62,15 +66,23 @@ def route_summary(
     *,
     period: PeriodRange | None = None,
     time_grain: Granularity | None = None,
+    role: str | None = None,
 ) -> SummaryDecision:
-    """Elige la tabla resumida que responde `plan` igual que las tablas base, si existe."""
+    """Elige la tabla resumida que responde `plan` igual que las tablas base, si existe.
+
+    `role` (por defecto `security.default_role`) importa: una resumida que el rol no filtra
+    no puede reemplazar a una tabla base que sí filtra, o el rol vería filas ajenas.
+    """
     if not model.summary_tables:
         return SummaryDecision(None, "El modelo no declara tablas resumidas: se usan las base")
 
     qualifying: list[SummaryTable] = []
     rejected: list[tuple[str, str]] = []
+    role_filtered = _role_filtered_tables(model, role)
     for summary in model.summary_tables:
-        why_not = _why_not(model, summary, plan, period, time_grain)
+        why_not = _why_not(model, summary, plan, period, time_grain) or _role_problem(
+            model, summary, plan, role, role_filtered
+        )
         if why_not is None:
             qualifying.append(summary)
         else:
@@ -111,6 +123,9 @@ def plan_for_summary(model: SemanticModel, plan: VerifiedPlan, table: str) -> Ve
         mapped = summary.dimensions.get(_qualify(plan, field))
         return f"{table}.{mapped}" if mapped else field
 
+    if _is_count(plan.metric.expression):
+        # COUNT da 0 sobre cero filas, pero SUM(conteos) da NULL: un período vacío daría NULL.
+        expression = f"COALESCE({expression}, 0)"
     metric = plan.metric.model_copy(
         update={
             "table": table,
@@ -179,6 +194,50 @@ def _why_not(
     if touches_current and not summary.includes_current_period:
         return f"no incluye {_CURRENT[summary.grain]} (regla 5)"
     return None
+
+
+def _role_filtered_tables(model: SemanticModel, role: str | None) -> set[str] | None:
+    """Tablas que filtra el rol, o `None` si el rol no existe (falla cerrado)."""
+    name = role or model.security.default_role
+    if name is None:
+        return set()
+    found = next((r for r in model.security.roles if r.name == name), None)
+    return None if found is None else {f.table for f in found.filters}
+
+
+def _role_problem(
+    model: SemanticModel,
+    summary: SummaryTable,
+    plan: VerifiedPlan,
+    role: str | None,
+    filtered: set[str] | None,
+) -> str | None:
+    """Regla 7: la resumida no puede saltarse el filtro por rol de las tablas base."""
+    name = role or model.security.default_role
+    if filtered is None:
+        return f"no se usa porque el rol «{name}» no existe en el modelo (regla 7)"
+    base_tables = {plan.metric.table}
+    base_tables |= {
+        _qualify(plan, field).rpartition(".")[0]
+        for field in (*plan.dimensions, *(f.field for f in plan.filters))
+    }
+    if "." in plan.metric.time_column:
+        base_tables.add(plan.metric.time_column.rpartition(".")[0])
+    filtered_base = sorted(base_tables & filtered)
+    if filtered_base and summary.table not in filtered:
+        return (
+            f"no tiene filtro para el rol «{name}», que sí filtra "
+            f"{', '.join(filtered_base)} (regla 7)"
+        )
+    return None
+
+
+def _is_count(expression: str) -> bool:
+    try:
+        node = sqlglot.parse_one(expression)
+    except SqlglotError:
+        return False
+    return isinstance(node, exp.Count)
 
 
 def _coarse_enough(requested: Granularity | None, grain: Granularity) -> bool:
