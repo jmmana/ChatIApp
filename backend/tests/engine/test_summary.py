@@ -155,9 +155,7 @@ def test_motivo_de_dimension_faltante(model: SemanticModel, catalog: Catalog) ->
     assert ("ventas_mensuales", "no tiene «facturas.canal» (regla 2)") in decision.rejected
 
 
-def test_motivo_de_metrica_no_aditiva_sin_expresion(
-    model: SemanticModel, catalog: Catalog
-) -> None:
+def test_motivo_de_metrica_no_aditiva_sin_expresion(model: SemanticModel, catalog: Catalog) -> None:
     decision = _route(model, catalog, CASES["clientes activos"])
 
     assert decision.table is None
