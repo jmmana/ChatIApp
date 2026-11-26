@@ -50,6 +50,27 @@ class User(Base):
     grants: Mapped[list["Grant"]] = relationship(back_populates="user")
 
 
+class ApiKey(Base):
+    """Credencial de servidor de otra aplicación. Solo se guarda el hash HMAC del secreto."""
+
+    __tablename__ = "api_key"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(255))
+    prefix: Mapped[str] = mapped_column(String(50), unique=True)  # chia_<id>, visible
+    secret_hash: Mapped[str] = mapped_column(String(64))  # HMAC-SHA256 en hexadecimal
+    scopes: Mapped[list[str]] = mapped_column(JSON, default=list)
+    datasources: Mapped[list[str]] = mapped_column(JSON, default=list)
+    allowed_roles: Mapped[list[str]] = mapped_column(JSON, default=list)
+    allowed_origins: Mapped[list[str]] = mapped_column(JSON, default=list)
+    rate_limit_per_minute: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    monthly_budget_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class Datasource(Base):
     __tablename__ = "datasource"
 

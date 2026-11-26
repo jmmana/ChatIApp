@@ -58,6 +58,10 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     # Todo lo que no es health ni auth exige sesión (tests/security/test_routes.py lo vigila).
     protected = [Depends(get_current_user)]
     application.include_router(providers.router, prefix=API_PREFIX, dependencies=protected)
+    # Administración de keys: solo administradores con JWT de usuario, nunca una API key.
+    application.include_router(
+        api_keys.router, prefix=API_PREFIX, dependencies=[Depends(require_admin)]
+    )
 
     if static_dir is None and (env_dir := os.environ.get("CHATIAPP_STATIC_DIR")):
         static_dir = Path(env_dir)
