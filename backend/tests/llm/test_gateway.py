@@ -144,7 +144,10 @@ def test_stream_emite_trozos_y_uso_final(monkeypatch: pytest.MonkeyPatch) -> Non
         seen.update(kwargs)
         return iter([chunk("ho"), chunk("la"), chunk(None)])
 
-    monkeypatch.setattr(litellm, "stream_chunk_builder", lambda chunks, messages: _response("hola"))
+    def builder(chunks: Any, messages: Any) -> Any:
+        return _response("hola")
+
+    monkeypatch.setattr(litellm, "stream_chunk_builder", builder)
     events = list(_openai(completion).stream(MESSAGES))
     assert seen["stream"] is True
     assert [e.delta for e in events[:-1]] == ["ho", "la"]
