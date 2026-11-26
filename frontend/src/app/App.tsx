@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/features/auth/AuthProvider";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { RequireAuth } from "@/features/auth/RequireAuth";
+import { IntegrationsPage } from "@/features/integrations/IntegrationsPage";
 import { EmptyState } from "./EmptyState";
 import { Layout } from "./Layout";
 import { appRoutes } from "./routes";
@@ -24,7 +25,13 @@ export function App() {
                   <Route
                     key={route.path}
                     path={route.path}
-                    element={<EmptyState route={route} />}
+                    element={
+                      route.path === "/integraciones" ? (
+                        <IntegrationsPage />
+                      ) : (
+                        <EmptyState route={route} />
+                      )
+                    }
                   />
                 ))}
                 <Route path="*" element={<Navigate to={appRoutes[0].path} replace />} />

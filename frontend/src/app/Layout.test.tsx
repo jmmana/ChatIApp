@@ -33,7 +33,7 @@ async function renderAt(path: string) {
 }
 
 describe("Layout", () => {
-  it("muestra la barra lateral con las seis secciones", async () => {
+  it("muestra la barra lateral con las siete secciones", async () => {
     await renderAt("/chat");
     const nav = screen.getByRole("navigation", { name: "Principal" });
     for (const title of [
@@ -41,6 +41,7 @@ describe("Layout", () => {
       "Modelo semántico",
       "Proveedores de IA",
       "Fuentes de datos",
+      "Integraciones",
       "Auditoría",
       "Evaluación",
     ]) {
