@@ -12,6 +12,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from fnmatch import translate
+from typing import Any
 
 from sqlalchemy import Engine, create_engine, inspect, text
 from sqlalchemy.engine.reflection import Inspector
@@ -143,24 +144,24 @@ def _read_structure(
         raise TooManyTablesError(total)
 
     pending_fks: list[tuple[str, list[str], str | None, str, list[str]]] = []
-    for schema, names in selected:
-        columns = inspector.get_multi_columns(schema=schema, filter_names=names)
-        pks = inspector.get_multi_pk_constraint(schema=schema, filter_names=names)
-        fks = inspector.get_multi_foreign_keys(schema=schema, filter_names=names)
+    for sql_schema, names in selected:
+        columns = inspector.get_multi_columns(schema=sql_schema, filter_names=names)
+        pks = inspector.get_multi_pk_constraint(schema=sql_schema, filter_names=names)
+        fks = inspector.get_multi_foreign_keys(schema=sql_schema, filter_names=names)
         try:
-            comments = inspector.get_multi_table_comment(schema=schema, filter_names=names)
+            comments = inspector.get_multi_table_comment(schema=sql_schema, filter_names=names)
         except NotImplementedError:  # SQLite y otros motores sin comentarios
             comments = {}
         for name in names:
-            key = (schema, name)
-            qualified = _qualified(schema, name, default)
+            key = (sql_schema, name)
+            qualified = _qualified(sql_schema, name, default)
             cols = columns.get(key, [])
             result.column_types[qualified] = {c["name"]: c["type"] for c in cols}
             result.tables.append(
                 Table(
                     name=qualified,
-                    description=(comments.get(key) or {}).get("text") or None,
-                    primary_key=list((pks.get(key) or {}).get("constrained_columns") or []),
+                    description=_comment_text(comments.get(key)),
+                    primary_key=_pk_columns(pks.get(key)),
                     columns=[
                         Column(
                             name=c["name"],
@@ -263,3 +264,13 @@ def _add_samples(
                 values = [str(v) for v in rows]
                 if 0 < len(values) <= MAX_SAMPLES:  # con más, no es de baja cardinalidad
                     column.sample_values = sorted(values)
+
+
+def _comment_text(comment: Any) -> str | None:
+    text = comment.get("text") if isinstance(comment, dict) else None
+    return text if isinstance(text, str) and text else None
+
+
+def _pk_columns(pk: Any) -> list[str]:
+    columns = pk.get("constrained_columns") if isinstance(pk, dict) else None
+    return [str(c) for c in columns or []]
