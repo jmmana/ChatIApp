@@ -9,7 +9,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="CHATIAPP_", extra="ignore")
+    # Una variable vacía cuenta como no definida: CHATIAPP_SECRET_KEY="" no es una llave.
+    model_config = SettingsConfigDict(env_prefix="CHATIAPP_", extra="ignore", env_ignore_empty=True)
 
     database_url: str = "sqlite:///./chatiapp.db"
     secret_key: SecretStr | None = None

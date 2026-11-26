@@ -123,6 +123,23 @@ def test_settings_lee_el_entorno(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.env == "test"
 
 
+@pytest.mark.parametrize("value", ["sk-ant-en-claro", "prefijo-${ANTHROPIC_API_KEY}", 123])
+def test_secreto_en_claro_se_rechaza(tmp_path: Path, value: object) -> None:
+    yaml_text = BASE_YAML.replace("${ANTHROPIC_API_KEY}", str(value))
+    path = _write(tmp_path, yaml_text)
+
+    with pytest.raises(ConfigError, match=r"ai\.providers\[0\]\.api_key.*\$\{VARIABLE\}"):
+        load_project_config(path, {"ANTHROPIC_API_KEY": "sk-ant-prueba"})
+
+
+def test_secret_key_vacia_cuenta_como_ausente(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHATIAPP_SECRET_KEY", "")
+    monkeypatch.setenv("CHATIAPP_ENV", "production")
+
+    with pytest.raises(ValidationError, match="CHATIAPP_SECRET_KEY"):
+        Settings()
+
+
 def test_produccion_exige_secret_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("CHATIAPP_SECRET_KEY", raising=False)
     monkeypatch.setenv("CHATIAPP_ENV", "production")

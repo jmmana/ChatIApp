@@ -120,6 +120,27 @@ def format_path(parts: tuple[str | int, ...] | list[str | int]) -> str:
     return out or "(raíz)"
 
 
+def _literal_secrets(raw: Any) -> list[str]:
+    """Credenciales escritas en claro: deben ser exactamente `${VARIABLE}` (PROVEEDORES_IA.md)."""
+    ai = raw.get("ai") if isinstance(raw, dict) else None
+    providers = ai.get("providers") if isinstance(ai, dict) else None
+    if not isinstance(providers, list):
+        return []
+    errors: list[str] = []
+    for index, provider in enumerate(providers):
+        if not isinstance(provider, dict):
+            continue
+        for field in sorted(SECRET_PROVIDER_FIELDS & set(provider)):
+            value = provider[field]
+            if value is None or (isinstance(value, str) and _VAR.fullmatch(value.strip())):
+                continue
+            errors.append(
+                f"{format_path(['ai', 'providers', index, field])}: los secretos no se escriben "
+                "en el archivo; usa ${VARIABLE} y defínela en el entorno"
+            )
+    return errors
+
+
 def _interpolate(value: Any, path: list[str | int], env: dict[str, str], errors: list[str]) -> Any:
     if isinstance(value, dict):
         return {k: _interpolate(v, [*path, str(k)], env, errors) for k, v in value.items()}
@@ -142,7 +163,9 @@ def parse_project_config(
     raw: Any, base_dir: Path, env: dict[str, str] | None = None
 ) -> ProjectConfig:
     """Interpola `${VAR}`, valida y resuelve rutas relativas a `base_dir`."""
-    errors: list[str] = []
+    errors = _literal_secrets(raw)
+    if errors:
+        raise ConfigError(errors)
     data = _interpolate(raw, [], dict(os.environ) if env is None else env, errors)
     if errors:
         raise ConfigError(errors)
