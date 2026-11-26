@@ -13,6 +13,7 @@ dependencies = [
     "litellm>=1.111",
     "cryptography>=43",
     "alembic>=1.14",
+    "pyyaml>=6.0",
     "sqlguardllm>=0.1.0a1,<0.2",
 ]
 
@@ -31,6 +32,7 @@ dev = [
     "mypy>=1.13",
     "pytest>=8.3",
     "ruff>=0.8",
+    "types-pyyaml>=6.0",
 ]
 
 [build-system]

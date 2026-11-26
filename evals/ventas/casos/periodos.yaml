@@ -1,0 +1,332 @@
+# Expresiones de período de la tabla del resolutor (docs/FLUJO_CONVERSACIONAL.md). Hoy = 2026-11-25.
+# Formato: evals/README.md. Los SQL son escritos a mano; los valores esperados
+# viven en ../valores.json (se generan con `python -m app.eval.golden --congelar`).
+
+- id: per-es-hoy
+  lang: es
+  question: "¿Cuánto vendí hoy?"
+  tags: [periodo, periodo:hoy]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-25' AND f.fecha < '2026-11-26'"
+
+- id: per-en-hoy
+  lang: en
+  question: "How much did we sell today?"
+  tags: [periodo, periodo:hoy]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-25' AND f.fecha < '2026-11-26'"
+
+- id: per-es-ayer
+  lang: es
+  question: "Ventas de ayer"
+  tags: [periodo, periodo:ayer]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-24' AND f.fecha < '2026-11-25'"
+
+- id: per-en-ayer
+  lang: en
+  question: "Yesterday's sales"
+  tags: [periodo, periodo:ayer]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-24' AND f.fecha < '2026-11-25'"
+
+- id: per-es-esta-semana
+  lang: es
+  question: "¿Cuánto vendimos esta semana?"
+  tags: [periodo, periodo:esta-semana]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-23' AND f.fecha < '2026-11-30'"
+
+- id: per-en-esta-semana
+  lang: en
+  question: "Sales this week"
+  tags: [periodo, periodo:esta-semana]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-23' AND f.fecha < '2026-11-30'"
+
+- id: per-es-semana-pasada
+  lang: es
+  question: "Ventas de la semana pasada"
+  tags: [periodo, periodo:semana-pasada]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-16' AND f.fecha < '2026-11-23'"
+
+- id: per-en-semana-pasada
+  lang: en
+  question: "Sales last week"
+  tags: [periodo, periodo:semana-pasada]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-16' AND f.fecha < '2026-11-23'"
+
+- id: per-es-este-mes
+  lang: es
+  question: "Ventas de este mes"
+  tags: [periodo, periodo:este-mes]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-01' AND f.fecha < '2026-12-01'"
+
+- id: per-en-este-mes
+  lang: en
+  question: "Sales this month"
+  tags: [periodo, periodo:este-mes]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-01' AND f.fecha < '2026-12-01'"
+
+- id: per-es-en-lo-que-va-del-mes
+  lang: es
+  question: "¿Cuánto llevo vendido en lo que va del mes?"
+  tags: [periodo, periodo:en-lo-que-va-del-mes]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-01' AND f.fecha < '2026-12-01'"
+
+- id: per-en-en-lo-que-va-del-mes
+  lang: en
+  question: "Sales month to date"
+  tags: [periodo, periodo:en-lo-que-va-del-mes]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-01' AND f.fecha < '2026-12-01'"
+
+- id: per-es-mes-pasado
+  lang: es
+  question: "Ventas del mes pasado"
+  tags: [periodo, periodo:mes-pasado]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01'"
+
+- id: per-en-mes-pasado
+  lang: en
+  question: "Sales last month"
+  tags: [periodo, periodo:mes-pasado]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01'"
+
+- id: per-es-este-trimestre
+  lang: es
+  question: "Ventas de este trimestre"
+  tags: [periodo, periodo:este-trimestre]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2027-01-01'"
+
+- id: per-en-este-trimestre
+  lang: en
+  question: "Sales this quarter"
+  tags: [periodo, periodo:este-trimestre]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2027-01-01'"
+
+- id: per-es-trimestre-pasado
+  lang: es
+  question: "Ventas del trimestre pasado"
+  tags: [periodo, periodo:trimestre-pasado]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-07-01' AND f.fecha < '2026-10-01'"
+
+- id: per-en-trimestre-pasado
+  lang: en
+  question: "Sales last quarter"
+  tags: [periodo, periodo:trimestre-pasado]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-07-01' AND f.fecha < '2026-10-01'"
+
+- id: per-es-este-anio
+  lang: es
+  question: "Ventas de este año"
+  tags: [periodo, periodo:este-anio]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01'"
+
+- id: per-en-este-anio
+  lang: en
+  question: "Sales this year"
+  tags: [periodo, periodo:este-anio]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01'"
+
+- id: per-es-ytd
+  lang: es
+  question: "Ventas en lo que va del año"
+  tags: [periodo, periodo:ytd]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01'"
+
+- id: per-en-ytd
+  lang: en
+  question: "Sales year to date"
+  tags: [periodo, periodo:ytd]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01'"
+
+- id: per-es-anio-pasado
+  lang: es
+  question: "Ventas del año pasado"
+  tags: [periodo, periodo:anio-pasado]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01'"
+
+- id: per-en-anio-pasado
+  lang: en
+  question: "Sales last year"
+  tags: [periodo, periodo:anio-pasado]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01'"
+
+- id: per-es-ultimos-7
+  lang: es
+  question: "Ventas de los últimos 7 días"
+  tags: [periodo, periodo:ultimos-7]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-19' AND f.fecha < '2026-11-26'"
+
+- id: per-en-ultimos-7
+  lang: en
+  question: "Sales in the last 7 days"
+  tags: [periodo, periodo:ultimos-7]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-19' AND f.fecha < '2026-11-26'"
+
+- id: per-es-ultimos-30
+  lang: es
+  question: "Ventas de los últimos 30 días"
+  tags: [periodo, periodo:ultimos-30]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-27' AND f.fecha < '2026-11-26'"
+
+- id: per-en-ultimos-30
+  lang: en
+  question: "Sales in the last 30 days"
+  tags: [periodo, periodo:ultimos-30]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-27' AND f.fecha < '2026-11-26'"
+
+- id: per-es-ultimos-3-meses
+  lang: es
+  question: "Ventas de los últimos 3 meses"
+  tags: [periodo, periodo:ultimos-3-meses]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-08-26' AND f.fecha < '2026-11-26'"
+
+- id: per-en-ultimos-3-meses
+  lang: en
+  question: "Sales in the last 3 months"
+  tags: [periodo, periodo:ultimos-3-meses]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-08-26' AND f.fecha < '2026-11-26'"
+
+- id: per-es-ultimos-3-meses-completos
+  lang: es
+  question: "Ventas de los últimos 3 meses completos"
+  tags: [periodo, periodo:ultimos-3-meses-completos]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-08-01' AND f.fecha < '2026-11-01'"
+
+- id: per-en-ultimos-3-meses-completos
+  lang: en
+  question: "Sales in the last 3 full months"
+  tags: [periodo, periodo:ultimos-3-meses-completos]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-08-01' AND f.fecha < '2026-11-01'"
+
+- id: per-es-marzo
+  lang: es
+  question: "Ventas de marzo"
+  tags: [periodo, periodo:marzo]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-03-01' AND f.fecha < '2026-04-01'"
+
+- id: per-en-marzo
+  lang: en
+  question: "Sales in March"
+  tags: [periodo, periodo:marzo]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-03-01' AND f.fecha < '2026-04-01'"
+
+- id: per-es-diciembre
+  lang: es
+  question: "Ventas de diciembre"
+  tags: [periodo, periodo:diciembre]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-12-01' AND f.fecha < '2026-01-01'"
+
+- id: per-en-diciembre
+  lang: en
+  question: "Sales in December"
+  tags: [periodo, periodo:diciembre]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-12-01' AND f.fecha < '2026-01-01'"
+
+- id: per-es-marzo-2025
+  lang: es
+  question: "Ventas de marzo de 2025"
+  tags: [periodo, periodo:marzo-2025]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-03-01' AND f.fecha < '2025-04-01'"
+
+- id: per-en-marzo-2025
+  lang: en
+  question: "Sales in March 2025"
+  tags: [periodo, periodo:marzo-2025]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-03-01' AND f.fecha < '2025-04-01'"
+
+- id: per-es-anio-2025
+  lang: es
+  question: "Ventas en 2025"
+  tags: [periodo, periodo:anio-2025]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01'"
+
+- id: per-en-anio-2025
+  lang: en
+  question: "Sales in 2025"
+  tags: [periodo, periodo:anio-2025]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01'"
+
+- id: per-es-q1
+  lang: es
+  question: "Ventas del primer trimestre"
+  tags: [periodo, periodo:q1]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2026-04-01'"
+
+- id: per-en-q1
+  lang: en
+  question: "Sales in Q1"
+  tags: [periodo, periodo:q1]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-01-01' AND f.fecha < '2026-04-01'"
+
+- id: per-es-s1-2025
+  lang: es
+  question: "Ventas del primer semestre de 2025"
+  tags: [periodo, periodo:s1-2025]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2025-07-01'"
+
+- id: per-en-s1-2025
+  lang: en
+  question: "Sales in the first half of 2025"
+  tags: [periodo, periodo:s1-2025]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2025-07-01'"
+
+- id: per-es-rango-dias
+  lang: es
+  question: "Ventas del 1 al 15 de marzo"
+  tags: [periodo, periodo:rango-dias]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-03-01' AND f.fecha < '2026-03-16'"
+
+- id: per-en-rango-dias
+  lang: en
+  question: "Sales from March 1 to March 15"
+  tags: [periodo, periodo:rango-dias]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-03-01' AND f.fecha < '2026-03-16'"
+
+- id: per-es-rango-fechas
+  lang: es
+  question: "Ventas del 01/03/2026 al 15/03/2026"
+  tags: [periodo, periodo:rango-fechas]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-03-01' AND f.fecha < '2026-03-16'"

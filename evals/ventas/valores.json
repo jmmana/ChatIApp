@@ -1,0 +1,1750 @@
+{
+ "dataset": {
+  "seed": 42,
+  "hasta": "2026-11-25"
+ },
+ "casos": {
+  "acl-es-resp-periodo-mes": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     35318607690
+    ]
+   ]
+  },
+  "acl-es-resp-periodo-30": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     40661207098
+    ]
+   ]
+  },
+  "acl-es-resp-periodo-facturas": {
+   "columns": [
+    "num_facturas"
+   ],
+   "rows": [
+    [
+     1952
+    ]
+   ]
+  },
+  "acl-es-resp-metrica": {
+   "columns": [
+    "ventas_sin_iva"
+   ],
+   "rows": [
+    [
+     29665218050
+    ]
+   ]
+  },
+  "acl-es-resp-bogota-juntas": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     19900132421
+    ]
+   ]
+  },
+  "acl-es-resp-bogota-una": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     7197915024
+    ]
+   ]
+  },
+  "acl-en-answer-period": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     35301609371
+    ]
+   ]
+  },
+  "dim-es-sucursal": {
+   "columns": [
+    "nombre",
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     "Barranquilla Buenavista",
+     4273098993
+    ],
+    [
+     "Bogotá Andino",
+     7168615432
+    ],
+    [
+     "Bogotá Titán",
+     5533601965
+    ],
+    [
+     "Bogotá Unicentro",
+     7197915024
+    ],
+    [
+     "Cali Chipichape",
+     3493556110
+    ],
+    [
+     "Medellín El Tesoro",
+     7634821847
+    ]
+   ]
+  },
+  "dim-es-ciudad": {
+   "columns": [
+    "ciudad",
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     "Barranquilla",
+     50429958481
+    ],
+    [
+     "Bogotá",
+     212504546620
+    ],
+    [
+     "Cali",
+     49045870306
+    ],
+    [
+     "Medellín",
+     66633482925
+    ]
+   ]
+  },
+  "dim-es-region": {
+   "columns": [
+    "region",
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     "Andina",
+     295708251134
+    ],
+    [
+     "Caribe",
+     54045015669
+    ],
+    [
+     "Pacífico",
+     61516512823
+    ]
+   ]
+  },
+  "dim-es-canal": {
+   "columns": [
+    "canal",
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     "MAYORISTA",
+     21246440787
+    ],
+    [
+     "ONLINE",
+     4254841763
+    ],
+    [
+     "TIENDA",
+     9817325140
+    ]
+   ]
+  },
+  "dim-es-segmento": {
+   "columns": [
+    "segmento",
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     "EMPRESA",
+     12963613158
+    ],
+    [
+     "PERSONA",
+     89695129563
+    ]
+   ]
+  },
+  "dim-es-categoria": {
+   "columns": [
+    "categoria",
+    "unidades_vendidas"
+   ],
+   "rows": [
+    [
+     "Accesorios",
+     16184
+    ],
+    [
+     "Audio",
+     16710
+    ],
+    [
+     "Celulares",
+     16345
+    ],
+    [
+     "Cámaras",
+     16649
+    ],
+    [
+     "Gaming",
+     16924
+    ],
+    [
+     "Portátiles",
+     16678
+    ],
+    [
+     "Tablets",
+     16673
+    ],
+    [
+     "Televisores",
+     15987
+    ]
+   ]
+  },
+  "dim-es-marca": {
+   "columns": [
+    "marca",
+    "unidades_vendidas"
+   ],
+   "rows": [
+    [
+     "Acer",
+     456
+    ],
+    [
+     "Anker",
+     712
+    ],
+    [
+     "Apple",
+     686
+    ],
+    [
+     "Asus",
+     420
+    ],
+    [
+     "Belkin",
+     256
+    ],
+    [
+     "Canon",
+     375
+    ],
+    [
+     "GoPro",
+     368
+    ],
+    [
+     "HP",
+     395
+    ],
+    [
+     "Hisense",
+     340
+    ],
+    [
+     "Huawei",
+     518
+    ],
+    [
+     "JBL",
+     326
+    ],
+    [
+     "Kingston",
+     388
+    ],
+    [
+     "LG",
+     283
+    ],
+    [
+     "Lenovo",
+     615
+    ],
+    [
+     "Logitech",
+     1118
+    ],
+    [
+     "Microsoft",
+     285
+    ],
+    [
+     "Motorola",
+     445
+    ],
+    [
+     "Nikon",
+     455
+    ],
+    [
+     "Nintendo",
+     354
+    ],
+    [
+     "Samsung",
+     1201
+    ],
+    [
+     "Sony",
+     1115
+    ],
+    [
+     "TCL",
+     445
+    ],
+    [
+     "Xiaomi",
+     549
+    ]
+   ]
+  },
+  "dim-es-ticket-canal": {
+   "columns": [
+    "canal",
+    "ticket_promedio"
+   ],
+   "rows": [
+    [
+     "MAYORISTA",
+     112535217.77
+    ],
+    [
+     "ONLINE",
+     8213666.53
+    ],
+    [
+     "TIENDA",
+     7749328.35
+    ]
+   ]
+  },
+  "dim-es-facturas-sucursal": {
+   "columns": [
+    "nombre",
+    "num_facturas"
+   ],
+   "rows": [
+    [
+     "Barranquilla Buenavista",
+     277
+    ],
+    [
+     "Bogotá Andino",
+     485
+    ],
+    [
+     "Bogotá Titán",
+     312
+    ],
+    [
+     "Bogotá Unicentro",
+     454
+    ],
+    [
+     "Cali Chipichape",
+     288
+    ],
+    [
+     "Medellín El Tesoro",
+     410
+    ]
+   ]
+  },
+  "dim-es-top-productos": {
+   "columns": [
+    "nombre",
+    "unidades_vendidas"
+   ],
+   "rows": [
+    [
+     "Tablet Samsung Kids 7",
+     885
+    ],
+    [
+     "Accesorio Kingston Mouse inalámbrico",
+     868
+    ],
+    [
+     "Tablet Huawei Max 13",
+     859
+    ],
+    [
+     "Portátil HP Pro 14",
+     855
+    ],
+    [
+     "Cámara Canon Réflex",
+     843
+    ]
+   ]
+  },
+  "dim-es-serie-mensual": {
+   "columns": [
+    "periodo",
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     "2025-01-01",
+     33712388469
+    ],
+    [
+     "2025-02-01",
+     29003355393
+    ],
+    [
+     "2025-03-01",
+     30227900617
+    ],
+    [
+     "2025-04-01",
+     33166552246
+    ],
+    [
+     "2025-05-01",
+     32090265665
+    ],
+    [
+     "2025-06-01",
+     32652258162
+    ],
+    [
+     "2025-07-01",
+     34358073605
+    ],
+    [
+     "2025-08-01",
+     29949162641
+    ],
+    [
+     "2025-09-01",
+     31438043940
+    ],
+    [
+     "2025-10-01",
+     33107859422
+    ],
+    [
+     "2025-11-01",
+     42628662220
+    ],
+    [
+     "2025-12-01",
+     48935257246
+    ]
+   ]
+  },
+  "dim-es-clientes-segmento": {
+   "columns": [
+    "segmento",
+    "clientes_activos"
+   ],
+   "rows": [
+    [
+     "EMPRESA",
+     256
+    ],
+    [
+     "PERSONA",
+     1744
+    ]
+   ]
+  },
+  "dim-en-branch": {
+   "columns": [
+    "nombre",
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     "Barranquilla Buenavista",
+     4273098993
+    ],
+    [
+     "Bogotá Andino",
+     7168615432
+    ],
+    [
+     "Bogotá Titán",
+     5533601965
+    ],
+    [
+     "Bogotá Unicentro",
+     7197915024
+    ],
+    [
+     "Cali Chipichape",
+     3493556110
+    ],
+    [
+     "Medellín El Tesoro",
+     7634821847
+    ]
+   ]
+  },
+  "dim-en-channel": {
+   "columns": [
+    "canal",
+    "num_facturas"
+   ],
+   "rows": [
+    [
+     "MAYORISTA",
+     2171
+    ],
+    [
+     "ONLINE",
+     5843
+    ],
+    [
+     "TIENDA",
+     12949
+    ]
+   ]
+  },
+  "dim-en-monthly": {
+   "columns": [
+    "periodo",
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     "2025-01-01",
+     33712388469
+    ],
+    [
+     "2025-02-01",
+     29003355393
+    ],
+    [
+     "2025-03-01",
+     30227900617
+    ],
+    [
+     "2025-04-01",
+     33166552246
+    ],
+    [
+     "2025-05-01",
+     32090265665
+    ],
+    [
+     "2025-06-01",
+     32652258162
+    ],
+    [
+     "2025-07-01",
+     34358073605
+    ],
+    [
+     "2025-08-01",
+     29949162641
+    ],
+    [
+     "2025-09-01",
+     31438043940
+    ],
+    [
+     "2025-10-01",
+     33107859422
+    ],
+    [
+     "2025-11-01",
+     42628662220
+    ],
+    [
+     "2025-12-01",
+     48935257246
+    ]
+   ]
+  },
+  "fil-es-online": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     4254841763
+    ]
+   ]
+  },
+  "fil-es-medellin": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     7634821847
+    ]
+   ]
+  },
+  "fil-es-cali": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     49045870306
+    ]
+   ]
+  },
+  "fil-es-mayorista": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     235293643580
+    ]
+   ]
+  },
+  "fil-es-empresas": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     48627547490
+    ]
+   ]
+  },
+  "fil-es-celulares": {
+   "columns": [
+    "unidades_vendidas"
+   ],
+   "rows": [
+    [
+     1697
+    ]
+   ]
+  },
+  "fil-es-samsung": {
+   "columns": [
+    "unidades_vendidas"
+   ],
+   "rows": [
+    [
+     12487
+    ]
+   ]
+  },
+  "fil-es-sucursal": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     7168615432
+    ]
+   ]
+  },
+  "fil-es-caribe": {
+   "columns": [
+    "num_facturas"
+   ],
+   "rows": [
+    [
+     3062
+    ]
+   ]
+  },
+  "fil-es-dos-filtros": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     587140700
+    ]
+   ]
+  },
+  "fil-es-varias-sucursales": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     99475828787
+    ]
+   ]
+  },
+  "fil-en-online": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     4254841763
+    ]
+   ]
+  },
+  "fil-en-medellin": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     72638657663
+    ]
+   ]
+  },
+  "fil-en-phones": {
+   "columns": [
+    "unidades_vendidas"
+   ],
+   "rows": [
+    [
+     16345
+    ]
+   ]
+  },
+  "met-es-ventas-mes-pasado": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     35301609371
+    ]
+   ]
+  },
+  "met-es-ventas-anio-pasado": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     411269779626
+    ]
+   ]
+  },
+  "met-es-ingresos-trimestre": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     70620217061
+    ]
+   ]
+  },
+  "met-es-sin-iva": {
+   "columns": [
+    "ventas_sin_iva"
+   ],
+   "rows": [
+    [
+     29665218050
+    ]
+   ]
+  },
+  "met-es-facturas": {
+   "columns": [
+    "num_facturas"
+   ],
+   "rows": [
+    [
+     20963
+    ]
+   ]
+  },
+  "met-es-ticket": {
+   "columns": [
+    "ticket_promedio"
+   ],
+   "rows": [
+    [
+     18084840.87
+    ]
+   ]
+  },
+  "met-es-clientes": {
+   "columns": [
+    "clientes_activos"
+   ],
+   "rows": [
+    [
+     1906
+    ]
+   ]
+  },
+  "met-es-unidades": {
+   "columns": [
+    "unidades_vendidas"
+   ],
+   "rows": [
+    [
+     11788
+    ]
+   ]
+  },
+  "met-es-pendientes": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     14213909733
+    ]
+   ]
+  },
+  "met-es-anuladas": {
+   "columns": [
+    "num_facturas"
+   ],
+   "rows": [
+    [
+     129
+    ]
+   ]
+  },
+  "met-en-sales": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     35301609371
+    ]
+   ]
+  },
+  "met-en-invoices": {
+   "columns": [
+    "num_facturas"
+   ],
+   "rows": [
+    [
+     20963
+    ]
+   ]
+  },
+  "met-en-avg-ticket": {
+   "columns": [
+    "ticket_promedio"
+   ],
+   "rows": [
+    [
+     18115183.12
+    ]
+   ]
+  },
+  "per-es-hoy": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     1665077092
+    ]
+   ]
+  },
+  "per-en-hoy": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     1665077092
+    ]
+   ]
+  },
+  "per-es-ayer": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     1637243228
+    ]
+   ]
+  },
+  "per-en-ayer": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     1637243228
+    ]
+   ]
+  },
+  "per-es-esta-semana": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     4235083789
+    ]
+   ]
+  },
+  "per-en-esta-semana": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     4235083789
+    ]
+   ]
+  },
+  "per-es-semana-pasada": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     8280373642
+    ]
+   ]
+  },
+  "per-en-semana-pasada": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     8280373642
+    ]
+   ]
+  },
+  "per-es-este-mes": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     35318607690
+    ]
+   ]
+  },
+  "per-en-este-mes": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     35318607690
+    ]
+   ]
+  },
+  "per-es-en-lo-que-va-del-mes": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     35318607690
+    ]
+   ]
+  },
+  "per-en-en-lo-que-va-del-mes": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     35318607690
+    ]
+   ]
+  },
+  "per-es-mes-pasado": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     35301609371
+    ]
+   ]
+  },
+  "per-en-mes-pasado": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     35301609371
+    ]
+   ]
+  },
+  "per-es-este-trimestre": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     70620217061
+    ]
+   ]
+  },
+  "per-en-este-trimestre": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     70620217061
+    ]
+   ]
+  },
+  "per-es-trimestre-pasado": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     102658742721
+    ]
+   ]
+  },
+  "per-en-trimestre-pasado": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     102658742721
+    ]
+   ]
+  },
+  "per-es-este-anio": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     378613858332
+    ]
+   ]
+  },
+  "per-en-este-anio": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     378613858332
+    ]
+   ]
+  },
+  "per-es-ytd": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     378613858332
+    ]
+   ]
+  },
+  "per-en-ytd": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     378613858332
+    ]
+   ]
+  },
+  "per-es-anio-pasado": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     411269779626
+    ]
+   ]
+  },
+  "per-en-anio-pasado": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     411269779626
+    ]
+   ]
+  },
+  "per-es-ultimos-7": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     9521866903
+    ]
+   ]
+  },
+  "per-en-ultimos-7": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     9521866903
+    ]
+   ]
+  },
+  "per-es-ultimos-30": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     40661207098
+    ]
+   ]
+  },
+  "per-en-ultimos-30": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     40661207098
+    ]
+   ]
+  },
+  "per-es-ultimos-3-meses": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     109586208272
+    ]
+   ]
+  },
+  "per-en-ultimos-3-meses": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     109586208272
+    ]
+   ]
+  },
+  "per-es-ultimos-3-meses-completos": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     102333657197
+    ]
+   ]
+  },
+  "per-en-ultimos-3-meses-completos": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     102333657197
+    ]
+   ]
+  },
+  "per-es-marzo": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     33189261849
+    ]
+   ]
+  },
+  "per-en-marzo": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     33189261849
+    ]
+   ]
+  },
+  "per-es-diciembre": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     48935257246
+    ]
+   ]
+  },
+  "per-en-diciembre": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     48935257246
+    ]
+   ]
+  },
+  "per-es-marzo-2025": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     30227900617
+    ]
+   ]
+  },
+  "per-en-marzo-2025": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     30227900617
+    ]
+   ]
+  },
+  "per-es-anio-2025": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     411269779626
+    ]
+   ]
+  },
+  "per-en-anio-2025": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     411269779626
+    ]
+   ]
+  },
+  "per-es-q1": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     100637438969
+    ]
+   ]
+  },
+  "per-en-q1": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     100637438969
+    ]
+   ]
+  },
+  "per-es-s1-2025": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     190852720552
+    ]
+   ]
+  },
+  "per-en-s1-2025": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     190852720552
+    ]
+   ]
+  },
+  "per-es-rango-dias": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     15612632623
+    ]
+   ]
+  },
+  "per-en-rango-dias": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     15612632623
+    ]
+   ]
+  },
+  "per-es-rango-fechas": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     15612632623
+    ]
+   ]
+  },
+  "seg-es-otro-periodo": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     35318607690
+    ]
+   ]
+  },
+  "seg-es-otro-periodo-anio": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     411269779626
+    ]
+   ]
+  },
+  "seg-es-por-sucursal": {
+   "columns": [
+    "nombre",
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     "Barranquilla Buenavista",
+     4273098993
+    ],
+    [
+     "Bogotá Andino",
+     7168615432
+    ],
+    [
+     "Bogotá Titán",
+     5533601965
+    ],
+    [
+     "Bogotá Unicentro",
+     7197915024
+    ],
+    [
+     "Cali Chipichape",
+     3493556110
+    ],
+    [
+     "Medellín El Tesoro",
+     7634821847
+    ]
+   ]
+  },
+  "seg-es-por-canal": {
+   "columns": [
+    "canal",
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     "MAYORISTA",
+     225902522231
+    ],
+    [
+     "ONLINE",
+     47586096642
+    ],
+    [
+     "TIENDA",
+     105125239459
+    ]
+   ]
+  },
+  "seg-es-solo-online": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     4698217253
+    ]
+   ]
+  },
+  "seg-es-solo-cali": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     49045870306
+    ]
+   ]
+  },
+  "seg-es-unidades": {
+   "columns": [
+    "unidades_vendidas"
+   ],
+   "rows": [
+    [
+     12105
+    ]
+   ]
+  },
+  "seg-es-ticket": {
+   "columns": [
+    "canal",
+    "ticket_promedio"
+   ],
+   "rows": [
+    [
+     "MAYORISTA",
+     103157796.47
+    ],
+    [
+     "ONLINE",
+     8183172.49
+    ],
+    [
+     "TIENDA",
+     7953523.5
+    ]
+   ]
+  },
+  "seg-es-encadenado": {
+   "columns": [
+    "nombre",
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     "Barranquilla Buenavista",
+     634139037
+    ],
+    [
+     "Bogotá Andino",
+     859444767
+    ],
+    [
+     "Bogotá Titán",
+     916234306
+    ],
+    [
+     "Bogotá Unicentro",
+     909441433
+    ],
+    [
+     "Cali Chipichape",
+     587140700
+    ],
+    [
+     "Medellín El Tesoro",
+     791817010
+    ]
+   ]
+  },
+  "seg-en-other-period": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     35318607690
+    ]
+   ]
+  },
+  "seg-en-by-branch": {
+   "columns": [
+    "nombre",
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     "Barranquilla Buenavista",
+     4273098993
+    ],
+    [
+     "Bogotá Andino",
+     7168615432
+    ],
+    [
+     "Bogotá Titán",
+     5533601965
+    ],
+    [
+     "Bogotá Unicentro",
+     7197915024
+    ],
+    [
+     "Cali Chipichape",
+     3493556110
+    ],
+    [
+     "Medellín El Tesoro",
+     7634821847
+    ]
+   ]
+  },
+  "seg-en-online-only": {
+   "columns": [
+    "ventas_netas"
+   ],
+   "rows": [
+    [
+     47586096642
+    ]
+   ]
+  },
+  "seg-en-units": {
+   "columns": [
+    "unidades_vendidas"
+   ],
+   "rows": [
+    [
+     35837
+    ]
+   ]
+  },
+  "sql-es-producto-caro": {
+   "columns": [
+    "nombre",
+    "precio_lista"
+   ],
+   "rows": [
+    [
+     "Televisor Hisense 32\" HD",
+     8855000
+    ]
+   ]
+  },
+  "sql-es-clientes-ciudad": {
+   "columns": [
+    "ciudad",
+    "clientes"
+   ],
+   "rows": [
+    [
+     "Barranquilla",
+     199
+    ],
+    [
+     "Bogotá",
+     791
+    ],
+    [
+     "Bucaramanga",
+     111
+    ],
+    [
+     "Cali",
+     348
+    ],
+    [
+     "Cartagena",
+     106
+    ],
+    [
+     "Medellín",
+     445
+    ]
+   ]
+  },
+  "sql-es-sucursales-region": {
+   "columns": [
+    "region",
+    "sucursales"
+   ],
+   "rows": [
+    [
+     "Andina",
+     4
+    ],
+    [
+     "Caribe",
+     1
+    ],
+    [
+     "Pacífico",
+     1
+    ]
+   ]
+  },
+  "sql-es-productos-categoria": {
+   "columns": [
+    "categoria",
+    "productos"
+   ],
+   "rows": [
+    [
+     "Accesorios",
+     28
+    ],
+    [
+     "Audio",
+     28
+    ],
+    [
+     "Celulares",
+     28
+    ],
+    [
+     "Cámaras",
+     28
+    ],
+    [
+     "Gaming",
+     28
+    ],
+    [
+     "Portátiles",
+     28
+    ],
+    [
+     "Tablets",
+     28
+    ],
+    [
+     "Televisores",
+     28
+    ]
+   ]
+  },
+  "sql-es-mejor-dia": {
+   "columns": [
+    "fecha",
+    "ventas"
+   ],
+   "rows": [
+    [
+     "2025-01-21",
+     2834978051
+    ]
+   ]
+  },
+  "sql-es-pct-anuladas": {
+   "columns": [
+    "porcentaje"
+   ],
+   "rows": [
+    [
+     6.33
+    ]
+   ]
+  },
+  "sql-es-sucursal-mas-antigua": {
+   "columns": [
+    "nombre",
+    "abierta_desde"
+   ],
+   "rows": [
+    [
+     "Bogotá Andino",
+     "2018-03-15"
+    ]
+   ]
+  },
+  "sql-es-descuento": {
+   "columns": [
+    "descuento"
+   ],
+   "rows": [
+    [
+     17760114000
+    ]
+   ]
+  },
+  "sql-en-priciest": {
+   "columns": [
+    "nombre",
+    "precio_lista"
+   ],
+   "rows": [
+    [
+     "Televisor Hisense 32\" HD",
+     8855000
+    ]
+   ]
+  },
+  "sql-en-customers-city": {
+   "columns": [
+    "ciudad",
+    "clientes"
+   ],
+   "rows": [
+    [
+     "Barranquilla",
+     199
+    ],
+    [
+     "Bogotá",
+     791
+    ],
+    [
+     "Bucaramanga",
+     111
+    ],
+    [
+     "Cali",
+     348
+    ],
+    [
+     "Cartagena",
+     106
+    ],
+    [
+     "Medellín",
+     445
+    ]
+   ]
+  },
+  "sql-en-best-day": {
+   "columns": [
+    "fecha",
+    "ventas"
+   ],
+   "rows": [
+    [
+     "2025-01-21",
+     2834978051
+    ]
+   ]
+  }
+ }
+}
