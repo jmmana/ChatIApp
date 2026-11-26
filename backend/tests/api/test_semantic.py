@@ -198,3 +198,78 @@ def test_solo_administradores_leen_el_modelo(
 
     for path in ("", "/versions", "/versions/1", "/export?format=yaml"):
         assert client.get(base + path).status_code == 403, path
+
+
+SCHEMA_SQL = EXAMPLE.parent / "schema.sql"
+
+
+def _import(client: TestClient, datasource_id: uuid.UUID, name: str, content: bytes) -> Any:
+    return client.post(_url(datasource_id, "/import"), files={"file": (name, content)})
+
+
+def test_importar_sql_no_altera_descripciones_manuales_ni_guarda(
+    client: TestClient, datasource_id: uuid.UUID, model: dict[str, Any]
+) -> None:
+    assert _put(client, datasource_id, model, 0).status_code in (200, 201)
+
+    response = _import(client, datasource_id, "schema.sql", SCHEMA_SQL.read_bytes())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body["diff"]) == {"added", "changed", "missing", "suggestions"}
+    merged = {t["name"]: t for t in body["model"]["tables"]}
+    for table in model["tables"]:
+        if table.get("description"):
+            assert merged[table["name"]]["description"] == table["description"]
+        columns = {c["name"]: c for c in merged[table["name"]]["columns"]}
+        for column in table["columns"]:
+            if column.get("description"):
+                assert columns[column["name"]]["description"] == column["description"]
+    versions = client.get(_url(datasource_id, "/versions")).json()
+    assert [v["version"] for v in versions] == [1]
+
+
+def test_importar_dos_veces_el_mismo_archivo_no_da_diferencias(
+    client: TestClient, datasource_id: uuid.UUID, model: dict[str, Any]
+) -> None:
+    assert _put(client, datasource_id, model, 0).status_code in (200, 201)
+    content = SCHEMA_SQL.read_bytes()
+    first = _import(client, datasource_id, "schema.sql", content).json()
+    assert _put(client, datasource_id, first["model"], 1).status_code in (200, 201)
+
+    second = _import(client, datasource_id, "schema.sql", content).json()
+
+    assert second["diff"] == {"added": [], "changed": [], "missing": [], "suggestions": []}
+
+
+def test_importar_sin_modelo_previo_crea_uno_nuevo(
+    client: TestClient, datasource_id: uuid.UUID
+) -> None:
+    csv_text = "tabla,columna,tipo,descripcion\nt,a,int,Una columna\n"
+
+    response = _import(client, datasource_id, "diccionario.CSV", csv_text.encode())
+
+    assert response.status_code == 200
+    assert response.json()["model"]["tables"][0]["columns"][0]["description"] == "Una columna"
+    assert len(response.json()["diff"]["added"]) == 2
+
+
+def test_importar_extension_desconocida_da_422(
+    client: TestClient, datasource_id: uuid.UUID
+) -> None:
+    response = _import(client, datasource_id, "datos.txt", b"x")
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "unsupported_format"
+
+
+def test_importar_en_fuente_inexistente_da_404(client: TestClient) -> None:
+    response = _import(client, uuid.uuid4(), "schema.sql", b"")
+
+    assert response.status_code == 404
+
+
+def test_solo_administradores_importan(client: TestClient, datasource_id: uuid.UUID) -> None:
+    app.dependency_overrides[get_current_user] = lambda: User(email="u@b.co", is_admin=False)
+
+    assert _import(client, datasource_id, "schema.sql", b"").status_code == 403
