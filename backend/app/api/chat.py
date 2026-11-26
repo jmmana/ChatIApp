@@ -10,9 +10,9 @@ import asyncio
 import logging
 import threading
 import uuid
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Generator
 from dataclasses import dataclass, field
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from cryptography.fernet import MultiFernet
 from fastapi import APIRouter, Depends
@@ -21,17 +21,18 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
+from app.agent.events import ErrorData, Event
+from app.agent.orchestrator import Orchestrator
 from app.api.datasources import get_request_cipher
 from app.api.errors import ApiError
 from app.api.preview import ViewAs, load_model, resolve_identity
-from app.agent.events import ErrorData, Event
-from app.agent.orchestrator import Orchestrator
 from app.db.models import Conversation, Datasource, Message, Provider, User
 from app.db.session import get_session
+from app.engine.rls import AttributeValue
 from app.llm.gateway import Gateway, ProviderConfig
 from app.security.auth import get_current_user
 from app.security.crypto import SecretKeyError, decrypt
-from app.engine.rls import AttributeValue
+from app.semantic.schema import SemanticModel
 from app.settings.registry import datasource_uuid, provider_uuid
 
 logger = logging.getLogger(__name__)
@@ -123,11 +124,11 @@ def _unregister(turn_id: str | None) -> None:
 # --------------------------------------------------------------------------- resolución
 
 
-def _uuid_or_config(value: str, from_config: Any) -> uuid.UUID:
+def _uuid_or_config(value: str, from_config: Callable[[str], uuid.UUID]) -> uuid.UUID:
     try:
         return uuid.UUID(value)
     except ValueError:
-        return from_config(value)  # type: ignore[no-any-return]
+        return from_config(value)
 
 
 def _provider(session: Session, override: str | None) -> Provider:
@@ -170,7 +171,7 @@ class _Plan:
     datasource_id: uuid.UUID
     provider_id: uuid.UUID
     provider: ProviderConfig
-    model: Any
+    model: SemanticModel
     version: int
     url: str
     role: str | None
@@ -199,7 +200,9 @@ def _run_turn(plan: _Plan, turn: _Turn) -> None:
                 context=plan.context,
                 provider_id=plan.provider_id,
             )
-            events = orchestrator.run(conversation, plan.message)
+            events = cast(
+                Generator[Event, None, None], orchestrator.run(conversation, plan.message)
+            )
             cancelled = False
             try:
                 for event in events:
@@ -216,7 +219,8 @@ def _run_turn(plan: _Plan, turn: _Turn) -> None:
                 _mark_cancelled(session, turn_id)
     except Exception:
         logger.exception("Falló el turno de chat")
-        turn.post(Event(ErrorData(code="internal_error", message="Error inesperado.", recoverable=True)))
+        failure = ErrorData(code="internal_error", message="Error inesperado.", recoverable=True)
+        turn.post(Event(failure))
     finally:
         _unregister(turn_id)
         turn.post(_Done())

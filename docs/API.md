@@ -136,6 +136,17 @@ data: {"usage":{"tokens_in":1830,"tokens_out":142,"cost_usd":0.0031},"elapsed_ms
 
 Todos los eventos: [FLUJO_CONVERSACIONAL.md](FLUJO_CONVERSACIONAL.md#eventos-de-streaming).
 
+- La respuesta lleva `Cache-Control: no-cache` y `X-Accel-Buffering: no`, y cada 15 s sin eventos envía un comentario `: keep-alive`.
+- Sin `conversation_id` se crea una conversación (su título son los primeros 60 caracteres del mensaje). Si se envía, debe ser del usuario y de la misma fuente de datos (`404 conversation_not_found`, `409 datasource_mismatch`).
+- Sin `provider_override` se usa el proveedor por defecto (`422 no_provider` si no hay ninguno).
+- `POST /api/v1/chat/{turn_id}/cancel` (el `turn_id` llega en `turn.started`) detiene el turno en curso del usuario y responde `{"turn_id", "status": "cancelled"}`; el stream termina con `error` `{code: "cancelled", recoverable: true}` y no emite `turn.completed`. Un turno inexistente o ya terminado responde `404 turn_not_found`.
+
+Conversaciones: cada usuario ve solo las suyas (una ajena responde `404`).
+
+- `GET /api/v1/conversations` → `[{id, title, datasource_id, created_at}]`, las más recientes primero.
+- `GET /api/v1/conversations/{id}` → lo anterior más `messages: [{id, role, content, events, created_at}]`. `events` guarda los eventos del turno del asistente (sin `answer.delta`) para reconstruir la conversación.
+- `PATCH /api/v1/conversations/{id}` con `{"title"}` renombra; `DELETE` responde `204` y borra también sus mensajes.
+
 ## Administración (M3)
 
 | Método | Ruta | Descripción |
