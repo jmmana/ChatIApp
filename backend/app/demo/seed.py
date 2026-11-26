@@ -547,6 +547,12 @@ def cargar(engine: Engine, seed: int = 42, hasta: date | None = None) -> None:
     Lo usan las pruebas de integración (PostgreSQL, MySQL, SQL Server). Reemplaza las tablas de
     la demo si ya existen; con la misma `seed` y `hasta` las filas son idénticas.
     """
+    nombre = (engine.url.database or "").lower()
+    if engine.dialect.name != "sqlite" and not any(m in nombre for m in ("it", "test", "demo")):
+        # drop_all borra las tablas de la demo: nunca sobre una base que no sea de pruebas.
+        raise ValueError(
+            "cargar() reemplaza tablas; el nombre de la base debe contener «it», «test» o «demo»"
+        )
     datos = _datos(seed, hasta)
     md = _metadata()
     md.drop_all(engine)

@@ -205,3 +205,13 @@ def test_modelo_semantico_y_ddl_describen_la_base(conn: sqlite3.Connection) -> N
     assert set(generada) == set(TABLAS)
     assert _modelo_semantico() == generada
     assert _esquema_sql() == generada
+
+
+def test_cargar_rechaza_una_base_que_no_parece_de_pruebas() -> None:
+    from sqlalchemy import create_engine
+
+    from app.demo.seed import cargar
+
+    engine = create_engine("postgresql+psycopg://u:p@localhost/produccion")
+    with pytest.raises(ValueError, match="debe contener"):
+        cargar(engine)
