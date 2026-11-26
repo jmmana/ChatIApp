@@ -9,6 +9,7 @@ import re
 import time
 from dataclasses import dataclass
 from typing import Any, Literal
+from urllib.parse import quote
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine, make_url
@@ -80,7 +81,9 @@ def mask_url(url: str) -> str:
         updates["username"] = _MASK
     if parsed.password is not None:
         updates["password"] = _MASK
-    return parsed.set(**updates).render_as_string(hide_password=False)
+    rendered = parsed.set(**updates).render_as_string(hide_password=False)
+    # SQLAlchemy codifica el usuario y la clave: devolvemos la máscara legible.
+    return rendered.replace(quote(_MASK, safe=""), _MASK)
 
 
 def missing_driver_message(dialect: Dialect) -> str:
