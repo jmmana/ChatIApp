@@ -1,4 +1,6 @@
-"""Límites de uso: turnos por usuario y por API key, y presupuesto mensual de IA (docs/SEGURIDAD.md).
+"""Límites de uso: turnos por usuario y por API key, y presupuesto mensual de IA.
+
+Contrato en docs/SEGURIDAD.md.
 
 - Turnos por minuto y por día, por usuario; peticiones por minuto, por API key. Ventana deslizante
   en memoria, por proceso (como el límite de inicios de sesión). Al superarlo: 429 con
