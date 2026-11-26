@@ -1,6 +1,7 @@
 """Endpoints de fuentes de datos (docs/API.md#fuentes-de-datos)."""
 
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from cryptography.fernet import MultiFernet
@@ -72,6 +73,9 @@ class DatasourceOut(BaseModel):
     timeout_seconds: int
     privacy: str
     managed_by: str
+    last_test_ok: bool | None
+    last_test_at: datetime | None
+    last_test_error_kind: str | None
 
 
 class TestError(BaseModel):
@@ -134,6 +138,9 @@ def _out(datasource: Datasource, cipher: MultiFernet) -> DatasourceOut:
         timeout_seconds=datasource.timeout_seconds,
         privacy=datasource.privacy,
         managed_by=datasource.managed_by,
+        last_test_ok=datasource.last_test_ok,
+        last_test_at=datasource.last_test_at,
+        last_test_error_kind=datasource.last_test_error_kind,
     )
 
 
@@ -261,10 +268,18 @@ def test_datasource(datasource_id: uuid.UUID, session: SessionDep, cipher: Ciphe
     try:
         url = decrypt(datasource.url_encrypted, cipher)
     except SecretKeyError as exc:
+        datasource.last_test_ok = False
+        datasource.last_test_at = datetime.now(UTC)
+        datasource.last_test_error_kind = "unknown"
+        session.commit()
         return TestResult(ok=False, error=TestError(kind="unknown", message=str(exc)))
     dialect: Dialect = datasource.dialect  # type: ignore[assignment]
     result = check_connection(url, dialect, datasource.timeout_seconds)
     failure: ConnectionFailure | None = result.error
+    datasource.last_test_ok = result.ok
+    datasource.last_test_at = datetime.now(UTC)
+    datasource.last_test_error_kind = failure.kind if failure else None
+    session.commit()
     return TestResult(
         ok=result.ok,
         latency_ms=result.latency_ms,

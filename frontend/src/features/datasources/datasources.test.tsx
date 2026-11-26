@@ -17,6 +17,9 @@ const ventas: Datasource = {
   timeout_seconds: 20,
   privacy: "aggregates",
   managed_by: "ui",
+  last_test_ok: null,
+  last_test_at: null,
+  last_test_error_kind: null,
 };
 
 const demo: Datasource = {
@@ -34,8 +37,8 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status });
 }
 
-function mockApi(options: { admin?: boolean; test?: unknown } = {}) {
-  const { admin = true, test } = options;
+function mockApi(options: { admin?: boolean; test?: unknown; datasources?: Datasource[] } = {}) {
+  const { admin = true, test, datasources = [ventas, demo] } = options;
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.endsWith("/auth/refresh"))
       return json({
@@ -46,7 +49,7 @@ function mockApi(options: { admin?: boolean; test?: unknown } = {}) {
     if (url.endsWith("/test")) return json(test);
     if (init?.method === "POST") return json({ ...ventas, id: "nuevo" }, 201);
     if (init?.method === "PATCH") return json(ventas);
-    return json([ventas, demo]);
+    return json(datasources);
   });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
@@ -119,6 +122,30 @@ describe("lista de fuentes de datos", () => {
     await screen.findByRole("listitem", { name: "Ventas" });
     expect(screen.queryByRole("button", { name: "Nueva fuente" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Probar conexión/ })).not.toBeInTheDocument();
+  });
+
+  it("muestra el resultado y la fecha guardados sin volver a probar", async () => {
+    const fetchMock = mockApi({
+      datasources: [
+        {
+          ...ventas,
+          last_test_ok: false,
+          last_test_at: "2026-11-25T10:30:00Z",
+          last_test_error_kind: "auth",
+        },
+        demo,
+      ],
+    });
+    renderPage();
+
+    const row = await screen.findByRole("listitem", { name: "Ventas" });
+    const formattedDate = new Intl.DateTimeFormat("es", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date("2026-11-25T10:30:00Z"));
+    expect(within(row).getByText(/con error \(auth\)/)).toBeInTheDocument();
+    expect(within(row).getByText(formattedDate)).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([url]) => url.endsWith("/test"))).toBe(false);
   });
 });
 

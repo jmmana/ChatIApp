@@ -194,6 +194,9 @@ erDiagram
         int timeout_seconds
         string privacy "schema | aggregates | samples"
         string managed_by "ui | config"
+        bool last_test_ok
+        datetime last_test_at
+        string last_test_error_kind "auth | network | driver_missing | unknown"
     }
     SEMANTIC_MODEL_VERSION {
         uuid id PK

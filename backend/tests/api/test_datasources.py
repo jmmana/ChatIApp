@@ -209,6 +209,10 @@ def test_prueba_de_conexion_con_la_demo_sqlite(client: TestClient, demo_url: str
     assert body["latency_ms"] >= 0
     assert body["server_version"][0].isdigit()
     assert body["error"] is None
+    listed = client.get("/api/v1/datasources").json()[0]
+    assert listed["last_test_ok"] is True
+    assert listed["last_test_at"] is not None
+    assert listed["last_test_error_kind"] is None
 
 
 def test_prueba_sin_driver_indica_el_extra(client: TestClient) -> None:
@@ -221,7 +225,9 @@ def test_prueba_sin_driver_indica_el_extra(client: TestClient) -> None:
     assert "uv sync --extra sqlserver" in body["error"]["message"]
 
 
-def test_prueba_con_base_inalcanzable_es_network(client: TestClient, tmp_path: Path) -> None:
+def test_prueba_con_base_inalcanzable_guarda_solo_la_categoria(
+    client: TestClient, tmp_path: Path
+) -> None:
     created = _create(client, url=f"sqlite:///{tmp_path / 'no' / 'existe' / 'x.db'}")
 
     body = client.post(f"/api/v1/datasources/{created['id']}/test").json()
@@ -229,6 +235,12 @@ def test_prueba_con_base_inalcanzable_es_network(client: TestClient, tmp_path: P
     assert body["ok"] is False
     assert body["error"]["kind"] == "network"
     assert str(tmp_path) not in body["error"]["message"]
+    listed = client.get("/api/v1/datasources")
+    saved = listed.json()[0]
+    assert saved["last_test_ok"] is False
+    assert saved["last_test_at"] is not None
+    assert saved["last_test_error_kind"] == "network"
+    assert body["error"]["message"] not in listed.text
 
 
 def test_prueba_con_llave_equivocada_es_unknown(client: TestClient) -> None:
@@ -241,6 +253,9 @@ def test_prueba_con_llave_equivocada_es_unknown(client: TestClient) -> None:
     assert body["error"]["kind"] == "unknown"
     listed = client.get("/api/v1/datasources").json()
     assert listed[0]["url"] == "***"
+    assert listed[0]["last_test_ok"] is False
+    assert listed[0]["last_test_at"] is not None
+    assert listed[0]["last_test_error_kind"] == "unknown"
 
 
 def test_clasificacion_de_errores() -> None:

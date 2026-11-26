@@ -51,7 +51,10 @@ export function DatasourcesPage() {
   const test = useMutation({
     mutationFn: (id: string) => testDatasource(id),
     onMutate: (id) => setTestingId(id),
-    onSuccess: (result, id) => setResults((current) => ({ ...current, [id]: result })),
+    onSuccess: async (result, id) => {
+      setResults((current) => ({ ...current, [id]: result }));
+      await queryClient.invalidateQueries({ queryKey: ["datasources"] });
+    },
     onError: (error, id) =>
       setResults((current) => ({
         ...current,
@@ -128,7 +131,26 @@ export function DatasourcesPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-muted-foreground">
                 Última prueba:{" "}
-                {results[ds.id] ? (results[ds.id].ok ? "correcta" : "con error") : "sin probar"}
+                {results[ds.id]
+                  ? results[ds.id].ok
+                    ? "correcta"
+                    : "con error"
+                  : ds.last_test_ok === null
+                    ? "sin probar"
+                    : ds.last_test_ok
+                      ? "correcta"
+                      : `con error${ds.last_test_error_kind ? ` (${ds.last_test_error_kind})` : ""}`}
+                {ds.last_test_at && (
+                  <>
+                    {" · "}
+                    <time dateTime={ds.last_test_at}>
+                      {new Intl.DateTimeFormat("es", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      }).format(new Date(ds.last_test_at))}
+                    </time>
+                  </>
+                )}
               </p>
               {isAdmin && (
                 <div className="flex gap-2">

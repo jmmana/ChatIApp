@@ -83,6 +83,9 @@ class Datasource(Base):
     timeout_seconds: Mapped[int] = mapped_column(Integer, default=30)
     privacy: Mapped[str] = mapped_column(String(20), default="schema")  # schema|aggregates|samples
     managed_by: Mapped[str] = mapped_column(String(20), default="ui")  # ui | config
+    last_test_ok: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    last_test_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_test_error_kind: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     grants: Mapped[list["Grant"]] = relationship(back_populates="datasource")
     versions: Mapped[list["SemanticModelVersion"]] = relationship(back_populates="datasource")
