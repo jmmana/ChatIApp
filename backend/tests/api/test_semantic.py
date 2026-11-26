@@ -239,7 +239,11 @@ def test_importar_dos_veces_el_mismo_archivo_no_da_diferencias(
 
     second = _import(client, datasource_id, "schema.sql", content).json()
 
-    assert second["diff"] == {"added": [], "changed": [], "missing": [], "suggestions": []}
+    # Nada nuevo, cambiado ni faltante. Las descripciones escritas a mano se conservan y la
+    # de la fuente vuelve como sugerencia (docs/MODELO_SEMANTICO.md): son las mismas que antes.
+    diff = second["diff"]
+    assert (diff["added"], diff["changed"], diff["missing"]) == ([], [], [])
+    assert diff["suggestions"] == first["diff"]["suggestions"]
 
 
 def test_importar_sin_modelo_previo_crea_uno_nuevo(
