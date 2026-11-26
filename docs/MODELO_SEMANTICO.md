@@ -145,6 +145,7 @@ Una tabla resumida se usa solo si **todas** se cumplen:
 4. Los límites del período están alineados a `grain` (una tabla mensual no responde «del 3 al 17 de marzo»).
 5. Si el período toca el período en curso, la resumida debe tener `includes_current_period: true`.
 6. Si la métrica tiene `additive: false`, la resumida debe declarar una expresión correcta para ella (por ejemplo `SUM(total_ventas) / SUM(num_facturas)`, nunca un promedio de promedios).
+7. Si el rol del usuario filtra alguna tabla base que lee la consulta, la resumida también debe tener filtro para ese rol; si no, el rol vería filas ajenas. Un rol que no existe no usa resumidas.
 
 Si varias califican, gana la de **granularidad más gruesa** (menos filas que leer). Si ninguna califica, se usan las tablas base. La decisión y su motivo aparecen en el razonamiento.
 
