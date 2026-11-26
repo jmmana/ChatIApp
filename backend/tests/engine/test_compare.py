@@ -233,15 +233,45 @@ def test_resumida_y_tablas_base_dan_el_mismo_resultado(
     assert via_base.previous_value == pytest.approx(via_summary.previous_value)
 
 
-def test_con_filtros_se_usan_las_tablas_base(model: SemanticModel, catalog: Catalog) -> None:
+def test_filtro_cubierto_por_la_resumida_la_usa(model: SemanticModel, catalog: Catalog) -> None:
     plan = catalog.verify(
         "ventas_netas", filters=[PlanFilter("facturas.canal", "=", "WEB")], role="gerencia_general"
     )
 
     result = compare_previous(model, plan, "sqlite", _period("mes pasado"), _constant(10), now=NOW)
 
+    assert result.summary_table == "ventas_diarias"
+    assert "ventas_diarias.canal = 'WEB'" in result.sql
+
+
+def test_filtro_que_ninguna_resumida_cubre_usa_las_base(
+    model: SemanticModel, catalog: Catalog
+) -> None:
+    plan = catalog.verify(
+        "ventas_netas",
+        filters=[PlanFilter("clientes.segmento", "=", "EMPRESA")],
+        role="gerencia_general",
+    )
+
+    result = compare_previous(model, plan, "sqlite", _period("mes pasado"), _constant(10), now=NOW)
+
     assert result.summary_table is None
-    assert "facturas.canal = 'WEB'" in result.sql
+    assert "clientes.segmento = 'EMPRESA'" in result.sql
+
+
+def test_conteo_en_periodo_vacio_compara_contra_cero(
+    model: SemanticModel, catalog: Catalog, conn: sqlite3.Connection
+) -> None:
+    plan = catalog.verify("num_facturas", role="gerencia_general")
+    ejecutar = lambda sql: conn.execute(sql).fetchall()  # noqa: E731
+
+    result = compare_previous(
+        model, plan, "sqlite", _period("año pasado"), ejecutar, now=NOW, role="gerencia_general"
+    )
+
+    assert result.previous_value == 0
+    assert result.change_pct is None
+    assert result.change_note is not None and "cero" in result.change_note
 
 
 # ---------------------------------------------------------------------- variación

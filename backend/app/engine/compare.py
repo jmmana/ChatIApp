@@ -18,9 +18,10 @@ from typing import Any, Final
 
 from app.engine.builder import build_sql
 from app.engine.catalog import VerifiedPlan
-from app.engine.dialects import Dialect
+from app.engine.dialects import GRANULARITIES, Dialect
 from app.engine.periods import PeriodConfig, PeriodRange, previous_equivalent
-from app.semantic.schema import Grain, SemanticModel, SummaryTable, Weekday
+from app.engine.summary import plan_for_summary, route_summary
+from app.semantic.schema import Grain, SemanticModel, Weekday
 
 Executor = Callable[[str], Sequence[Sequence[Any]]]
 """Ejecuta un SQL de un solo valor y devuelve sus filas."""
@@ -71,6 +72,7 @@ def compare_previous(
     execute: Executor,
     *,
     now: datetime | None = None,
+    role: str | None = None,
 ) -> Comparison:
     """Calcula `plan.metric` en `period` y en su período anterior equivalente.
 
@@ -88,8 +90,8 @@ def compare_previous(
     )
     previous = previous_equivalent(period, config, now)
 
-    summary, reason = _route(model, plan, period, previous)
-    target = _summary_plan(plan, summary) if summary else plan
+    summary, reason = _route(model, plan, period, previous, role)
+    target = plan_for_summary(model, plan, summary) if summary else plan
     sql = build_sql(model, target, dialect, period=period).sql
     previous_sql = build_sql(model, target, dialect, period=previous).sql
 
@@ -105,7 +107,7 @@ def compare_previous(
         difference=difference,
         change_pct=change_pct,
         change_note=note,
-        summary_table=summary.table if summary else None,
+        summary_table=summary,
         summary_reason=reason,
         sql=sql,
         previous_sql=previous_sql,
@@ -141,65 +143,33 @@ def _variation(
 # --------------------------------------------------------------------------- resumidas
 
 
-def _summary_plan(plan: VerifiedPlan, summary: SummaryTable) -> VerifiedPlan:
-    """El mismo plan, pero con la métrica expresada sobre la tabla resumida."""
-    metric = plan.metric.model_copy(
-        update={
-            "table": summary.table,
-            "expression": summary.metrics[plan.metric.name],
-            "time_column": summary.time_column,
-            "filters": [],
-        }
-    )
-    return VerifiedPlan(metric, plan.dimensions, plan.filters)
-
-
 def _route(
-    model: SemanticModel, plan: VerifiedPlan, *periods: PeriodRange
-) -> tuple[SummaryTable | None, str]:
-    """Resumida más gruesa que sirve para todos los `periods`, y el motivo de la decisión."""
-    if plan.filters:
-        return None, "Con filtros se usan las tablas base"
-    first_week_day = _WEEKDAYS.index(model.settings.week_starts_on)
-    best: SummaryTable | None = None
-    reasons: list[str] = []
-    for summary in model.summary_tables:
-        problem = _disqualification(summary, plan, periods, first_week_day)
-        if problem:
-            reasons.append(f"{summary.table}: {problem}")
-        elif best is None or _GRAIN_RANK[summary.grain] > _GRAIN_RANK[best.grain]:
-            best = summary
-    if best:
-        text = f"Tabla resumida {best.table}: ambos períodos califican"
-        if reasons:
-            text += f" (descartadas: {'; '.join(reasons)})"
-        return best, text
-    detail = "; ".join(reasons) or "no hay tablas resumidas"
-    return None, f"Tablas base ({detail})"
-
-
-def _disqualification(
-    summary: SummaryTable, plan: VerifiedPlan, periods: Sequence[PeriodRange], first_week_day: int
-) -> str | None:
-    if plan.metric.name not in summary.metrics:
-        return "no declara la métrica"
-    if not summary.includes_current_period and any(p.is_current for p in periods):
-        return "no incluye el período en curso"
-    if not all(_aligned(p, summary.grain, first_week_day) for p in periods):
-        return f"los límites de un período no están alineados a {summary.grain}"
-    return None
-
-
-def _aligned(period: PeriodRange, grain: Grain, first_week_day: int) -> bool:
-    start, end = period.start, period.end_exclusive
-    if grain == "day":
-        return True
-    if grain == "week":
-        return start.weekday() == first_week_day and (end - start).days % 7 == 0
-    if start.day != 1 or end.day != 1:
-        return False
-    if grain == "month":
-        return True
-    if grain == "quarter":
-        return (start.month - 1) % 3 == 0 and (end.month - 1) % 3 == 0
-    return start.month == 1 and end.month == 1
+    model: SemanticModel,
+    plan: VerifiedPlan,
+    period: PeriodRange,
+    previous: PeriodRange,
+    role: str | None,
+) -> tuple[str | None, str]:
+    """La resumida que sirve para **los dos** períodos, con las reglas de `summary.route_summary`
+    (incluida la regla 7 del rol). Si ninguna sirve para ambos, se usan las tablas base."""
+    current = route_summary(model, plan, period=period, role=role)
+    before = route_summary(model, plan, period=previous, role=role)
+    declared = [s.table for s in model.summary_tables]
+    fits_current = set(declared) - {table for table, _ in current.rejected}
+    fits_before = set(declared) - {table for table, _ in before.rejected}
+    common = [s for s in model.summary_tables if s.table in fits_current & fits_before]
+    if not common:
+        if current.table is None:
+            return None, current.reason
+        return None, (
+            f"Se usan las tablas base: {current.table} sirve para «{period.label}» pero no "
+            f"para «{previous.label}» ({before.reason})"
+        )
+    chosen = max(common, key=lambda s: GRANULARITIES.index(s.grain))
+    reason = f"Se usa {chosen.table} en los dos períodos: cumple las reglas en ambos"
+    discarded = dict.fromkeys(
+        f"{table} {why}" for table, why in (*current.rejected, *before.rejected)
+    )
+    if discarded:
+        reason += "; " + "; ".join(discarded)
+    return chosen.table, reason
