@@ -14,7 +14,7 @@ con una excepción. Al final del turno se guardan el mensaje del asistente con s
 import logging
 import time
 import uuid
-from collections.abc import Iterator, Sequence
+from collections.abc import Generator, Iterator, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -358,7 +358,7 @@ class Orchestrator:
         else:
             yield from self._metric(t, plan)
 
-    def _understand(self, t: _Turn) -> Iterator[Event]:
+    def _understand(self, t: _Turn) -> Generator[Event, None, Plan]:
         yield _step("understand", "running")
         try:
             result = plan_question(
