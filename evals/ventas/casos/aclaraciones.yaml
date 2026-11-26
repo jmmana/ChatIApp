@@ -1,0 +1,129 @@
+# Casos donde el agente debe preguntar antes de responder, y su respuesta.
+# Formato: evals/README.md. Los SQL son escritos a mano; los valores esperados
+# viven en ../valores.json (se generan con `python -m app.eval.golden --congelar`).
+
+- id: acl-es-sin-periodo
+  lang: es
+  question: "¿Cuánto vendí?"
+  tags: [aclaracion, periodo-faltante]
+  expect_clarification:
+    slot: period
+
+- id: acl-es-sin-periodo-ventas
+  lang: es
+  question: "Dime las ventas por sucursal"
+  tags: [aclaracion, periodo-faltante]
+  expect_clarification:
+    slot: period
+
+- id: acl-es-sin-periodo-facturas
+  lang: es
+  question: "¿Cuántas facturas tuvimos?"
+  tags: [aclaracion, periodo-faltante]
+  expect_clarification:
+    slot: period
+
+- id: acl-es-sin-periodo-ticket
+  lang: es
+  question: "¿Cuál es el ticket promedio por canal?"
+  tags: [aclaracion, periodo-faltante]
+  expect_clarification:
+    slot: period
+
+- id: acl-es-periodo-desconocido
+  lang: es
+  question: "Ventas desde la temporada alta"
+  tags: [aclaracion, periodo-no-reconocido]
+  expect_clarification:
+    slot: period
+
+- id: acl-es-metrica-ambigua
+  lang: es
+  question: "¿Cuánto facturé el mes pasado?"
+  tags: [aclaracion, metrica-ambigua]
+  expect_clarification:
+    slot: metric
+
+- id: acl-es-entidad-ambigua
+  lang: es
+  question: "Ventas del mes pasado en Bogotá"
+  tags: [aclaracion, entidad-ambigua]
+  expect_clarification:
+    slot: entity
+
+- id: acl-es-dimension-no-permitida
+  lang: es
+  question: "Ventas por color el mes pasado"
+  tags: [aclaracion, dimension-no-permitida]
+  expect_clarification:
+    slot: dimension
+
+- id: acl-es-resp-periodo-mes
+  lang: es
+  question: "¿Cuánto vendí?"
+  answers: ["Este mes"]
+  tags: [aclaracion, respuesta, periodo-faltante]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-11-01' AND f.fecha < '2026-12-01'"
+
+- id: acl-es-resp-periodo-30
+  lang: es
+  question: "¿Cuánto vendí?"
+  answers: ["Últimos 30 días"]
+  tags: [aclaracion, respuesta, periodo-faltante]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-27' AND f.fecha < '2026-11-26'"
+
+- id: acl-es-resp-periodo-facturas
+  lang: es
+  question: "¿Cuántas facturas tuvimos?"
+  answers: ["Mes pasado"]
+  tags: [aclaracion, respuesta, periodo-faltante]
+  expect:
+    sql: "SELECT COUNT(*) AS num_facturas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01'"
+
+- id: acl-es-resp-metrica
+  lang: es
+  question: "¿Cuánto facturé el mes pasado?"
+  answers: ["Ventas sin IVA"]
+  tags: [aclaracion, respuesta, metrica-ambigua]
+  expect:
+    sql: "SELECT SUM(f.subtotal) AS ventas_sin_iva FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01'"
+
+- id: acl-es-resp-bogota-juntas
+  lang: es
+  question: "Ventas del mes pasado en Bogotá"
+  answers: ["Las 3 juntas"]
+  tags: [aclaracion, respuesta, entidad-ambigua]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01' AND s.ciudad = 'Bogotá'"
+
+- id: acl-es-resp-bogota-una
+  lang: es
+  question: "Ventas del mes pasado en Bogotá"
+  answers: ["Bogotá Unicentro"]
+  tags: [aclaracion, respuesta, entidad-ambigua]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f JOIN sucursales s ON s.id = f.sucursal_id WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01' AND s.nombre = 'Bogotá Unicentro'"
+
+- id: acl-en-no-period
+  lang: en
+  question: "How much did I sell?"
+  tags: [aclaracion, periodo-faltante]
+  expect_clarification:
+    slot: period
+
+- id: acl-en-ambiguous-city
+  lang: en
+  question: "Sales in Bogotá last month"
+  tags: [aclaracion, entidad-ambigua]
+  expect_clarification:
+    slot: entity
+
+- id: acl-en-answer-period
+  lang: en
+  question: "How much did I sell?"
+  answers: ["Last month"]
+  tags: [aclaracion, respuesta, periodo-faltante]
+  expect:
+    sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01'"
