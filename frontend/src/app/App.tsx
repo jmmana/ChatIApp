@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { UsersPage } from "@/features/admin/users/UsersPage";
 import { AuthProvider } from "@/features/auth/AuthProvider";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { RequireAuth } from "@/features/auth/RequireAuth";
@@ -31,6 +32,8 @@ export function App() {
                         <IntegrationsPage />
                       ) : route.path === "/fuentes-de-datos" ? (
                         <DatasourcesPage />
+                      ) : route.path === "/usuarios" ? (
+                        <UsersPage />
                       ) : (
                         <EmptyState route={route} />
                       )
