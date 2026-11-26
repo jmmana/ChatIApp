@@ -146,7 +146,7 @@ def test_columna_inexistente_se_repara_con_un_reintento(
 
     assert not _of(events, "error")
     assert ("repair", "done") in _steps(events)
-    sql = _of(events, "sql")[0]
+    sql = _of(events, "sql")[-1]
     assert sql["origin"] == "llm" and "SUM(total)" in sql["sql"]
     assert _of(events, "result")[0]["columns"] == ["t"]
 
