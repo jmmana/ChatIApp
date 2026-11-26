@@ -49,9 +49,7 @@ def test_la_demo_produce_las_7_tablas(demo_url: str) -> None:
     assert {t.name for t in result.tables} == DEMO_TABLES
     assert result.schemas == ["main"]
     # La vista previa es un modelo válido.
-    SemanticModel(
-        version=1, name="demo", tables=result.tables, relationships=result.relationships
-    )
+    SemanticModel(version=1, name="demo", tables=result.tables, relationships=result.relationships)
 
 
 def test_lee_columnas_tipos_y_llaves(demo_url: str) -> None:

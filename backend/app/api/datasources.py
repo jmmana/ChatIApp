@@ -110,7 +110,7 @@ class IntrospectPreview(BaseModel):
     warnings: list[IssueOut]
 
 
-def get_request_cipher()-> MultiFernet:
+def get_request_cipher() -> MultiFernet:
     # Envoltorio sin parámetros: FastAPI no debe leer `settings` de `get_cipher` como entrada.
     return get_cipher()
 
