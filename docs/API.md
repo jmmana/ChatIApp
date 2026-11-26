@@ -57,12 +57,14 @@ Ver la lista exige sesión; crear, cambiar, borrar y probar la conexión exigen 
 | `PUT` | `/api/v1/datasources/{id}/semantic` | Publica una versión nueva (solo administradores). Cuerpo `{base_version, model}`; `base_version` es la versión vigente que vio el cliente (`0` si no hay ninguna). Valida antes de guardar: 422 con `error.details.errors = [{path, message}]` y sin guardar; 409 `version_conflict` (con `details.current_version`) si alguien publicó antes. Para volver a una versión anterior, se publica su modelo como versión nueva |
 | `GET` | `/api/v1/datasources/{id}/semantic/versions` | Historial (`version`, `created_by`, `created_at`), la más reciente primero |
 | `GET` | `/api/v1/datasources/{id}/semantic/versions/{n}` | Una versión del historial con su modelo |
-| `POST` | `/api/v1/datasources/{id}/semantic/import` | `multipart`: archivo `.sql` · `.csv` · `.xlsx` · `.yaml` · `.json`. Devuelve **vista previa** (modelo fusionado + diferencias); no guarda |
+| `POST` | `/api/v1/datasources/{id}/semantic/import` | `multipart`: archivo `.sql` · `.csv` · `.xlsx` · `.yaml` · `.json`. El formato se detecta por la extensión. Devuelve **vista previa** `{model, diff, warnings}`; no guarda. `diff` trae `added` (`{path, kind}`), `changed` (`{path, field, before, after}`), `missing` (`{path, kind}`: no encontradas, no se borran) y `suggestions` (`{path, field, current, suggested}`: descripciones de la fuente que no pisan las escritas a mano). Extensión desconocida: 422 `unsupported_format`; archivo ilegible: 422 `invalid_file`. Solo administradores |
 | `POST` | `/api/v1/datasources/{id}/semantic/introspect` | Lee la base conectada y devuelve vista previa (`schemas`, `tables`, `relationships`, `warnings`); no guarda. Cuerpo opcional: `schemas` (lista), `table_pattern` (comodines `*` y `?`), `sample_values` (hasta 20 valores de columnas de texto de baja cardinalidad; solo con privacidad `samples`, y cada consulta pasa por el guardián). Con más de 500 tablas responde `422 too_many_tables`: hay que filtrar. Solo administración |
 | `POST` | `/api/v1/datasources/{id}/semantic/suggest` | Sugerencias de IA para descripciones, sinónimos y roles vacíos |
 | `GET` | `/api/v1/datasources/{id}/semantic/export?format=yaml` | Exporta el modelo vigente (`format=yaml` o `json`); reimportarlo da un modelo idéntico |
-| `POST` | `/api/v1/datasources/{id}/preview` | Métrica + período + dimensiones + filtros + rol → `{sql, summary_table, period, filters_applied}`, sin IA |
-| `POST` | `/api/v1/datasources/{id}/validate-sql` | SQL + rol → resultado del guardián (para pruebas) |
+| `POST` | `/api/v1/datasources/{id}/preview` | Cuerpo `{metric, period?, dimensions?, filters?, granularity?, view_as?}` → `{sql, metric, role, summary_table, reason, period, filters_applied, guard}`, sin IA. Errores de catálogo, de período o de plan: `422` |
+| `POST` | `/api/v1/datasources/{id}/validate-sql` | Cuerpo `{sql, view_as?}` → resultado del guardián `{allowed, sql, tables, violations, role}` (para pruebas; solo administradores, porque revela qué columnas están ocultas) |
+
+Ambas usan la última versión del modelo semántico y el rol y atributos del permiso (`grant`) del usuario; `view_as` (`{role, attributes}`) solo lo usan administradores (`403` para los demás). Sin modelo publicado responden `404`.
 
 Leer y publicar el modelo exigen administrador (403 `forbidden` si no): el modelo incluye columnas ocultas y filtros por rol.
 

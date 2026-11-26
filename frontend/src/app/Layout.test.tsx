@@ -15,7 +15,10 @@ beforeEach(() => {
   // La cookie de refresco vigente: la app recupera la sesión al abrir.
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response(JSON.stringify(session), { status: 200 })),
+    vi.fn(
+      async (url: string) =>
+        new Response(JSON.stringify(url.includes("/datasources") ? [] : session), { status: 200 }),
+    ),
   );
 });
 
@@ -33,7 +36,7 @@ async function renderAt(path: string) {
 }
 
 describe("Layout", () => {
-  it("muestra la barra lateral con las seis secciones", async () => {
+  it("muestra la barra lateral con las siete secciones", async () => {
     await renderAt("/chat");
     const nav = screen.getByRole("navigation", { name: "Principal" });
     for (const title of [
@@ -41,6 +44,7 @@ describe("Layout", () => {
       "Modelo semántico",
       "Proveedores de IA",
       "Fuentes de datos",
+      "Integraciones",
       "Auditoría",
       "Evaluación",
     ]) {
