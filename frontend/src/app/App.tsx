@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/features/auth/AuthProvider";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { RequireAuth } from "@/features/auth/RequireAuth";
+import { DatasourcesPage } from "@/features/datasources/DatasourcesPage";
 import { IntegrationsPage } from "@/features/integrations/IntegrationsPage";
 import { EmptyState } from "./EmptyState";
 import { Layout } from "./Layout";
@@ -28,6 +29,8 @@ export function App() {
                     element={
                       route.path === "/integraciones" ? (
                         <IntegrationsPage />
+                      ) : route.path === "/fuentes-de-datos" ? (
+                        <DatasourcesPage />
                       ) : (
                         <EmptyState route={route} />
                       )

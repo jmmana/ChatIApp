@@ -100,7 +100,7 @@ export function KeyFormDialog({ apiKey, pending, error, onSubmit, onClose }: Pro
               placeholder="gerente_sucursal"
             />
             <span className="text-xs font-normal text-muted-foreground">
-              Separados por comas. Con un solo rol, ese es el rol fijo de la key.
+              Separados por comas. Son los roles que el backend que integra puede pedir; el rol fijo por key aún no está disponible.
             </span>
           </label>
           <label className="grid gap-1 text-sm font-medium">

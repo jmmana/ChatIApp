@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.api import api_keys, auth, datasources, health, providers
+from app.api import api_keys, auth, datasources, health, providers, semantic
 from app.api.errors import register_error_handlers
 from app.db.session import get_engine
 from app.security.auth import AuthError, ensure_initial_admin, get_current_user, require_admin
@@ -64,6 +64,7 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
         api_keys.router, prefix=API_PREFIX, dependencies=[Depends(require_admin)]
     )
     application.include_router(datasources.router, prefix=API_PREFIX, dependencies=protected)
+    application.include_router(semantic.router, prefix=API_PREFIX, dependencies=protected)
     register_error_handlers(application)
 
     if static_dir is None and (env_dir := os.environ.get("CHATIAPP_STATIC_DIR")):
