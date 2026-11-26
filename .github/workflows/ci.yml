@@ -101,13 +101,33 @@ jobs:
         if: steps.exists.outputs.run == 'true'
         run: pnpm run build
 
+  imagen:
+    name: Imagen única (build y prueba de humo)
+    needs: detect
+    if: needs.detect.outputs.backend == 'true' && needs.detect.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: chatiapp:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Prueba de humo
+        run: sh scripts/smoke-image.sh chatiapp:ci
+
   ok:
     name: CI completo
-    needs: [backend, node]
+    needs: [backend, node, imagen]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Resultado
         run: |
-          echo "backend=${{ needs.backend.result }} node=${{ needs.node.result }}"
+          echo "backend=${{ needs.backend.result }} node=${{ needs.node.result }} imagen=${{ needs.imagen.result }}"
           if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then exit 1; fi

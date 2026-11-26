@@ -78,7 +78,7 @@
   question: "Ventas por mes en 2025"
   tags: [dimension, serie, time_grain]
   expect:
-    sql: "SELECT strftime('%Y-%m', f.fecha) AS periodo, SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01' GROUP BY strftime('%Y-%m', f.fecha) ORDER BY 1"
+    sql: "SELECT strftime('%Y-%m-01', f.fecha) AS periodo, SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01' GROUP BY strftime('%Y-%m-01', f.fecha) ORDER BY 1"
     ordered: true
 
 - id: dim-es-clientes-segmento
@@ -107,5 +107,5 @@
   question: "Monthly sales for last year"
   tags: [dimension, serie, time_grain]
   expect:
-    sql: "SELECT strftime('%Y-%m', f.fecha) AS periodo, SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01' GROUP BY strftime('%Y-%m', f.fecha) ORDER BY 1"
+    sql: "SELECT strftime('%Y-%m-01', f.fecha) AS periodo, SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PAGADA' AND f.fecha >= '2025-01-01' AND f.fecha < '2026-01-01' GROUP BY strftime('%Y-%m-01', f.fecha) ORDER BY 1"
     ordered: true

@@ -73,7 +73,8 @@ def test_congelar_y_validar_estricto_ida_y_vuelta(tmp_path: Path) -> None:
     assert validar(raiz, estricto=True) == []
 
 
-def test_valores_guardados_del_set_real_coinciden_si_existen() -> None:
-    if not (RAIZ_SET / ARCHIVO_VALORES).exists():
-        pytest.skip("valores.json aún no se ha generado: `python -m app.eval.golden --congelar`")
+def test_valores_guardados_del_set_real_coinciden() -> None:
+    assert (RAIZ_SET / ARCHIVO_VALORES).exists(), (
+        "falta valores.json: `uv run python -m app.eval.golden --congelar` desde backend/"
+    )
     assert validar(RAIZ_SET, estricto=True) == []

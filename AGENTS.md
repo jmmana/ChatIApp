@@ -21,6 +21,7 @@ La documentación en [`docs/`](docs/) es el contrato. Antes de escribir código,
 - No agregues dependencias que la tarea no necesite; si agregas una, justifícala en el PR.
 - Nada de secretos, credenciales, URLs de conexión ni datos reales. Para datos usa `examples/ventas/` y la demo SQLite.
 - El motor (`backend/app/engine/`) no importa nada de `backend/app/llm/`: se prueba sin red ni IA.
+- **ChatIApp es una sola imagen** ([ADR 0008](docs/adr/0008-imagen-unica-con-sqlite.md)): el `Dockerfile` de la raíz construye la interfaz y el backend, y FastAPI sirve ambos. No agregues Dockerfiles por servicio, nginx ni contenedores obligatorios; la base de la app es SQLite en `/data` y el código debe funcionar también con PostgreSQL. Tu contenedor no tiene Docker: el CI construye la imagen y corre `scripts/smoke-image.sh`.
 - **El guardián SQL es la librería [sqlguardllm](https://github.com/jmmana/sqlguardllm)** (`pip install sqlguardllm`, `import sqlguardllm`). No reimplementes sus reglas (solo lectura, tablas, columnas ocultas, funciones, filtros por rol, límite): arma su `Policy` desde el modelo semántico. Si le falta algo, se pide en su repositorio.
 
 ## Backend (Python)

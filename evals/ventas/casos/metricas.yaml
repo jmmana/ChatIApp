@@ -61,14 +61,14 @@
 - id: met-es-pendientes
   lang: es
   question: "¿Cuánto hay en facturas pendientes este año?"
-  tags: [metrica, estado-explicito]
+  tags: [sql_libre, estado-explicito]
   expect:
     sql: "SELECT SUM(f.total) AS ventas_netas FROM facturas f WHERE f.estado = 'PENDIENTE' AND f.fecha >= '2026-01-01' AND f.fecha < '2027-01-01'"
 
 - id: met-es-anuladas
   lang: es
   question: "¿Cuántas facturas anuladas hubo el mes pasado?"
-  tags: [metrica, estado-explicito]
+  tags: [sql_libre, estado-explicito]
   expect:
     sql: "SELECT COUNT(*) AS num_facturas FROM facturas f WHERE f.estado = 'ANULADA' AND f.fecha >= '2026-10-01' AND f.fecha < '2026-11-01'"
 
