@@ -186,9 +186,9 @@ class TurnObserver:
         cost = totals.cost_usd - opened.before.cost_usd
         attributes: dict[str, Any] = {"chatiapp.status": status}
         if stage in _LLM_STAGES:
-            attributes.update(
-                {"llm.tokens.input": tokens_in, "llm.tokens.output": tokens_out, "llm.cost_usd": cost}
-            )
+            attributes["llm.tokens.input"] = tokens_in
+            attributes["llm.tokens.output"] = tokens_out
+            attributes["llm.cost_usd"] = cost
         if stage in _TABLE_STAGES and tables:
             attributes["db.tables"] = ",".join(tables)
         opened.span.set_attributes(_attrs(attributes))
