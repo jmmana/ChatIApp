@@ -20,9 +20,12 @@ from app.engine.connections import (
     validate_url,
 )
 from app.engine.dialects import Dialect
+from app.security.auth import require_admin
 from app.security.crypto import SecretKeyError, decrypt, encrypt, get_cipher
 
 router = APIRouter(prefix="/datasources", tags=["fuentes de datos"])
+# Ver la lista basta con sesión; crear, cambiar, borrar y probar es administración (API.md).
+ADMIN = [Depends(require_admin)]
 
 Privacy = Literal["schema", "aggregates", "samples"]
 MaxRows = Annotated[int, Field(ge=1, le=100_000)]
@@ -144,7 +147,7 @@ def list_datasources(session: SessionDep, cipher: CipherDep) -> list[DatasourceO
     return [_out(row, cipher) for row in rows]
 
 
-@router.post("", status_code=201, summary="Crea una fuente de datos")
+@router.post("", status_code=201, summary="Crea una fuente de datos", dependencies=ADMIN)
 def create_datasource(
     body: DatasourceCreate, session: SessionDep, cipher: CipherDep
 ) -> DatasourceOut:
@@ -165,7 +168,7 @@ def create_datasource(
     return _out(datasource, cipher)
 
 
-@router.patch("/{datasource_id}", summary="Actualiza una fuente de datos")
+@router.patch("/{datasource_id}", summary="Actualiza una fuente de datos", dependencies=ADMIN)
 def update_datasource(
     datasource_id: uuid.UUID, body: DatasourceUpdate, session: SessionDep, cipher: CipherDep
 ) -> DatasourceOut:
@@ -185,7 +188,9 @@ def update_datasource(
     return _out(datasource, cipher)
 
 
-@router.delete("/{datasource_id}", status_code=204, summary="Elimina una fuente de datos")
+@router.delete(
+    "/{datasource_id}", status_code=204, summary="Elimina una fuente de datos", dependencies=ADMIN
+)
 def delete_datasource(datasource_id: uuid.UUID, session: SessionDep) -> Response:
     datasource = _get_or_404(session, datasource_id)
     _ensure_editable(datasource)
@@ -194,7 +199,7 @@ def delete_datasource(datasource_id: uuid.UUID, session: SessionDep) -> Response
     return Response(status_code=204)
 
 
-@router.post("/{datasource_id}/test", summary="Prueba la conexión")
+@router.post("/{datasource_id}/test", summary="Prueba la conexión", dependencies=ADMIN)
 def test_datasource(datasource_id: uuid.UUID, session: SessionDep, cipher: CipherDep) -> TestResult:
     datasource = _get_or_404(session, datasource_id)
     try:

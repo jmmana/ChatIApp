@@ -87,7 +87,17 @@ jobs:
           node-version: 22
       - name: pnpm
         if: steps.exists.outputs.run == 'true'
-        run: corepack enable && pnpm --version
+        id: pnpm
+        run: |
+          corepack enable && pnpm --version
+          echo "store=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Caché de pnpm
+        if: steps.exists.outputs.run == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm.outputs.store }}
+          key: pnpm-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', matrix.package)) }}
+          restore-keys: pnpm-${{ runner.os }}-${{ matrix.package }}-
       - name: Dependencias
         if: steps.exists.outputs.run == 'true'
         run: pnpm install --frozen-lockfile

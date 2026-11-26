@@ -10,11 +10,12 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.api.datasources import get_request_cipher
-from app.db.models import Base, Datasource
+from app.db.models import Base, Datasource, User
 from app.db.session import get_session, make_engine
 from app.demo.seed import generar
 from app.engine.connections import classify_error, mask_url
 from app.main import app
+from app.security.auth import get_current_user
 from app.security.crypto import decrypt, make_cipher
 
 CIPHER = make_cipher("clave-de-prueba")
@@ -44,6 +45,7 @@ def client(factory: sessionmaker[Session]) -> Iterator[TestClient]:
 
     app.dependency_overrides[get_session] = _session
     app.dependency_overrides[get_request_cipher] = lambda: CIPHER
+    app.dependency_overrides[get_current_user] = lambda: User(email="a@b.co", is_admin=True)
     yield TestClient(app)
     app.dependency_overrides.clear()
 
@@ -256,3 +258,14 @@ def test_mask_url_casos() -> None:
     assert mask_url("sqlite:///./demo/ventas.db") == "sqlite:///./demo/ventas.db"
     assert mask_url("postgresql://solo_usuario@h/db") == "postgresql://***@h/db"
     assert mask_url("basura") == "***"
+
+
+def test_usuario_sin_admin_solo_puede_listar(client: TestClient) -> None:
+    creada = _create(client)
+    app.dependency_overrides[get_current_user] = lambda: User(email="u@b.co", is_admin=False)
+
+    assert client.get("/api/v1/datasources").status_code == 200
+    assert client.post("/api/v1/datasources", json={}).status_code == 403
+    assert client.patch(f"/api/v1/datasources/{creada['id']}", json={}).status_code == 403
+    assert client.post(f"/api/v1/datasources/{creada['id']}/test").status_code == 403
+    assert client.delete(f"/api/v1/datasources/{creada['id']}").status_code == 403

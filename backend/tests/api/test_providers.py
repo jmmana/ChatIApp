@@ -1,9 +1,12 @@
 from fastapi.testclient import TestClient
 
 from app.llm.catalog import CATALOG
-from app.main import app
+from app.main import create_app
+from app.security.auth import get_current_user
 
-client = TestClient(app)
+application = create_app()
+application.dependency_overrides[get_current_user] = lambda: object()
+client = TestClient(application)
 
 
 def test_catalogo_devuelve_todas_las_entradas() -> None:

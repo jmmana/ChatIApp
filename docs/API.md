@@ -16,6 +16,21 @@ Todas las rutas salvo `/api/v1/health` y `/api/v1/auth/*` exigen `Authorization:
 
 Detalle y ejemplos: [INTEGRACION.md](INTEGRACION.md).
 
+### Sesión de usuario (JWT)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/api/v1/auth/login` | `{email, password}` → `{access_token, token_type, expires_in, user}`; el refresh token se entrega en la cookie `HttpOnly` `chatiapp_refresh` (`SameSite=Strict`, ruta `/api/v1/auth`, 7 días) |
+| `POST` | `/api/v1/auth/refresh` | Con la cookie, emite un nuevo JWT y rota la cookie |
+| `POST` | `/api/v1/auth/logout` | Borra la cookie |
+| `GET` | `/api/v1/auth/me` | Usuario autenticado |
+
+- El JWT (HS256, firmado con `CHATIAPP_SECRET_KEY`) dura 15 minutos; la interfaz lo guarda solo en memoria.
+- Las rutas de administración exigen `is_admin` (403 `forbidden` si no); sin credencial válida, 401.
+- 5 intentos fallidos por correo en 15 minutos bloquean el correo durante el resto de la ventana (429 `too_many_attempts`). El contador es en memoria, por proceso.
+- Primer arranque: si no hay ningún administrador y existen `CHATIAPP_ADMIN_EMAIL` y `CHATIAPP_ADMIN_PASSWORD`, se crea ese administrador.
+- `CHATIAPP_COOKIE_SECURE` (por defecto `true`) controla el atributo `Secure` de la cookie; ponla en `false` solo en desarrollo sin HTTPS.
+
 ## Salud
 
 | Método | Ruta | Descripción |

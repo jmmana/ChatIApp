@@ -315,6 +315,7 @@ Plan detallado en [docs/ROADMAP.md](docs/ROADMAP.md) y avance en vivo en el [tab
 
 ```bash
 docker run -p 8080:8080 -v chatiapp:/data \
+  -e CHATIAPP_ADMIN_EMAIL=tu@correo.com -e CHATIAPP_ADMIN_PASSWORD='una-clave-larga' \
   -e ANTHROPIC_API_KEY=sk-ant-… ghcr.io/jmmana/chatiapp
 # abre http://localhost:8080 y pregunta: ¿cuánto vendí?
 ```
