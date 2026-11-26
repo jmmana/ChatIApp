@@ -69,6 +69,7 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     application.include_router(
         api_keys.router, prefix=API_PREFIX, dependencies=[Depends(require_admin)]
     )
+    application.include_router(audit.router, prefix=API_PREFIX, dependencies=[Depends(require_admin)])
     application.include_router(datasources.router, prefix=API_PREFIX, dependencies=protected)
     application.include_router(semantic.router, prefix=API_PREFIX, dependencies=protected)
     application.include_router(preview.router, prefix=API_PREFIX, dependencies=protected)

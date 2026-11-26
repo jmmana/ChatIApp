@@ -8,7 +8,7 @@ período, el guardián y la ejecución son código (ADR 0001).
 `Orchestrator.run` es un generador síncrono de `Event`: el endpoint de chat lo recorre en un hilo
 y reenvía cada evento por SSE. Un fallo en cualquier etapa termina con un evento `error`, nunca
 con una excepción. Al final del turno se guardan el mensaje del asistente con sus eventos, el
-`last_plan` de la conversación y un `QueryRun` si hubo una consulta ejecutada o rechazada.
+`last_plan` de la conversación y un `QueryRun` (el registro de auditoría), con o sin consulta.
 """
 
 import logging
@@ -181,6 +181,10 @@ class _Turn:
     run: _Run | None = None
     notes: list[str] = field(default_factory=list)
     text: str = ""  # lo que se guarda como contenido del mensaje del asistente
+    plan: dict[str, Any] | None = None  # plan de la IA tal como llegó (auditoría)
+    sql_candidate: str | None = None  # SQL antes del guardián (auditoría)
+    error_code: str | None = None
+    failed: bool = False
 
 
 # --------------------------------------------------------------------------- orquestador
@@ -326,25 +330,40 @@ class Orchestrator:
             t.assistant.events = [e.to_dict() for e in t.events if e.type != "answer.delta"]
             if t.last_plan is not None:
                 t.conversation.last_plan = t.last_plan
-            if t.run is not None:
-                run, usage = t.run, t.usage
-                self.session.add(
-                    QueryRun(
-                        message_id=t.assistant.id,
-                        provider_id=self.provider_id,
-                        api_key_id=self.api_key_id,
-                        origin=run.origin,
-                        sql_final=run.sql_final,
-                        summary_table=run.summary_table,
-                        filters_applied=dict(run.filters_applied),
-                        row_count=run.row_count,
-                        elapsed_ms=run.elapsed_ms,
-                        tokens_in=usage.input_tokens,
-                        tokens_out=usage.output_tokens,
-                        cost_usd=Decimal(str(usage.cost_usd or 0.0)),
-                        status=run.status,
-                    )
+            # Auditoría: todo turno deja un registro, tenga o no consulta (solo conteos de filas).
+            run, usage, conversation = t.run, t.usage, t.conversation
+            if run is None:
+                intent = (t.plan or {}).get("intent")
+                run = _Run("llm" if intent == "sql" else "catalog", "error" if t.failed else "ok")
+            provider = self.gateway.provider
+            self.session.add(
+                QueryRun(
+                    message_id=t.assistant.id,
+                    provider_id=self.provider_id,
+                    api_key_id=self.api_key_id or conversation.api_key_id,
+                    user_id=conversation.user_id,
+                    external_user_id=conversation.external_user_id,
+                    datasource_id=self.datasource.id,
+                    role=self.role,
+                    question=t.question,
+                    plan=t.plan,
+                    sql_candidate=t.sql_candidate,
+                    provider_kind=provider.kind,
+                    model=provider.model,
+                    semantic_version=self.version,
+                    error_code=t.error_code,
+                    origin=run.origin,
+                    sql_final=run.sql_final,
+                    summary_table=run.summary_table,
+                    filters_applied=dict(run.filters_applied),
+                    row_count=run.row_count,
+                    elapsed_ms=run.elapsed_ms,
+                    tokens_in=usage.input_tokens,
+                    tokens_out=usage.output_tokens,
+                    cost_usd=Decimal(str(usage.cost_usd or 0.0)),
+                    status=run.status,
                 )
+            )
             self.session.commit()
         except Exception:
             logger.exception("No se pudo guardar el turno %s", t.assistant.id)
@@ -387,6 +406,7 @@ class Orchestrator:
         except ValueError as exc:  # rol que el modelo semántico no define
             raise _Fail("understand", "unknown_role", str(exc), recoverable=False) from exc
         t.usage += result.usage
+        t.plan = result.plan.model_dump(mode="json")
         yield _step("understand", "done", result.plan.intent)
         return result.plan
 
@@ -454,6 +474,7 @@ class Orchestrator:
         yield _step("build", "done", decision.reason)
 
         filters = self._filters_applied(verified, period)
+        t.sql_candidate = query.sql
         t.run = _Run("catalog", "rejected", query.sql, decision.table, filters)
         outcome = _Outcome(metric=verified.metric, period=period)
 
@@ -585,6 +606,7 @@ class Orchestrator:
         assert plan.sql is not None
         t.last_plan = plan.model_dump(mode="json")
         sql = plan.sql
+        t.sql_candidate = sql
         t.run = _Run("llm", "rejected", sql, None, self._role_filters())
         outcome = _Outcome()
         repaired = False
@@ -817,6 +839,7 @@ class Orchestrator:
         yield Event(ClarificationData(question=ask.question, options=ask.options, slot=ask.slot))
 
     def _fail(self, t: _Turn, fail: _Fail) -> Iterator[Event]:
+        t.failed, t.error_code = True, fail.code
         if t.run is not None and t.run.status == "ok" and fail.code != "internal_error":
             t.run.status = "error"
         yield _step(fail.step, "error", fail.message)
