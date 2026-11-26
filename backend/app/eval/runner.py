@@ -14,7 +14,7 @@ import tempfile
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, time as dtime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -60,6 +60,11 @@ class ResultadoCaso:
 
 def cargar_modelo(ruta: Path = MODELO_VENTAS) -> SemanticModel:
     return parse_semantic_model(yaml.safe_load(ruta.read_text("utf-8")))
+
+
+def _ahora(dia: date) -> datetime:
+    """«Hoy» de la evaluación: las 10:30 en Bogotá del día en que se congelaron los datos."""
+    return datetime(dia.year, dia.month, dia.day, 15, 30, tzinfo=UTC)
 
 
 def _tipo(caso: Caso) -> Tipo:
@@ -226,7 +231,7 @@ def evaluar(
                     role=config.role,
                     query_executor=ejecutor,
                     guard_cache=GuardCache(),
-                    now=datetime.combine(config.dataset.hasta, dtime(15, 30), tzinfo=UTC),
+                    now=_ahora(config.dataset.hasta),
                 )
                 evaluador = Evaluador(orquestador)
                 resultados: list[ResultadoCaso] = []
