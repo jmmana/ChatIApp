@@ -1,17 +1,19 @@
 """Aplicación FastAPI de ChatIApp."""
 
+import hmac
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.orm import Session
 
 from app.api import api_keys, auth, datasources, health, preview, providers, semantic
 from app.api.errors import register_error_handlers
 from app.db.session import get_engine
+from app.observability import configure_logging, render_metrics, setup_tracing, shutdown_tracing
 from app.security.auth import AuthError, ensure_initial_admin, get_current_user, require_admin
 from app.settings.env import get_settings
 from app.settings.startup import load_and_register
@@ -24,10 +26,28 @@ API_PREFIX = "/api/v1"
 @asynccontextmanager
 async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
     # Primero la configuración: si es inválida lanza ConfigError y la app no arranca.
-    load_and_register(get_settings())
+    settings = get_settings()
+    configure_logging(settings.log_level, settings.log_format)
+    load_and_register(settings)
+    setup_tracing(settings.otel_endpoint, settings.otel_service_name)
     with Session(get_engine()) as session:
         ensure_initial_admin(session)
-    yield
+    try:
+        yield
+    finally:
+        shutdown_tracing()
+
+
+def _metrics(request: Request) -> Response:
+    """Exposición Prometheus. Fuera de `/api/v1` porque así la espera el scraper."""
+    token = get_settings().metrics_token
+    if token is not None:
+        sent = request.headers.get("authorization", "")
+        expected = f"Bearer {token.get_secret_value()}"
+        if not hmac.compare_digest(sent.encode(), expected.encode()):
+            return Response(status_code=401, headers={"WWW-Authenticate": "Bearer"})
+    body, content_type = render_metrics()
+    return Response(body, media_type=content_type)
 
 
 def _auth_error_handler(_request: Request, exc: Exception) -> JSONResponse:
@@ -72,6 +92,7 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     application.include_router(datasources.router, prefix=API_PREFIX, dependencies=protected)
     application.include_router(semantic.router, prefix=API_PREFIX, dependencies=protected)
     application.include_router(preview.router, prefix=API_PREFIX, dependencies=protected)
+    application.add_api_route("/metrics", _metrics, methods=["GET"], include_in_schema=False)
     register_error_handlers(application)
 
     if static_dir is None and (env_dir := os.environ.get("CHATIAPP_STATIC_DIR")):

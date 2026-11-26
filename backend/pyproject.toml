@@ -19,6 +19,10 @@ dependencies = [
     "openpyxl>=3.1",
     "sqlguardllm>=0.3.0a1,<0.4",
     "python-multipart>=0.0.12",
+    "opentelemetry-api>=1.27",
+    "opentelemetry-sdk>=1.27",
+    "opentelemetry-exporter-otlp-proto-http>=1.27",
+    "prometheus-client>=0.21",
 ]
 
 [project.scripts]

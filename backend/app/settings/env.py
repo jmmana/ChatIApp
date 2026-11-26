@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     secret_key_previous: SecretStr | None = None
     config: Path | None = None
     env: Literal["development", "test", "production"] = "development"
+    # Observabilidad (docs/OBSERVABILIDAD.md). Sin endpoint OTLP no se exportan trazas.
+    log_level: str = "INFO"
+    log_format: Literal["json", "text"] = "json"
+    otel_endpoint: str | None = None
+    otel_service_name: str = "chatiapp"
+    # Si se define, `/metrics` exige `Authorization: Bearer <token>`.
+    metrics_token: SecretStr | None = None
 
     @model_validator(mode="after")
     def _secret_key_en_produccion(self) -> Self:
