@@ -269,3 +269,44 @@ def test_usuario_sin_admin_solo_puede_listar(client: TestClient) -> None:
     assert client.patch(f"/api/v1/datasources/{creada['id']}", json={}).status_code == 403
     assert client.post(f"/api/v1/datasources/{creada['id']}/test").status_code == 403
     assert client.delete(f"/api/v1/datasources/{creada['id']}").status_code == 403
+    introspect_url = f"/api/v1/datasources/{creada['id']}/semantic/introspect"
+    assert client.post(introspect_url, json={}).status_code == 403
+
+
+def test_introspect_devuelve_vista_previa_sin_guardar(client: TestClient, demo_url: str) -> None:
+    created = _create(client, url=demo_url)
+
+    response = client.post(f"/api/v1/datasources/{created['id']}/semantic/introspect", json={})
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert len(body["tables"]) == 7
+    assert {"from": "facturas.cliente_id", "to": "clientes.id"} in body["relationships"]
+
+
+def test_introspect_con_patron_y_muestras(client: TestClient, demo_url: str) -> None:
+    created = _create(client, url=demo_url, privacy="samples")
+
+    response = client.post(
+        f"/api/v1/datasources/{created['id']}/semantic/introspect",
+        json={"table_pattern": "facturas", "sample_values": True},
+    )
+
+    assert response.status_code == 200, response.text
+    columns = {c["name"]: c for c in response.json()["tables"][0]["columns"]}
+    assert columns["canal"]["sample_values"] == ["MAYORISTA", "ONLINE", "TIENDA"]
+
+
+def test_introspect_fuente_inexistente_es_404(client: TestClient) -> None:
+    response = client.post(f"/api/v1/datasources/{uuid.uuid4()}/semantic/introspect", json={})
+
+    assert response.status_code == 404
+
+
+def test_introspect_error_de_conexion_no_filtra_la_url(client: TestClient) -> None:
+    created = _create(client, url="sqlite:////no/existe/secreto/x.db")
+
+    response = client.post(f"/api/v1/datasources/{created['id']}/semantic/introspect", json={})
+
+    assert response.status_code == 502
+    assert "secreto" not in response.text
