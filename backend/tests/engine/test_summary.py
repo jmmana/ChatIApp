@@ -24,7 +24,7 @@ HOY = date(2026, 11, 25)
 ESTE_MES = PeriodRange(date(2026, 11, 1), date(2026, 12, 1), "noviembre de 2026", "month", True)
 MES_PASADO = PeriodRange(date(2026, 10, 1), date(2026, 11, 1), "octubre de 2026", "month", False)
 ANIO_2025 = PeriodRange(date(2025, 1, 1), date(2026, 1, 1), "2025", "year", False)
-TRES_A_17_MARZO = PeriodRange(date(2026, 3, 3), date(2026, 3, 18), "3–17 mar 2026", "range", False)
+TRES_A_17_MARZO = PeriodRange(date(2026, 3, 3), date(2026, 3, 18), "3 al 17 mar", "range", False)
 ESTE_ANIO = PeriodRange(date(2026, 1, 1), date(2027, 1, 1), "2026", "year", True)
 
 
