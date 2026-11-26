@@ -373,7 +373,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.0" },
     { name = "sqlalchemy-bigquery", marker = "extra == 'bigquery'", specifier = ">=1.11" },
     { name = "sqlglot", specifier = ">=30.35" },
-    { name = "sqlguardllm", specifier = ">=0.1.0a1,<0.2" },
+    { name = "sqlguardllm", specifier = ">=0.2.0a2,<0.3" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]
 provides-extras = ["postgres", "sqlserver", "mysql", "oracle", "snowflake", "bigquery"]
@@ -1723,14 +1723,14 @@ wheels = [
 
 [[package]]
 name = "sqlguardllm"
-version = "0.1.0a2"
+version = "0.2.0a2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "sqlglot" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/01/5e/1ae405bb2aa4563ab6e19e6f392406c0587cc02b197c4a9c88a81ea8dafb/sqlguardllm-0.1.0a2.tar.gz", hash = "sha256:7eb5b583081b99479a03c1982ee1561546b09885c7ada1fc2094ececf8b3b896", size = 32156, upload-time = "2026-11-25T21:41:16.548Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b9/79/21d240e07ab6a52990228e10268ddadbb010a320750e51b136d545bf5529/sqlguardllm-0.2.0a2.tar.gz", hash = "sha256:55394dadca2b1cf2dcd8e6a49a1ab0de7c8b2115c13585c089da7bd0998bdb80", size = 43242, upload-time = "2026-11-26T01:29:36.02Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fe/d2/4faa604eff65ca31bbd3babef8d024c5ea724fe3aa0f2b0aaae87ef7dc4b/sqlguardllm-0.1.0a2-py3-none-any.whl", hash = "sha256:aa5b02acc81818c7aaaa3cf25fde3337a079687e2f5ca56364633a46ed35155f", size = 26564, upload-time = "2026-11-25T21:41:15.235Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/19/b66ec8e2bcc3c43d4da1490c3bb6029d20e7b4ecdeb65d82b7abf54131d6/sqlguardllm-0.2.0a2-py3-none-any.whl", hash = "sha256:39ee154f061fc55095ef5f6200f1a2a4468b14bf3236a8197f497f69a4ddce8d", size = 35645, upload-time = "2026-11-26T01:29:34.809Z" },
 ]
 
 [[package]]
