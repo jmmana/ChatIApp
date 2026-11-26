@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 import litellm
+import litellm.exceptions as litellm_exc
 from pydantic import BaseModel, ValidationError
 
 from app.db.models import Provider
@@ -148,15 +149,15 @@ def build_call_kwargs(provider: ProviderConfig) -> dict[str, Any]:
 def classify_error(exc: BaseException) -> ErrorKind:
     """Clasifica una excepción de LiteLLM (o del transporte) en un `ErrorKind`."""
     # `Timeout` hereda de la excepción de conexión: va primero.
-    if isinstance(exc, litellm.Timeout | TimeoutError):
+    if isinstance(exc, litellm_exc.Timeout | TimeoutError):
         return "timeout"
-    if isinstance(exc, litellm.AuthenticationError | litellm.PermissionDeniedError):
+    if isinstance(exc, litellm_exc.AuthenticationError | litellm_exc.PermissionDeniedError):
         return "auth"
-    if isinstance(exc, litellm.RateLimitError | litellm.BudgetExceededError):
+    if isinstance(exc, litellm_exc.RateLimitError | litellm_exc.BudgetExceededError):
         return "quota"
-    if isinstance(exc, litellm.NotFoundError):
+    if isinstance(exc, litellm_exc.NotFoundError):
         return "model_not_found"
-    if isinstance(exc, litellm.APIConnectionError | ConnectionError):
+    if isinstance(exc, litellm_exc.APIConnectionError | ConnectionError):
         return "network"
     status = getattr(exc, "status_code", None)
     if status in (401, 403):
@@ -190,9 +191,7 @@ def _extract_json(text: str) -> str:
 class Gateway:
     """Llama a un proveedor guardado. `completion` se inyecta solo en pruebas."""
 
-    def __init__(
-        self, provider: ProviderConfig, *, completion: CompletionFn | None = None
-    ) -> None:
+    def __init__(self, provider: ProviderConfig, *, completion: CompletionFn | None = None) -> None:
         self.provider = provider
         self._completion = completion
         self._fake: FakeProvider | None = None
@@ -262,9 +261,7 @@ class Gateway:
 
     # --- Internos ---
 
-    def _call(
-        self, messages: list[dict[str, str]], params: dict[str, Any], *, stream: bool
-    ) -> Any:
+    def _call(self, messages: list[dict[str, str]], params: dict[str, Any], *, stream: bool) -> Any:
         completion = self._completion or litellm.completion
         try:
             kwargs = build_call_kwargs(self.provider)
@@ -327,9 +324,7 @@ class Gateway:
         )
         return Completion(reply.text, usage)
 
-    def _fake_stream(
-        self, messages: list[dict[str, str]], started: float
-    ) -> Iterator[StreamEvent]:
+    def _fake_stream(self, messages: list[dict[str, str]], started: float) -> Iterator[StreamEvent]:
         assert self._fake is not None
         chunks, reply = self._fake.stream(messages)
         for chunk in chunks:

@@ -46,12 +46,12 @@ class FakeProvider:
 
     def reply(self, messages: list[dict[str, str]]) -> FakeReply:
         """Siguiente respuesta; lanza `GatewayError` si está configurado para fallar."""
-        from app.llm.gateway import ERROR_KINDS, GatewayError
+        from app.llm.gateway import ERROR_KINDS, ErrorKind, GatewayError
 
         index = self.calls
         self.calls += 1
         if self.error is not None and (self.fail_first is None or index < self.fail_first):
-            kind = next((k for k in ERROR_KINDS if k == self.error), "provider_error")
+            kind: ErrorKind = next((k for k in ERROR_KINDS if k == self.error), "provider_error")
             raise GatewayError(kind, "Error simulado.")
         text = self.responses[index % len(self.responses)]
         prompt = " ".join(m.get("content", "") for m in messages)
