@@ -1,4 +1,5 @@
 import json
+import uuid
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -97,7 +98,7 @@ def test_patch_sin_secreto_lo_conserva_y_con_secreto_lo_cambia(
     response = client.patch(url, json={"secrets": {"api_key": SECRETO_NUEVO}})
     assert response.status_code == 200
     with Session(engine) as session:
-        row = session.get(Provider, created["id"])
+        row = session.get(Provider, uuid.UUID(str(created["id"])))
         assert row is not None and row.secrets_encrypted is not None
         assert json.loads(decrypt(row.secrets_encrypted)) == {"api_key": SECRETO_NUEVO}
 

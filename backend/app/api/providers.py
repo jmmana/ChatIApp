@@ -14,6 +14,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.api.errors import ApiError
 from app.db.models import Provider
 from app.db.session import get_session
 from app.llm.catalog import CATALOG, ProviderField, ProviderSpec
@@ -26,19 +27,6 @@ MANAGED_BY_CONFIG = "config"
 _SPECS = {spec.kind: spec for spec in CATALOG}
 
 SessionDep = Annotated[Session, Depends(get_session)]
-
-
-class ApiError(Exception):
-    """Error con la forma `{"error": {"code", "message", "details"}}` de docs/API.md."""
-
-    def __init__(
-        self, status_code: int, code: str, message: str, details: dict[str, Any] | None = None
-    ) -> None:
-        super().__init__(message)
-        self.status_code = status_code
-        self.code = code
-        self.message = message
-        self.details = details or {}
 
 
 class ProviderCreate(BaseModel):
@@ -165,9 +153,10 @@ def _clear_default(session: Session, keep: uuid.UUID) -> None:
     session.execute(update(Provider).where(Provider.id != keep).values(is_default=False))
 
 
-def _commit(session: Session) -> None:
+def _commit(session: Session, *, flush_only: bool = False) -> None:
+    """Confirma (o solo envía) los cambios; un nombre repetido es 409, no un error 500."""
     try:
-        session.commit()
+        session.flush() if flush_only else session.commit()
     except IntegrityError as exc:
         session.rollback()
         raise ApiError(409, "name_taken", "Ya existe un proveedor con ese nombre.") from exc
@@ -198,7 +187,7 @@ def create_provider(body: ProviderCreate, session: SessionDep) -> ProviderOut:
     )
     _store_secrets(provider, body.secrets)
     session.add(provider)
-    session.flush()
+    _commit(session, flush_only=True)
     if body.is_default:
         _clear_default(session, provider.id)
     _commit(session)
