@@ -132,3 +132,14 @@ def test_comment_sobre_objeto_desconocido_se_advierte() -> None:
 
     assert result.tables == []
     assert len(result.warnings) == 2
+
+
+def test_tsql_estilo_ssms_con_go_y_llaves_clustered() -> None:
+    result = import_ddl((FIXTURES / "tsql_ssms.sql").read_text(), "tsql")
+    tablas = {t.name: t for t in result.tables}
+    assert set(tablas) == {"dbo.Sucursales", "dbo.Facturas"}
+    assert tablas["dbo.Sucursales"].primary_key == ["Id"]
+    assert tablas["dbo.Facturas"].primary_key == ["Id"]
+    assert [(r.from_, r.to) for r in result.relationships] == [
+        ("dbo.Facturas.SucursalId", "dbo.Sucursales.Id")
+    ]

@@ -77,11 +77,13 @@ def import_ddl(sql: str, dialect: str | None = None) -> DdlImport:
 
 
 def _split(tokens: list[Token]) -> list[list[Token]]:
-    """Separa los tokens en sentencias por `;`, para que un error no afecte a las demás."""
+    """Separa los tokens en sentencias por `;` o `GO` (scripts de SSMS), para que un error no
+    afecte a las demás."""
     chunks: list[list[Token]] = []
     current: list[Token] = []
     for token in tokens:
-        if token.token_type == TokenType.SEMICOLON:
+        is_go = token.token_type == TokenType.COMMAND and token.text.upper() == "GO"
+        if token.token_type == TokenType.SEMICOLON or is_go:
             if current:
                 chunks.append(current)
             current = []
@@ -182,8 +184,18 @@ def _read_column(item: exp.ColumnDef, table: Table, reader: Dialect, pending: _P
 
 def _read_constraint(item: exp.Expression, table: Table, pending: _Pending) -> None:
     if isinstance(item, exp.Constraint):  # CONSTRAINT nombre <restricción>
-        for inner in item.expressions:
-            _read_constraint(inner, table, pending)
+        inner = list(item.expressions)
+        # T-SQL: PRIMARY KEY CLUSTERED ([Id] ASC) llega como dos nodos; las columnas van
+        # dentro del de CLUSTERED o NONCLUSTERED.
+        if any(isinstance(node, exp.PrimaryKeyColumnConstraint) for node in inner):
+            for node in inner:
+                if isinstance(
+                    node, exp.ClusteredColumnConstraint | exp.NonClusteredColumnConstraint
+                ):
+                    columns = node.this if isinstance(node.this, list) else [node.this]
+                    table.primary_key.extend(_names(columns))
+        for node in inner:
+            _read_constraint(node, table, pending)
     elif isinstance(item, exp.PrimaryKey):
         table.primary_key.extend(_names(list(item.expressions)))
     elif isinstance(item, exp.ForeignKey):
