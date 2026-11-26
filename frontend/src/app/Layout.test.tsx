@@ -15,7 +15,10 @@ beforeEach(() => {
   // La cookie de refresco vigente: la app recupera la sesión al abrir.
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response(JSON.stringify(session), { status: 200 })),
+    vi.fn(
+      async (url: string) =>
+        new Response(JSON.stringify(url.endsWith("/datasources") ? [] : session), { status: 200 }),
+    ),
   );
 });
 

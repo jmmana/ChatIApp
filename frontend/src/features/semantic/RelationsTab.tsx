@@ -2,7 +2,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { describedBy, type FieldErrors } from "./errors";
 import { FieldError } from "./FieldError";
-import { selectClass } from "./TablesTab";
+import { selectClass } from "./styles";
 import type { SemanticModel } from "./types";
 
 interface Props {

@@ -1,8 +1,9 @@
+import type { ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { describedBy, type FieldErrors } from "./errors";
 import { FieldError } from "./FieldError";
-import { selectClass } from "./TablesTab";
+import { selectClass } from "./styles";
 import type { SemanticModel, SemanticSettings, Weekday } from "./types";
 
 const WEEKDAYS: [Weekday, string][] = [
@@ -43,7 +44,7 @@ export function ContextTab({ model, errors, onChange }: Props) {
     onChange({ ...model, settings: { ...settings, ...change } });
   }
 
-  function field(id: string, label: string, path: string, control: React.ReactNode) {
+  function field(id: string, label: string, path: string, control: ReactNode) {
     return (
       <div className="flex flex-col gap-1">
         <label htmlFor={id} className="text-sm font-medium">
