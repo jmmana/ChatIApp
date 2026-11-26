@@ -59,4 +59,4 @@ datasources:
     execute: true                 # false = solo genera el SQL, no lo ejecuta
     max_rows: 1000
     timeout_seconds: 30
-    semantic_model: ./examples/ventas/semantic-model.yaml
+    semantic_model: ./ventas/semantic-model.yaml   # relativa a este archivo
