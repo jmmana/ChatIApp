@@ -99,9 +99,13 @@ def _ms(valor: float) -> str:
 
 def a_markdown(informe: Informe) -> str:
     proveedores: list[Informe] = informe["proveedores"]
-    lineas = [f"# Evaluación del set «{informe['set']}»", "", f"Generado: {informe['generado']}", ""]
-    lineas += [
-        "| Proveedor | Modelo | Exactitud | Aclaraciones | p50 | p95 | Tokens (ent./sal.) | Costo |",
+    lineas = [
+        f"# Evaluación del set «{informe['set']}»",
+        "",
+        f"Generado: {informe['generado']}",
+        "",
+        "| Proveedor | Modelo | Exactitud | Aclaraciones | p50 | p95 | Tokens (ent./sal.) "
+        "| Costo |",
         "|---|---|---|---|---|---|---|---|",
     ]
     for p in proveedores:

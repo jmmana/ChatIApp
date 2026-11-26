@@ -113,12 +113,12 @@ def evaluar_proveedores(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="app.eval", description="Evaluación de proveedores de IA")
+    parser = argparse.ArgumentParser(prog="app.eval", description="Evaluación de proveedores")
     comandos = parser.add_subparsers(dest="command", required=True)
     run = comandos.add_parser("run", help="Corre el set dorado contra uno o varios proveedores")
     run.add_argument("--set", dest="set_dir", type=Path, default=RAIZ_SET, help="Carpeta del set")
     run.add_argument(
-        "--providers", required=True, type=_nombres, help="Nombres de proveedor, separados por coma"
+        "--providers", required=True, type=_nombres, help="Nombres de proveedor, con comas"
     )
     run.add_argument("--model", type=Path, default=MODELO_VENTAS, help="Modelo semántico (YAML)")
     run.add_argument("--out", type=Path, default=Path("eval-reports"), help="Carpeta del informe")

@@ -71,3 +71,17 @@ uv run python -m app.eval.golden --validar --estricto
 El validador genera la demo en un directorio temporal con el `seed` y `hasta` de `set.yaml` y ejecuta el SQL en una conexión de solo lectura. Falla si hay ids repetidos, menos casos de los mínimos, etiquetas sin cubrir, SQL que no es una única consulta de lectura, SQL que no se ejecuta o no devuelve datos, o valores guardados que ya no coinciden.
 
 Al escribir SQL a mano: cuenta solo facturas `PAGADA` salvo que la pregunta pida otro estado, usa rangos semiabiertos `fecha >= inicio AND fecha < fin`, y desempata los rankings con una segunda columna para que el resultado sea determinista.
+
+## Runner por proveedor
+
+Corre todos los casos contra cada proveedor guardado en la base de la app (los de `chatiapp.yaml` quedan ahí al arrancar), por la misma ruta que el chat. Desde `backend/`:
+
+```bash
+uv run python -m app.eval run --set evals/ventas --providers claude,deepseek
+```
+
+`--providers` son nombres de proveedor (su `id` en `chatiapp.yaml`). Opciones: `--model` (modelo semántico, por defecto `examples/ventas/semantic-model.yaml`) y `--out` (carpeta del informe, por defecto `eval-reports/`).
+
+- **Exactitud**: se ejecuta `expect.sql` sobre la demo y se comparan las **filas** con las del evento `result` del turno (tolerancia numérica de 0,005; sin orden salvo `ordered: true`). Con `expect_clarification` el caso pasa si el agente pregunta por ese `slot` sin ejecutar nada; con `expect_out_of_scope`, si no ejecuta ninguna consulta ni pregunta (un rechazo del guardián cuenta; un fallo del proveedor, no). Con `answers`, tras cada aclaración se envía la siguiente respuesta y se evalúa el último turno.
+- **Informe**: `<set>.md` y `<set>.json` en `--out`. Trae, por proveedor, la exactitud global (fracción de 0 a 1 en el JSON) y por etiqueta, las aclaraciones correctas e innecesarias, la latencia p50 y p95 (por caso, sin contar las preguntas de `previous`), los tokens y el costo (con todos los turnos), y los casos fallidos con su SQL y el esperado.
+- **Historial**: guarda un `EVAL_RUN` por proveedor (`accuracy`, `p50_latency_ms`, `cost_usd` y el informe completo en `details`). Las conversaciones de la evaluación van a una base temporal: la base de la app solo recibe los `EVAL_RUN`.
