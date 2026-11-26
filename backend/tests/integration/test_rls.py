@@ -52,8 +52,14 @@ def _revisar(sql: str, motor: Motor, modelo: SemanticModel) -> GuardResult:
 
 @pytest.mark.parametrize("nombre", CON_SUCURSAL)
 def test_solo_las_sucursales_del_usuario_y_igual_que_en_sqlite(
-    motor: Motor, sqlite: Motor, modelo: SemanticModel, nombre: str
+    motor: Motor, sqlite: Motor, modelo: SemanticModel, nombre: str, request: pytest.FixtureRequest
 ) -> None:
+    if motor.dialect == "tsql" and nombre == "union":
+        # sqlguardllm envuelve el UNION con ORDER BY en una tabla derivada que SQL Server rechaza.
+        # Estricta: cuando llegue la versión corregida, esta prueba pasa y obliga a quitar la marca.
+        request.applymarker(
+            pytest.mark.xfail(strict=True, reason="https://github.com/jmmana/sqlguardllm/issues/92")
+        )
     sql = CONSULTAS[nombre]
     en_motor = _revisar(sql, motor, modelo)
     en_sqlite = _revisar(sql, sqlite, modelo)

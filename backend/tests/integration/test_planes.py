@@ -86,7 +86,10 @@ def _operadores(motor: Motor, plan: str) -> list[str]:
     """Nombres de los operadores del plan, sin costos, identificadores ni objetos concretos."""
     if motor.dialect == "tsql":
         return [m.group(1).strip() for m in re.finditer(r"\|--([A-Za-z ]+?)(?:\(|$)", plan, re.M)]
-    return [re.sub(r"\s+on\s+.*$", "", ln.replace("->", "").strip()) for ln in plan.splitlines()]
+    lineas = [re.sub(r"\s+on\s+.*$", "", ln.replace("->", "").strip()) for ln in plan.splitlines()]
+    # Sin calificadores de tabla: el alias de la tabla derivada no tiene por qué coincidir con el
+    # que se escribió a mano (`facturas.sucursal_id` frente a `f.sucursal_id`).
+    return [re.sub(r"\b\w+\.(\w+)", r"\1", ln) for ln in lineas]
 
 
 @pytest.mark.parametrize("nombre", list(CASOS))

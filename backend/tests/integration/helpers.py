@@ -115,9 +115,24 @@ def normalizar(filas: list[list[Any]]) -> list[list[Any]]:
     return [[_celda(v) for v in fila] for fila in filas]
 
 
-def assert_mismas_filas(real: list[list[Any]], esperado: list[list[Any]]) -> None:
-    """Mismo orden y valores; los números con tolerancia (decimal frente a flotante)."""
+def _clave(fila: list[Any]) -> list[tuple[int, Any]]:
+    return [
+        (0, round(v, 2)) if isinstance(v, float) else (1, "" if v is None else str(v)) for v in fila
+    ]
+
+
+def assert_mismas_filas(
+    real: list[list[Any]], esperado: list[list[Any]], *, mismo_orden: bool = False
+) -> None:
+    """Mismos valores; los números con tolerancia (decimal frente a flotante).
+
+    El orden solo se compara con `mismo_orden=True`: cada motor ordena el texto con su propia
+    collation (SQLite por bytes pone «Celulares» antes que «Cámaras»; PostgreSQL, MySQL y SQL
+    Server, al revés), así que un ORDER BY sobre texto no da el mismo orden en todos.
+    """
     real, esperado = normalizar(real), normalizar(esperado)
+    if not mismo_orden:
+        real, esperado = sorted(real, key=_clave), sorted(esperado, key=_clave)
     assert len(real) == len(esperado), f"{len(real)} filas frente a {len(esperado)}"
     for i, (a, b) in enumerate(zip(real, esperado, strict=True)):
         assert len(a) == len(b), f"fila {i}: {a} frente a {b}"
