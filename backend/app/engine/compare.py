@@ -170,7 +170,10 @@ def _route(
         elif best is None or _GRAIN_RANK[summary.grain] > _GRAIN_RANK[best.grain]:
             best = summary
     if best:
-        return best, f"Tabla resumida {best.table}: ambos períodos califican"
+        text = f"Tabla resumida {best.table}: ambos períodos califican"
+        if reasons:
+            text += f" (descartadas: {'; '.join(reasons)})"
+        return best, text
     detail = "; ".join(reasons) or "no hay tablas resumidas"
     return None, f"Tablas base ({detail})"
 
