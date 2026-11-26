@@ -30,10 +30,10 @@ Los prefijos de LiteLLM se verificaron contra **LiteLLM 1.111.0** (`litellm.prov
 
 | Plataforma | Prefijo LiteLLM | Campos | Notas |
 |---|---|---|---|
-| AWS Bedrock | `bedrock/` | `aws_region`, y `aws_access_key_id` + `aws_secret_access_key` **o** rol IAM de la máquina | Claude, Llama, Mistral, Nova y otros; usa perfiles de inferencia entre regiones si aplica |
+| AWS Bedrock | `bedrock/` | `aws_region`, y `aws_access_key_id` + `aws_secret_access_key` **o** rol IAM de la máquina | Claude, Llama, Mistral, Nova y otros; sin llaves se usa la cadena de credenciales de AWS (rol IAM). Perfiles de inferencia entre regiones: usa su id como modelo (`us.anthropic.…`); para perfiles de aplicación, el campo opcional `model_id` lleva el ARN |
 | Azure OpenAI | `azure/` | `api_base`, `api_key`, `api_version`, nombre del *deployment* como modelo | El modelo es el nombre de tu deployment, no el del modelo base |
 | Azure AI Foundry | `azure_ai/` | `api_base`, `api_key` | Modelos del catálogo de Foundry |
-| Google Vertex AI | `vertex_ai/` | `vertex_project`, `vertex_location`, credenciales de cuenta de servicio (JSON) | Gemini y modelos de socios en Vertex |
+| Google Vertex AI | `vertex_ai/` | `vertex_project`, `vertex_location`, `vertex_credentials` (JSON de la cuenta de servicio, **se guarda como secreto cifrado**) | Gemini y modelos de socios en Vertex |
 | OpenRouter | `openrouter/` | `api_key` | Cientos de modelos con una cuenta |
 | GitHub Models | `github/` | Token de GitHub con permiso de modelos | Ver [GitHub Copilot](#github-copilot) |
 
