@@ -238,9 +238,7 @@ def test_con_filtros_se_usan_las_tablas_base(model: SemanticModel, catalog: Cata
         "ventas_netas", filters=[PlanFilter("facturas.canal", "=", "WEB")], role="gerencia_general"
     )
 
-    result = compare_previous(
-        model, plan, "sqlite", _period("mes pasado"), _constant(10), now=NOW
-    )
+    result = compare_previous(model, plan, "sqlite", _period("mes pasado"), _constant(10), now=NOW)
 
     assert result.summary_table is None
     assert "facturas.canal = 'WEB'" in result.sql
