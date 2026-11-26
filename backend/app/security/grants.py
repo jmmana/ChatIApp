@@ -63,9 +63,7 @@ def validate_grant(model: SemanticModel, role: str, attributes: Mapping[str, Any
     if not any(r.name == role for r in model.security.roles):
         raise GrantError(422, "unknown_role", f"El rol «{role}» no existe en el modelo vigente")
     missing = [
-        name
-        for name in required_attributes(model, role)
-        if attributes.get(name) in (None, "", [])
+        name for name in required_attributes(model, role) if attributes.get(name) in (None, "", [])
     ]
     if missing:
         raise GrantError(
