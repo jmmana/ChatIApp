@@ -26,7 +26,6 @@ from sqlalchemy.orm import Session
 
 from app.agent.events import (
     Answer,
-    AnswerDelta,
     ClarificationData,
     ErrorData,
     Event,
@@ -41,7 +40,7 @@ from app.agent.events import (
     TurnStarted,
     UsageData,
 )
-from app.agent.answer import AnswerWriter, escape_data
+from app.agent.answer import AnswerWriter
 from app.agent.answer import Outcome as _Outcome
 from app.agent.plan import Plan
 from app.agent.planner import PlannerError, Turn, plan_question
@@ -55,7 +54,7 @@ from app.engine.catalog import (
     PlanFilter,
     VerifiedPlan,
 )
-from app.engine.compare import CompareError, Comparison, compare_previous
+from app.engine.compare import CompareError, compare_previous
 from app.engine.dialects import Dialect
 from app.engine.executor import (
     QueryExecutionError,
@@ -788,11 +787,6 @@ def _begin_failed(conversation_id: str, started: float) -> Iterator[Event]:
     )
 
 
-def _escape_data(text: str) -> str:
-    """Escapa `&`, `<` y `>` para que un dato no pueda abrir ni cerrar etiquetas del prompt."""
-    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-
-
 def _ms(seconds: float) -> int:
     return int(seconds * 1000)
 
@@ -851,54 +845,3 @@ def _strip_sql(text: str) -> str:
         text = text.split("\n", 1)[1] if "\n" in text else ""
         text = text.rsplit("```", 1)[0]
     return text.strip()
-
-
-def _number(value: Any) -> float | None:
-    if isinstance(value, bool):
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _format_value(value: Any, metric: Metric | None = None) -> str:
-    number = _number(value)
-    if number is None:
-        return "sin datos" if value is None else str(value)
-    kind = metric.format if metric else None
-    decimals = 0 if kind == "integer" or (number.is_integer() and kind != "currency") else 2
-    text = f"{number:,.{decimals}f}".translate(str.maketrans(",.", ".,"))
-    if kind == "currency":
-        return f"${text}"
-    return f"{text} %" if kind == "percent" else text
-
-
-def _variation_text(comparison: Comparison) -> str:
-    if comparison.change_pct is None:
-        return comparison.change_note or "sin variación"
-    word = "más" if comparison.change_pct >= 0 else "menos"
-    pct = f"{abs(comparison.change_pct):.1f}".replace(".", ",")
-    return f"{pct} % {word} que {comparison.previous_period.label}"
-
-
-def _template(outcome: _Outcome) -> str:
-    """Respuesta determinista, sin IA: la que se usa con privacidad `schema` o si la IA falla."""
-    metric = outcome.metric
-    if not outcome.executed:
-        return "Armé y validé la consulta, pero esta fuente no ejecuta consultas. Revisa el SQL."
-    comparison = outcome.comparison
-    if comparison is not None:
-        label = metric.label if metric else "Valor"
-        head = f"{label} en {comparison.period.label}: {_format_value(comparison.value, metric)}"
-        return f"{head}; {_variation_text(comparison)}."
-    if not outcome.rows:
-        return "La consulta no devolvió filas."
-    if len(outcome.rows) == 1 and len(outcome.rows[0]) == 1:
-        value = _format_value(outcome.rows[0][0], metric)
-        if metric is None:
-            return f"Resultado: {value}."
-        suffix = f" en {outcome.period.label}" if outcome.period else ""
-        return f"{metric.label}{suffix}: {value}."
-    cut = " (resultado recortado)" if outcome.truncated else ""
-    return f"La consulta devolvió {len(outcome.rows)} filas{cut}. Revisa la tabla."

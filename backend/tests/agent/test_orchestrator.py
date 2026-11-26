@@ -10,7 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agent.events import Event, Step
-from app.agent.orchestrator import Orchestrator, _escape_data
+from app.agent.answer import escape_data as _escape_data
+from app.agent.orchestrator import Orchestrator
 from app.db.models import Base, Conversation, Datasource, Message, QueryRun
 from app.db.session import make_engine
 from app.demo.seed import generar
@@ -150,9 +151,10 @@ def test_cuanto_vendi_este_mes_de_punta_a_punta(
     assert sql["period"]["start"] == "2026-11-01" and sql["period"]["end_exclusive"] == "2026-12-01"
     result = _of(events, "result")[0]
     assert result["row_count"] == 1 and len(result["rows"]) == 1 and not result["truncated"]
-    assert _of(events, "answer")[0]["text"] == "Este mes llevas buenas ventas."
+    answer = _of(events, "answer")[0]["text"]
+    assert answer.startswith("Este mes llevas buenas ventas.") and "noviembre" in answer.lower()
     deltas = "".join(d["text"] for d in _of(events, "answer.delta"))
-    assert deltas == "Este mes llevas buenas ventas."
+    assert deltas == answer
     completed = _of(events, "turn.completed")[0]
     assert completed["usage"]["tokens_in"] > 0 and completed["elapsed_ms"] >= 0
 
@@ -178,7 +180,7 @@ def test_guarda_last_plan_query_run_y_mensajes(
     assert conversation.last_plan["period_text"] == "este mes"
     messages = session.scalars(select(Message).order_by(Message.created_at)).all()
     assert [m.role for m in messages] == ["user", "assistant"]
-    assert messages[1].content == "Listo."
+    assert messages[1].content.startswith("Listo.")
     assert messages[1].events is not None
     assert [e["type"] for e in messages[1].events][-1] == "turn.completed"
     assert str(messages[1].id) == _of(events, "turn.started")[0]["turn_id"]
