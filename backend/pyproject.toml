@@ -14,6 +14,7 @@ dependencies = [
     "litellm>=1.111",
     "cryptography>=43",
     "alembic>=1.14",
+    "sqlguardllm>=0.1.0a1,<0.2",
 ]
 
 # Drivers de bases de datos: se instala solo lo que se usa (docs/BASES_DE_DATOS.md).
