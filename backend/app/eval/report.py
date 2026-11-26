@@ -120,7 +120,9 @@ def a_markdown(informe: Informe) -> str:
         lineas += ["", f"## {p['proveedor']} ({p['kind']} · {p['modelo']})", ""]
         lineas += ["| Etiqueta | Exactitud | Casos |", "|---|---|---|"]
         for etiqueta, g in p["por_etiqueta"].items():
-            lineas.append(f"| {etiqueta} | {_pct(g['exactitud'])} | {g['correctos']}/{g['total']} |")
+            lineas.append(
+                f"| {etiqueta} | {_pct(g['exactitud'])} | {g['correctos']}/{g['total']} |"
+            )
         a = p["aclaraciones"]
         lineas += [
             "",
