@@ -7,6 +7,7 @@ comentario keep-alive mientras se espera y `cancel` puede cortar el turno sin es
 """
 
 import asyncio
+import contextlib
 import logging
 import threading
 import uuid
@@ -100,10 +101,8 @@ class _Turn:
 
     def post(self, item: Any) -> None:
         """Pone `item` en la cola desde cualquier hilo; si el bucle ya cerró, se descarta."""
-        try:
+        with contextlib.suppress(RuntimeError):
             self.loop.call_soon_threadsafe(self.queue.put_nowait, item)
-        except RuntimeError:
-            pass
 
 
 _active: dict[str, _Turn] = {}

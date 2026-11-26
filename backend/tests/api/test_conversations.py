@@ -89,7 +89,8 @@ def test_renombrar(client: TestClient, ids: dict[str, uuid.UUID]) -> None:
     response = client.patch(f"/api/v1/conversations/{ids['own']}", json={"title": "Ventas de mayo"})
 
     assert response.status_code == 200 and response.json()["title"] == "Ventas de mayo"
-    assert client.patch(f"/api/v1/conversations/{ids['own']}", json={"title": ""}).status_code == 422
+    vacio = client.patch(f"/api/v1/conversations/{ids['own']}", json={"title": ""})
+    assert vacio.status_code == 422
 
 
 def test_eliminar_borra_la_conversacion_y_sus_mensajes(
