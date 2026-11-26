@@ -84,6 +84,8 @@ Leer y publicar el modelo exigen administrador (403 `forbidden` si no): el model
 
 Los secretos se guardan cifrados y se devuelven enmascarados (`secrets: {"api_key": "…1234"}`). `config` y `secrets` se validan contra los campos del catálogo del `kind` (422 `invalid_provider`). Solo hay un proveedor `is_default`. Los proveedores con `managed_by = "config"` no se editan ni se eliminan desde la API (409 `managed_by_config`); un nombre repetido da 409 `name_taken`.
 
+`test` (ambas rutas) responde `{"ok", "latency_ms", "error_kind", "message"}`; `error_kind` es `auth`, `quota`, `model_not_found`, `timeout`, `network` o `provider_error` (`null` si `ok`). El cuerpo de `POST /providers/test` es `kind`, `model`, `config`, `secrets` y `params`. Ninguna prueba dura más de 15 s. `models` responde `{"supported", "models", "error_kind", "message"}`: lista modelos en APIs compatibles con OpenAI, Anthropic, Gemini y Ollama; en las demás, `supported: false`.
+
 ## Chat y conversaciones
 
 | Método | Ruta | Descripción |

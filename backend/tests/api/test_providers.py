@@ -226,3 +226,34 @@ def test_ningun_endpoint_devuelve_un_secreto_en_claro(client: TestClient) -> Non
         assert SECRETO not in response.text
         assert SECRETO_NUEVO not in response.text
     assert created["id"] in respuestas[1].text
+
+
+def test_probar_sin_guardar_con_proveedor_simulado(client: TestClient) -> None:
+    body = {"kind": "fake", "model": "fake-1", "config": {"error": "auth"}}
+    result = client.post("/api/v1/providers/test", json=body).json()
+    assert result["ok"] is False
+    assert result["error_kind"] == "auth"
+
+
+def test_probar_sin_guardar_valida_campos(client: TestClient) -> None:
+    response = client.post("/api/v1/providers/test", json={"kind": "anthropic", "model": "m"})
+    assert response.status_code == 422
+
+
+def test_probar_y_listar_modelos_de_proveedor_inexistente(client: TestClient) -> None:
+    missing = uuid.uuid4()
+    assert client.post(f"/api/v1/providers/{missing}/test").status_code == 404
+    assert client.get(f"/api/v1/providers/{missing}/models").status_code == 404
+
+
+def test_modelos_no_soportado_en_proveedor_guardado(client: TestClient) -> None:
+    body = {
+        "name": "nube",
+        "kind": "azure_ai",
+        "model": "m",
+        "config": {"api_base": "https://x.example.com"},
+        "secrets": {"api_key": SECRETO},
+    }
+    created = client.post("/api/v1/providers", json=body).json()
+    result = client.get(f"/api/v1/providers/{created['id']}/models").json()
+    assert result["supported"] is False
