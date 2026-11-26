@@ -21,6 +21,7 @@ from app.llm.catalog import CATALOG, ProviderField, ProviderSpec
 from app.llm.fake import FAKE_KIND
 from app.llm.gateway import ProviderConfig
 from app.llm.probe import ModelsResult, ProbeResult, list_models, probe_connection
+from app.security.auth import require_admin
 from app.security.crypto import decrypt, encrypt, mask
 
 router = APIRouter(prefix="/providers", tags=["proveedores"])
@@ -207,20 +208,30 @@ def create_provider(body: ProviderCreate, session: SessionDep) -> ProviderOut:
     return _to_out(provider)
 
 
-@router.post("/test", summary="Prueba una configuración sin guardarla")
+# Probar conexiones sale a la red con credenciales: es administración.
+ADMIN = [Depends(require_admin)]
+
+
+@router.post("/test", summary="Prueba una configuración sin guardarla", dependencies=ADMIN)
 def test_unsaved_provider(body: ProviderTestIn) -> ProbeResult:
+    # `params` se mezcla sobre `config` al llamar: sin esto, params={"api_base": …} esquiva la
+    # validación de destinos permitidos.
+    if body.params:
+        raise ApiError(422, "params_not_allowed", "Probar sin guardar no acepta `params`.")
     if body.kind != FAKE_KIND:
         _validate_fields(_spec(body.kind), body.config, body.secrets)
     config = ProviderConfig(body.kind, body.model, body.config, body.secrets, body.params)
     return probe_connection(config)
 
 
-@router.post("/{provider_id}/test", summary="Prueba la conexión de un proveedor guardado")
+@router.post(
+    "/{provider_id}/test", summary="Prueba la conexión de un proveedor guardado", dependencies=ADMIN
+)
 def test_saved_provider(provider_id: uuid.UUID, session: SessionDep) -> ProbeResult:
     return probe_connection(ProviderConfig.from_provider(_get(session, provider_id)))
 
 
-@router.get("/{provider_id}/models", summary="Modelos que ofrece el proveedor")
+@router.get("/{provider_id}/models", summary="Modelos que ofrece el proveedor", dependencies=ADMIN)
 def get_provider_models(provider_id: uuid.UUID, session: SessionDep) -> ModelsResult:
     return list_models(ProviderConfig.from_provider(_get(session, provider_id)))
 

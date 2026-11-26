@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from app.db.models import Base, Provider
+from app.db.models import Base, Provider, User
 from app.db.session import get_session, make_engine
 from app.llm.catalog import CATALOG
 from app.main import create_app
@@ -43,7 +43,7 @@ def client(engine: Engine) -> Iterator[TestClient]:
             yield session
 
     application.dependency_overrides[get_session] = _session
-    application.dependency_overrides[get_current_user] = lambda: object()
+    application.dependency_overrides[get_current_user] = lambda: User(email="a@b.co", is_admin=True)
     yield TestClient(application)
 
 
@@ -257,3 +257,21 @@ def test_modelos_no_soportado_en_proveedor_guardado(client: TestClient) -> None:
     created = client.post("/api/v1/providers", json=body).json()
     result = client.get(f"/api/v1/providers/{created['id']}/models").json()
     assert result["supported"] is False
+
+
+def test_probar_conexion_exige_administrador(client: TestClient) -> None:
+    creado = _crear(client)
+    app = client.app
+    app.dependency_overrides[get_current_user] = lambda: User(email="u@b.co", is_admin=False)  # type: ignore[attr-defined]
+    base = "/api/v1/providers"
+    assert client.post(f"{base}/test", json={"kind": "fake", "model": "m"}).status_code == 403
+    assert client.post(f"{base}/{creado['id']}/test").status_code == 403
+    assert client.get(f"{base}/{creado['id']}/models").status_code == 403
+
+
+def test_probar_sin_guardar_rechaza_params(client: TestClient) -> None:
+    respuesta = client.post(
+        "/api/v1/providers/test",
+        json={"kind": "fake", "model": "m", "params": {"api_base": "http://169.254.169.254"}},
+    )
+    assert respuesta.status_code == 422

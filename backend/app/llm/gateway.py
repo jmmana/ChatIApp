@@ -285,7 +285,7 @@ class Gateway:
             self.provider.model,
             kind,
         )
-        return GatewayError(kind, f"{_MESSAGES[kind]} ({type(exc).__name__}: {detail[:300]})")
+        return GatewayError(kind, f"{_MESSAGES[kind]} ({type(exc).__name__})")
 
     def _cost(self, response: Any) -> float | None:
         try:
