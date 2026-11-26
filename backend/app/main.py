@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session
 from app.api import auth, health, providers
 from app.db.session import get_engine
 from app.security.auth import AuthError, ensure_initial_admin, get_current_user
+from app.settings.env import get_settings
+from app.settings.startup import load_and_register
 from app.version import __version__
 from app.web import mount_web
 
@@ -20,6 +22,8 @@ API_PREFIX = "/api/v1"
 
 @asynccontextmanager
 async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
+    # Primero la configuración: si es inválida lanza ConfigError y la app no arranca.
+    load_and_register(get_settings())
     with Session(get_engine()) as session:
         ensure_initial_admin(session)
     yield
