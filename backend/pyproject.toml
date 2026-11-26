@@ -15,6 +15,7 @@ dependencies = [
     "alembic>=1.14",
     "argon2-cffi>=23.1",
     "pyjwt>=2.9",
+    "sqlguardllm>=0.1.0a1,<0.2",
 ]
 
 # Drivers de bases de datos: se instala solo lo que se usa (docs/BASES_DE_DATOS.md).

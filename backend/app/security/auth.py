@@ -145,6 +145,18 @@ class LoginThrottle:
                 return 0
             return max(1, int(failures[0] + self.window_seconds - now) + 1)
 
+    def acquire(self, email: str) -> int:
+        """Cuenta el intento ANTES de verificar la contraseña, en la misma operación que mira el
+        límite: así las peticiones en paralelo no consiguen más intentos. Devuelve los segundos de
+        espera si ya no quedan intentos, o 0. Un inicio de sesión correcto llama a `reset`."""
+        now = time.monotonic()
+        with self._lock:
+            failures = self._prune(email, now)
+            if len(failures) >= self.max_attempts:
+                return max(1, int(failures[0] + self.window_seconds - now) + 1)
+            self._failures[email].append(now)
+            return 0
+
     def register_failure(self, email: str) -> None:
         with self._lock:
             self._failures[email].append(time.monotonic())
@@ -173,7 +185,7 @@ class LoginResult:
 
 def authenticate(session: Session, throttle: LoginThrottle, email: str, password: str) -> User:
     key = normalize_email(email)
-    wait = throttle.retry_after(key)
+    wait = throttle.acquire(key)
     if wait:
         raise AuthError(
             429, "too_many_attempts", f"Demasiados intentos fallidos. Reintenta en {wait} s."
@@ -181,8 +193,7 @@ def authenticate(session: Session, throttle: LoginThrottle, email: str, password
     user = session.scalar(select(User).where(User.email == key))
     # Siempre se verifica un hash, exista o no el usuario.
     valid = verify_password(password, user.password_hash if user else _DUMMY_HASH)
-    if user is None or not valid:
-        throttle.register_failure(key)
+    if user is None or not valid:  # el intento ya quedó contado en `acquire`
         raise AuthError(401, "invalid_credentials", "Correo o contraseña incorrectos.")
     throttle.reset(key)
     return user
@@ -211,6 +222,11 @@ def ensure_initial_admin(session: Session) -> User | None:
     email = os.environ.get("CHATIAPP_ADMIN_EMAIL")
     password = os.environ.get("CHATIAPP_ADMIN_PASSWORD")
     if not email or not password:
+        if session.scalar(select(User).limit(1)) is None:
+            logger.warning(
+                "No hay usuarios y faltan CHATIAPP_ADMIN_EMAIL o CHATIAPP_ADMIN_PASSWORD: nadie "
+                "podrá iniciar sesión. Defínelas y reinicia para crear el administrador inicial."
+            )
         return None
     if session.scalar(select(User).where(User.is_admin.is_(True)).limit(1)) is not None:
         return None

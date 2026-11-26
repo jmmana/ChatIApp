@@ -189,6 +189,15 @@ def test_throttle_expira_la_ventana(monkeypatch: pytest.MonkeyPatch) -> None:
     assert throttle.retry_after("a@b.c") == 0
 
 
+def test_acquire_cuenta_el_intento_antes_de_verificar() -> None:
+    # En paralelo, cada petición consume un intento al entrar: no hay más de 5.
+    throttle = LoginThrottle(max_attempts=5, window_seconds=60)
+    assert [throttle.acquire("a@b.c") for _ in range(5)] == [0, 0, 0, 0, 0]
+    assert throttle.acquire("a@b.c") > 0
+    throttle.reset("a@b.c")
+    assert throttle.acquire("a@b.c") == 0
+
+
 def test_login_correcto_reinicia_el_contador(client: TestClient) -> None:
     for _ in range(4):
         client.post(f"{API_PREFIX}/auth/login", json={"email": USER[0], "password": "mala"})
