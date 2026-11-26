@@ -369,7 +369,7 @@ CATALOG: tuple[ProviderSpec, ...] = (
         label="Ollama",
         category="local",
         litellm_prefix="ollama_chat/",
-        fields=(_api_base("http://localhost:11434"),),
+        fields=(_api_base("http://localhost:11434"), _api_key(required=False)),
         suggested_models=("llama3.1", "qwen2.5"),
         docs_url="https://github.com/ollama/ollama/blob/main/docs/api.md",
     ),
@@ -386,7 +386,7 @@ CATALOG: tuple[ProviderSpec, ...] = (
         label="LM Studio",
         category="local",
         litellm_prefix="lm_studio/",
-        fields=(_api_base("http://localhost:1234/v1"),),
+        fields=(_api_base("http://localhost:1234/v1"), _api_key(required=False)),
         docs_url="https://lmstudio.ai/docs/app/api",
     ),
     ProviderSpec(
