@@ -24,6 +24,8 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agent.answer import AnswerWriter
+from app.agent.answer import Outcome as _Outcome
 from app.agent.events import (
     Answer,
     ClarificationData,
@@ -40,8 +42,6 @@ from app.agent.events import (
     TurnStarted,
     UsageData,
 )
-from app.agent.answer import AnswerWriter
-from app.agent.answer import Outcome as _Outcome
 from app.agent.plan import Plan
 from app.agent.planner import PlannerError, Turn, plan_question
 from app.db.models import Conversation, Datasource, Message, QueryRun

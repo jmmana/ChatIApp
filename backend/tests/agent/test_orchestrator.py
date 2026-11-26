@@ -9,8 +9,8 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.agent.events import Event, Step
 from app.agent.answer import escape_data as _escape_data
+from app.agent.events import Event, Step
 from app.agent.orchestrator import Orchestrator
 from app.db.models import Base, Conversation, Datasource, Message, QueryRun
 from app.db.session import make_engine
