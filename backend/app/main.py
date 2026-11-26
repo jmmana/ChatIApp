@@ -9,9 +9,9 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.api import auth, health, providers
+from app.api import api_keys, auth, health, providers
 from app.db.session import get_engine
-from app.security.auth import AuthError, ensure_initial_admin, get_current_user
+from app.security.auth import AuthError, ensure_initial_admin, get_current_user, require_admin
 from app.settings.env import get_settings
 from app.settings.startup import load_and_register
 from app.version import __version__

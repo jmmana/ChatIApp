@@ -51,7 +51,7 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-def _aware(value: datetime) -> datetime:
+def as_utc(value: datetime) -> datetime:
     """SQLite devuelve las fechas sin zona horaria: se interpretan como UTC."""
     return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
 
@@ -113,7 +113,7 @@ def _validate_name(name: str) -> str:
 def _validate_expiry(expires_at: datetime | None) -> datetime | None:
     if expires_at is None:
         return None
-    expires_at = _aware(expires_at)
+    expires_at = as_utc(expires_at)
     if expires_at <= _now():
         raise ValueError("La expiración debe estar en el futuro.")
     return expires_at
@@ -238,7 +238,7 @@ def authenticate_api_key(session: Session, raw: str, *, now: datetime | None = N
     now = now or _now()
     if api_key.revoked_at is not None:
         raise _INVALID_KEY
-    if api_key.expires_at is not None and _aware(api_key.expires_at) <= now:
+    if api_key.expires_at is not None and as_utc(api_key.expires_at) <= now:
         raise _INVALID_KEY
     api_key.last_used_at = now
     session.commit()
