@@ -54,8 +54,14 @@ from app.engine.catalog import (
     VerifiedPlan,
 )
 from app.engine.compare import CompareError, Comparison, compare_previous
-from app.engine.dialects import Dialect, Granularity
-from app.engine.executor import QueryExecutionError, QueryExecutor, QueryTimeoutError, executor
+from app.engine.dialects import Dialect
+from app.engine.executor import (
+    QueryExecutionError,
+    QueryExecutor,
+    QueryResult,
+    QueryTimeoutError,
+    executor,
+)
 from app.engine.guard import GuardCache, GuardResult, check_sql, guards
 from app.engine.guard import UnknownRoleError as GuardRoleError
 from app.engine.periods import PeriodConfig, PeriodRange, resolve_period
@@ -272,10 +278,12 @@ class Orchestrator:
             )
         )
         history = [Turn(cast(Literal["user", "assistant"], m.role), m.content) for m in recent]
-        user_message = Message(id=uuid.uuid4(), conversation_id=conversation.id, role="user")
-        user_message.content = question
-        assistant = Message(id=uuid.uuid4(), conversation_id=conversation.id, role="assistant")
-        assistant.content = ""
+        user_message = Message(
+            id=uuid.uuid4(), conversation_id=conversation.id, role="user", content=question
+        )
+        assistant = Message(
+            id=uuid.uuid4(), conversation_id=conversation.id, role="assistant", content=""
+        )
         self.session.add_all([user_message, assistant])
         self.session.flush()
         return _Turn(
@@ -399,7 +407,11 @@ class Orchestrator:
     def _metric(self, t: _Turn, plan: Plan) -> Iterator[Event]:
         assert plan.metric is not None
         yield _step("verify", "running")
-        verified = self._verify(plan)
+        try:
+            verified = self._verify(plan)
+        except _Ask:
+            t.last_plan = plan.model_dump(mode="json")  # queda pendiente para la respuesta
+            raise
         t.last_plan = plan.model_dump(mode="json")
         yield _step("verify", "done", verified.metric.label)
 
@@ -414,7 +426,9 @@ class Orchestrator:
         decision = route_summary(
             self.model, verified, period=period, time_grain=plan.time_grain, role=self.role
         )
-        target = plan_for_summary(self.model, verified, decision.table) if decision.table else verified
+        target = verified
+        if decision.table is not None:
+            target = plan_for_summary(self.model, verified, decision.table)
         try:
             query = build_sql(
                 self.model,
@@ -507,13 +521,15 @@ class Orchestrator:
             guarded = self._validate(t, sql, record=calls == 0)
             calls += 1
             if not guarded.allowed or guarded.sql is None:
+                if t.run is not None:
+                    t.run.status = "rejected"
                 raise self._rejection(guarded, "compare")
             guarded_sql[sql] = guarded.sql
             try:
                 result, _ = self._run_query(guarded.sql)
             except _ExecError as exc:
-                t.run = t.run or _Run("catalog", "error")
-                t.run.status = "error"
+                if t.run is not None:
+                    t.run.status = "error"
                 raise _Fail("compare", "execution_error", exc.message) from exc
             return result.rows
 
@@ -637,7 +653,7 @@ class Orchestrator:
         code = "user_config" if guarded.user_config_problem else "sql_rejected"
         return _Fail(step, code, message, recoverable=False)
 
-    def _run_query(self, sql: str) -> tuple[Any, int]:
+    def _run_query(self, sql: str) -> tuple[QueryResult, int]:
         started = time.perf_counter()
         try:
             result = self.query_executor.execute_sync(
@@ -665,7 +681,8 @@ class Orchestrator:
         except _ExecError as exc:
             t.run.status = "error"
             raise _Fail("execute", "execution_error", exc.message) from exc
-        outcome.columns, outcome.rows, outcome.truncated = result.columns, result.rows, result.truncated
+        outcome.columns, outcome.rows = result.columns, result.rows
+        outcome.truncated = result.truncated
         t.run.row_count, t.run.elapsed_ms = len(result.rows), elapsed
         notes = list(result.warnings)
         if result.truncated:
@@ -688,6 +705,13 @@ class Orchestrator:
         applied = t.run.filters_applied
         flat = [*applied.get("metric", []), *applied.get("request", [])]
         flat += [*applied.get("period", []), *applied.get("role", [])]
+        period_data = None
+        if period is not None:
+            period_data = PeriodData(
+                label=period.label,
+                start=period.start.isoformat(),
+                end_exclusive=period.end_exclusive.isoformat(),
+            )
         return Event(
             SqlData(
                 sql=sql,
@@ -695,13 +719,7 @@ class Orchestrator:
                 origin=t.run.origin,
                 summary_table=t.run.summary_table,
                 filters_applied=flat,
-                period=PeriodData(
-                    label=period.label,
-                    start=period.start.isoformat(),
-                    end_exclusive=period.end_exclusive.isoformat(),
-                )
-                if period
-                else None,
+                period=period_data,
             )
         )
 
@@ -715,9 +733,8 @@ class Orchestrator:
         }
         if period is not None:
             column = metric.time_column
-            applied["period"] = [
-                f"{column} >= {period.start} AND {column} < {period.end_exclusive}"
-            ]
+            bounds = f"{column} >= {period.start} AND {column} < {period.end_exclusive}"
+            applied["period"] = [bounds]
         applied["role"] = self._role_filters()["role"]
         return applied
 
@@ -770,7 +787,10 @@ class Orchestrator:
         body = "\n".join(facts)
         return [
             {"role": "system", "content": _ANSWER_PROMPT},
-            {"role": "user", "content": f"Pregunta: {t.question}\n<resultado>\n{body}\n</resultado>"},
+            {
+                "role": "user",
+                "content": f"Pregunta: {t.question}\n<resultado>\n{body}\n</resultado>",
+            },
         ]
 
     def _say(self, t: _Turn, text: str) -> Iterator[Event]:
