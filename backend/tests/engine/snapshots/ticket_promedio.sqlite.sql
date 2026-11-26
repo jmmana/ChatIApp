@@ -1,4 +1,4 @@
-SELECT STRFTIME('%Y-%m-01', facturas.fecha) AS periodo, sucursales.nombre AS nombre, SUM(facturas.total) * 1.0 / NULLIF(COUNT(*), 0) AS valor
+SELECT STRFTIME('%Y-%m-01', facturas.fecha) AS periodo, sucursales.nombre AS nombre, CAST(SUM(facturas.total) AS REAL) / NULLIF(COUNT(*), 0) AS valor
 FROM facturas
 LEFT JOIN sucursales ON facturas.sucursal_id = sucursales.id
 WHERE facturas.estado = 'PAGADA' AND facturas.fecha >= '2025-01-01' AND facturas.fecha < '2025-04-01'

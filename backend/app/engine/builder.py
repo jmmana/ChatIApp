@@ -347,10 +347,8 @@ def _column_type(column: Column) -> ColumnType:
 
 
 def _decimal_division(tree: exp.Expression) -> None:
-    """SQLite divide enteros con resultado entero: `a / b` pasa a `a * 1.0 / b`."""
+    """SQLite divide enteros con resultado entero. Marcar la división como no tipada hace que
+    sqlglot convierta el numerador a REAL: `a / b` → `CAST(a AS REAL) / b`."""
     for div in list(tree.find_all(exp.Div)):
-        numerator = div.this
-        operand = exp.Paren(this=numerator) if isinstance(numerator, exp.Binary) else numerator
-        div.set("this", exp.Mul(this=operand, expression=exp.Literal.number("1.0")))
-        div.set("typed", None)
+        div.set("typed", False)
         div.set("safe", None)

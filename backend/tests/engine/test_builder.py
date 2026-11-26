@@ -257,7 +257,9 @@ def test_limite_por_dialecto(model: SemanticModel, catalog: Catalog) -> None:
 def test_division_decimal_solo_en_sqlite(model: SemanticModel, catalog: Catalog) -> None:
     plan = _plan(catalog, "ticket_promedio")
 
-    assert "SUM(facturas.total) * 1.0 / NULLIF(COUNT(*), 0)" in _sql(model, plan, period=MARZO)
+    assert "CAST(SUM(facturas.total) AS REAL) / NULLIF(COUNT(*), 0)" in _sql(
+        model, plan, period=MARZO
+    )
     assert "SUM(facturas.total) / NULLIF(COUNT(*), 0)" in _sql(
         model, plan, "postgres", period=MARZO
     )
