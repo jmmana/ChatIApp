@@ -278,14 +278,13 @@ class Gateway:
     def _wrap(self, exc: BaseException) -> GatewayError:
         """Convierte `exc` en `GatewayError` sin secretos y lo registra sin su detalle."""
         kind = classify_error(exc)
-        detail = scrub(str(exc), self.provider.secrets)
         logger.warning(
             "Llamada a IA fallida: kind=%s modelo=%s error=%s",
             self.provider.kind,
             self.provider.model,
             kind,
         )
-        return GatewayError(kind, f"{_MESSAGES[kind]} ({type(exc).__name__}: {detail[:300]})")
+        return GatewayError(kind, f"{_MESSAGES[kind]} ({type(exc).__name__})")
 
     def _cost(self, response: Any) -> float | None:
         try:
