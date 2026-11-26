@@ -1,0 +1,55 @@
+# ChatIApp en una sola imagen (docs/adr/0008-imagen-unica-con-sqlite.md).
+#
+#   docker compose up --build                       → http://localhost:8080
+#   docker compose --profile local-ai up --build    → + Ollama para modelos locales
+#   docker compose --profile postgres up --build    → + PostgreSQL como base de la app
+#                                                     (define CHATIAPP_DATABASE_URL y
+#                                                      CHATIAPP_DB_PASSWORD en .env)
+name: chatiapp
+
+services:
+  chatiapp:
+    build: .
+    image: chatiapp:local
+    ports:
+      - "${CHATIAPP_PORT:-8080}:8080"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - chatiapp-data:/data
+      - ${CHATIAPP_CONFIG_DIR:-./examples}:/config:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+    restart: unless-stopped
+
+  postgres:
+    profiles: ["postgres"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chatiapp
+      # Sin contraseña, PostgreSQL no arranca: defínela en .env.
+      POSTGRES_PASSWORD: ${CHATIAPP_DB_PASSWORD:-}
+      POSTGRES_DB: chatiapp
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatiapp -d chatiapp"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  ollama:
+    profiles: ["local-ai"]
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  chatiapp-data:
+  postgres-data:
+  ollama-data:
