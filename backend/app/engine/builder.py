@@ -9,7 +9,7 @@ se insertan como literales escapados por sqlglot. El resultado pasa después por
 from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import Any, Final, cast
 
 import sqlglot
 from sqlglot import exp
@@ -276,7 +276,7 @@ class _Builder:
     def _parse(self, sql: str) -> exp.Expression:
         """Parsea en el dialecto del modelo y califica las columnas sueltas con la tabla base."""
         try:
-            tree = sqlglot.parse_one(sql, read=self.model.dialect)
+            tree = cast(exp.Expression, sqlglot.parse_one(sql, read=self.model.dialect))
         except SqlglotError as exc:
             raise BuilderError(f"SQL de la métrica no válido: {sql}") from exc
         for col in list(tree.find_all(exp.Column)):
