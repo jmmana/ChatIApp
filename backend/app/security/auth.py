@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import User
 from app.db.session import get_session
+from app.security.crypto import jwt_signing_key
 
 logger = logging.getLogger(__name__)
 
@@ -61,19 +62,12 @@ def normalize_email(email: str) -> str:
 
 # --- Llave de firma ---------------------------------------------------------------------------
 
-_ephemeral_secret: str | None = None
-
 
 def get_secret_key() -> str:
-    """`CHATIAPP_SECRET_KEY`; sin ella se usa una llave efímera (los tokens mueren al reiniciar)."""
-    global _ephemeral_secret
-    configured = os.environ.get("CHATIAPP_SECRET_KEY")
-    if configured:
-        return configured
-    if _ephemeral_secret is None:
-        logger.warning("CHATIAPP_SECRET_KEY no está definida: se usa una llave efímera.")
-        _ephemeral_secret = secrets.token_urlsafe(48)
-    return _ephemeral_secret
+    """Llave de firma de los JWT: derivada con HKDF de `CHATIAPP_SECRET_KEY` y distinta de la que
+    cifra credenciales (`crypto.jwt_signing_key`). Sin llave en desarrollo se usa una temporal y
+    en producción el arranque falla."""
+    return jwt_signing_key()
 
 
 # --- Tokens -----------------------------------------------------------------------------------
