@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 PURPOSE_CREDENTIALS = "credentials"
 PURPOSE_JWT = "jwt"
+PURPOSE_API_KEY = "api_key"
 
 _MASK_CHAR = "*"
 _VISIBLE_TAIL = 4
@@ -77,6 +78,11 @@ def get_cipher(settings: Settings | None = None) -> MultiFernet:
 def jwt_signing_key(settings: Settings | None = None) -> str:
     """Llave para firmar los JWT, independiente de la de credenciales."""
     return base64.urlsafe_b64encode(derive_key(resolve_secret_key(settings), PURPOSE_JWT)).decode()
+
+
+def api_key_hmac_key(settings: Settings | None = None) -> bytes:
+    """Llave del servidor con la que se calcula el HMAC de las API keys."""
+    return derive_key(resolve_secret_key(settings), PURPOSE_API_KEY)
 
 
 def encrypt(value: str, cipher: MultiFernet | None = None) -> bytes:

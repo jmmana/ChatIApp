@@ -44,8 +44,10 @@ Detalle y ejemplos: [INTEGRACION.md](INTEGRACION.md).
 | `GET` | `/api/v1/datasources` | Lista (URL siempre enmascarada) |
 | `POST` | `/api/v1/datasources` | Crea: `name`, `dialect`, `url`, `execute`, `max_rows`, `timeout_seconds`, `privacy` |
 | `PATCH` | `/api/v1/datasources/{id}` | Actualiza; `url` solo se reemplaza si se envía |
-| `DELETE` | `/api/v1/datasources/{id}` | Elimina (no permitido si `managed_by = config`) |
-| `POST` | `/api/v1/datasources/{id}/test` | Prueba la conexión: `{ok, latency_ms, server_version, error?}` |
+| `DELETE` | `/api/v1/datasources/{id}` | Elimina (409 `managed_by_config` si `managed_by = config`; igual en `PATCH`) |
+| `POST` | `/api/v1/datasources/{id}/test` | Prueba la conexión: `{ok, latency_ms, server_version, error?}`; `error` es `{kind, message}` con `kind` en `auth`, `network`, `driver_missing` o `unknown` (si falta el driver, el mensaje indica el extra: `uv sync --extra sqlserver`) |
+
+Ver la lista exige sesión; crear, cambiar, borrar y probar la conexión exigen administrador (403 `forbidden` si no).
 
 ## Modelo semántico
 
@@ -73,7 +75,9 @@ Detalle y ejemplos: [INTEGRACION.md](INTEGRACION.md).
 | `POST` | `/api/v1/providers/{id}/test` | Prueba la conexión guardada |
 | `POST` | `/api/v1/providers/test` | Prueba una configuración **sin guardarla** |
 | `GET` | `/api/v1/providers/{id}/models` | Modelos disponibles, si la API del proveedor lo permite |
-| `PUT` | `/api/v1/providers/routing` | Asigna tareas (`planner`, `sql`, `answer`, `suggest`) y cadena de respaldo |
+| `PUT` | `/api/v1/providers/routing` | Asigna tareas (`planner`, `sql`, `answer`, `suggest`) y cadena de respaldo. Cuerpo: `{"tasks": {"sql": "<id>"}, "fallback": ["<id>"]}` |
+
+Los secretos se guardan cifrados y se devuelven enmascarados (`secrets: {"api_key": "…1234"}`). `config` y `secrets` se validan contra los campos del catálogo del `kind` (422 `invalid_provider`). Solo hay un proveedor `is_default`. Los proveedores con `managed_by = "config"` no se editan ni se eliminan desde la API (409 `managed_by_config`); un nombre repetido da 409 `name_taken`.
 
 ## Chat y conversaciones
 
