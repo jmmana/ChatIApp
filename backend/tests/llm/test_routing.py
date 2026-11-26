@@ -1,10 +1,15 @@
+from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from app.db.models import Base, Provider
+from app.db.session import make_engine
 from app.llm.gateway import Gateway, GatewayError, InvalidJsonError, ProviderConfig
-from app.llm.routing import Candidate, Router, TaskGateway, should_fallback
+from app.llm.routing import Candidate, Router, TaskGateway, load_router, should_fallback
 
 MESSAGES = [{"role": "user", "content": "cuánto vendí hoy"}]
 
@@ -105,7 +110,7 @@ def test_stream_respalda_antes_de_emitir_texto() -> None:
     assert gateway.take_notices() == ["claude no respondió; usé deepseek"]
 
 
-def test_stream_no_respalda_si_ya_emitio_texto(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_stream_no_respalda_si_ya_emitio_texto() -> None:
     from app.llm.gateway import StreamEvent
 
     class _Cut:
@@ -124,3 +129,34 @@ def test_sin_proveedores_falla_con_error_claro() -> None:
     with pytest.raises(GatewayError) as info:
         Router({}).for_task("planner").complete(MESSAGES)
     assert info.value.kind == "provider_error"
+
+
+@pytest.fixture
+def session(tmp_path: Path) -> Iterator[Session]:
+    engine = make_engine(f"sqlite:///{tmp_path / 'app.db'}")
+    Base.metadata.create_all(engine)
+    with Session(engine, expire_on_commit=False) as s:
+        yield s
+    engine.dispose()
+
+
+def _row(name: str, **kwargs: Any) -> Provider:
+    return Provider(name=name, kind="fake", model="fake-1", config={}, **kwargs)
+
+
+def test_load_router_lee_tareas_predeterminado_y_respaldo(session: Session) -> None:
+    session.add_all(
+        [
+            _row("claude", params={"tasks": ["planner", "sql"]}),
+            _row("deepseek", params={"tasks": ["answer"], "fallback": 1}, is_default=True),
+            _row("local", params={"tasks": [], "fallback": 0}),
+        ]
+    )
+    session.commit()
+
+    router = load_router(session)
+
+    assert [c.name for c in router.chain("planner")] == ["claude", "local", "deepseek"]
+    assert [c.name for c in router.chain("answer")] == ["deepseek", "local"]
+    # Sin asignación: el predeterminado.
+    assert [c.name for c in router.chain("suggest")] == ["deepseek", "local"]

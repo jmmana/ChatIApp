@@ -17,6 +17,7 @@ from app.demo.seed import generar
 from app.engine.executor import QueryExecutor
 from app.engine.guard import GuardCache
 from app.llm.gateway import Gateway, ProviderConfig
+from app.llm.routing import Candidate, Router
 from app.semantic.schema import SemanticModel, parse_semantic_model
 
 EXAMPLE = Path(__file__).parents[3] / "examples" / "ventas" / "semantic-model.yaml"
@@ -84,7 +85,7 @@ def _orchestrator(
     session: Session,
     model: SemanticModel,
     datasource: Datasource,
-    gateway: Gateway,
+    gateway: Gateway | Router,
     url: str,
     query_executor: QueryExecutor,
     *,
@@ -450,3 +451,22 @@ def test_los_datos_no_pueden_cerrar_el_delimitador_del_resultado() -> None:
     assert "<" not in escapado and ">" not in escapado
     assert "&lt;/resultado&gt;" in escapado
     assert _escape_data("a & b") == "a &amp; b"
+
+
+def test_respaldo_del_planificador_emite_step_warning(
+    session: Session, model: SemanticModel, demo_url: str, query_executor: QueryExecutor
+) -> None:
+    datasource = _datasource(session)
+    conversation = _conversation(session, datasource)
+    claude = Candidate("Claude", _gateway(error="quota"))
+    deepseek = Candidate("DeepSeek", _gateway(METRIC_PLAN, "Listo."))
+    router = Router({"planner": claude}, default=deepseek, fallback=[deepseek])
+    orchestrator = _orchestrator(session, model, datasource, router, demo_url, query_executor)
+
+    events = _turn(orchestrator, conversation, "¿Cuánto vendí este mes?")
+
+    assert "error" not in _types(events)
+    warnings = [e.data for e in events if isinstance(e.data, Step) and e.data.status == "warning"]
+    assert [(w.id, w.detail) for w in warnings] == [
+        ("understand", "Claude no respondió; usé DeepSeek")
+    ]
