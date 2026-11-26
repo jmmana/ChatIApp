@@ -29,8 +29,8 @@ Detalle y ejemplos: [INTEGRACION.md](INTEGRACION.md).
 | `GET` | `/api/v1/datasources` | Lista (URL siempre enmascarada) |
 | `POST` | `/api/v1/datasources` | Crea: `name`, `dialect`, `url`, `execute`, `max_rows`, `timeout_seconds`, `privacy` |
 | `PATCH` | `/api/v1/datasources/{id}` | Actualiza; `url` solo se reemplaza si se envía |
-| `DELETE` | `/api/v1/datasources/{id}` | Elimina (no permitido si `managed_by = config`) |
-| `POST` | `/api/v1/datasources/{id}/test` | Prueba la conexión: `{ok, latency_ms, server_version, error?}` |
+| `DELETE` | `/api/v1/datasources/{id}` | Elimina (409 `managed_by_config` si `managed_by = config`; igual en `PATCH`) |
+| `POST` | `/api/v1/datasources/{id}/test` | Prueba la conexión: `{ok, latency_ms, server_version, error?}`; `error` es `{kind, message}` con `kind` en `auth`, `network`, `driver_missing` o `unknown` (si falta el driver, el mensaje indica el extra: `uv sync --extra sqlserver`) |
 
 ## Modelo semántico
 

@@ -7,7 +7,8 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
-from app.api import health, providers
+from app.api import datasources, health, providers
+from app.api.errors import register_error_handlers
 from app.settings.env import get_settings
 from app.settings.startup import load_and_register
 from app.version import __version__
@@ -35,6 +36,8 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     )
     application.include_router(health.router, prefix=API_PREFIX)
     application.include_router(providers.router, prefix=API_PREFIX)
+    application.include_router(datasources.router, prefix=API_PREFIX)
+    register_error_handlers(application)
 
     if static_dir is None and (env_dir := os.environ.get("CHATIAPP_STATIC_DIR")):
         static_dir = Path(env_dir)
