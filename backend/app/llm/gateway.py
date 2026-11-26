@@ -123,7 +123,7 @@ class ProviderConfig:
             loaded = json.loads(decrypt(provider.secrets_encrypted))
             secrets = {str(k): str(v) for k, v in loaded.items()}
         params = {
-            k: v for k, v in (provider.params or {}).items() if k not in ("tasks", "fallback")
+            k: v for k, v in (provider.params or {}).items() if k not in ("tasks", "fallback", "monthly_budget_usd")
         }
         return cls(provider.kind, provider.model, dict(provider.config or {}), secrets, params)
 

@@ -94,6 +94,14 @@ WHERE fecha >= '20261101'
 
 Con un modelo **local** (Ollama, vLLM) nada sale de tu red, en cualquier nivel.
 
+## Límites de uso y presupuesto
+
+Implementados en `backend/app/security/limits.py`.
+
+- **Turnos por usuario:** `CHATIAPP_LIMIT_TURNS_PER_MINUTE` (20 por defecto) y `CHATIAPP_LIMIT_TURNS_PER_DAY` (500); `0` desactiva el límite. Al superarlo: 429 `rate_limited` con `Retry-After` y el tiempo de espera en el mensaje. Ventana deslizante en memoria, por proceso.
+- **API keys:** `rate_limit_per_minute` (peticiones por minuto) y `monthly_budget_usd` de la key; 429 `rate_limited` / `budget_exceeded`.
+- **Presupuesto por proveedor:** `params.monthly_budget_usd` (USD al mes, UTC), medido con el costo de las consultas del mes. Al 80 % queda un aviso en administración (`budget_alerts`); al 100 % se usa el siguiente proveedor de la cadena de respaldo y, si no hay, 429 `budget_exceeded`.
+
 ## Modelo de amenazas
 
 | Amenaza | Ejemplo | Mitigación |
