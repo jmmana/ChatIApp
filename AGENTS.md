@@ -49,3 +49,5 @@ La documentación en [`docs/`](docs/) es el contrato. Antes de escribir código,
 Lista viva: se completa con los errores que aparezcan en las revisiones para que no se repitan.
 
 - **Si cambias dependencias de `backend/pyproject.toml`, no toques `backend/uv.lock`**: el CI fallará en `uv sync --locked` hasta que quien revisa genere el lock en la rama. Es esperado; dilo en el PR.
+- **No escribas claves de prueba con forma real** (`sk-…`, `sk-ant-…`, `AKIA…`, `ghp_…`): el escáner de secretos bloquea la entrega aunque sean falsas. Usa `clave-de-prueba-1234` o arma el prefijo en tiempo de ejecución (`"sk" + "-ant-" + "prueba"`).
+- **Toda ruta nueva bajo `/api/v1` exige sesión**: inclúyela con `dependencies=[Depends(get_current_user)]` (o `require_admin`). `tests/security/test_routes.py` falla si queda pública; en las pruebas de tu API usa un usuario autenticado o `dependency_overrides[get_current_user]`.
