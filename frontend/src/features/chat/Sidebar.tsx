@@ -24,9 +24,11 @@ interface Props {
   onNew: () => void;
   /** Se llama tras borrar, para que el chat deje de mostrar la conversación eliminada. */
   onDeleted: (id: string) => void;
+  /** `sheet`: dentro del menú de pantallas estrechas (siempre visible, a todo el ancho). */
+  variant?: "fixed" | "sheet";
 }
 
-export function Sidebar({ activeId, onSelect, onNew, onDeleted }: Props) {
+export function Sidebar({ activeId, onSelect, onNew, onDeleted, variant = "fixed" }: Props) {
   const client = useQueryClient();
   const conversations = useQuery({ queryKey: CONVERSATIONS_KEY, queryFn: listConversations });
   const [renaming, setRenaming] = useState<ConversationSummary | null>(null);
@@ -60,7 +62,10 @@ export function Sidebar({ activeId, onSelect, onNew, onDeleted }: Props) {
   return (
     <aside
       aria-label="Conversaciones"
-      className="hidden w-60 shrink-0 flex-col gap-3 overflow-y-auto border-r bg-card p-3 lg:flex"
+      className={cn(
+        "flex-col gap-3 overflow-y-auto bg-card p-3",
+        variant === "fixed" ? "hidden w-60 shrink-0 border-r lg:flex" : "flex min-h-0 flex-1",
+      )}
     >
       <Button variant="outline" size="sm" className="justify-start" onClick={onNew}>
         <Plus aria-hidden /> Nueva conversación

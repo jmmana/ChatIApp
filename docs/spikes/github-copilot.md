@@ -14,7 +14,42 @@ El spike se hizo en un contenedor **sin red, sin token de GitHub y sin LiteLLM i
 - **Los términos de uso no se pudieron consultar en vivo.** La sección de términos resume lo conocido y lista qué texto hay que revisar. Quien revise debe confirmarlo antes de aprobar el PR.
 - **La prueba de concepto con `github/` no se ejecutó.** Se deja el guion para correrlo en una máquina con red (ver abajo); el criterio queda sin marcar.
 
-## Cómo autentica `github_copilot/` en LiteLLM
+## Estado de la verificación (27 de noviembre de 2026, issue #173)
+
+| Criterio | Estado | Detalle |
+|---|---|---|
+| Versión de LiteLLM fijada | Confirmada | `backend/uv.lock` fija **litellm 1.111.0** |
+| Flujo de autenticación contra el código de 1.111.0 | **No verificado** | El contenedor no tiene LiteLLM instalado ni acceso a PyPI ni a GitHub; no se pudo leer `litellm/llms/github_copilot/`. La sección de abajo sigue siendo conocimiento previo |
+| Términos de uso vigentes | **No verificado** | Sin acceso a la red: no se leyó ninguno de los textos de GitHub. No se anota fecha de consulta ni conclusión nueva |
+| Recomendación | Sin cambios | Nada la contradice, pero tampoco hay evidencia nueva |
+| Prueba de concepto con token real | Pendiente (dueño) | Guion en las secciones de abajo |
+
+### Guion para verificar el flujo de autenticación (máquina con red)
+
+```bash
+cd backend && uv sync --locked
+python - <<'PY'
+import importlib.metadata as m, litellm.llms.github_copilot as p, pathlib
+print("litellm", m.version("litellm"))   # debe ser 1.111.0
+print(pathlib.Path(p.__file__).parent)
+PY
+grep -rnE "client_id|login/device|login/oauth|copilot_internal|GITHUB_COPILOT_TOKEN_DIR|editor-version|Copilot-Integration-Id|api.githubcopilot" \
+  "$(python -c 'import litellm.llms.github_copilot as p, pathlib; print(pathlib.Path(p.__file__).parent)')"
+```
+
+Contrasta cada punto de la sección «Cómo autentica» (client_id de editor, URL del flujo de dispositivo, código impreso por stdout, directorio del token, endpoint interno, cabeceras) con la salida y anota aquí el resultado y la versión.
+
+### Guion para los términos de uso
+
+Lee y anota **fecha de consulta, enlace y conclusión** de:
+
+- https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features (sección GitHub Copilot)
+- https://docs.github.com/en/site-policy/acceptable-use-policies/github-acceptable-use-policies
+- https://docs.github.com/en/copilot (uso permitido, límites y acceso programático)
+
+Pregunta a responder: ¿se permite usar la suscripción de Copilot de una persona como backend de una aplicación multiusuario, o acceder a Copilot fuera de un editor/cliente soportado? Si no queda claro, la conclusión es «no permitido por defecto».
+
+## Cómo autentica `github_copilot/` en LiteLLM (sin contrastar con 1.111.0)
 
 1. Flujo de dispositivo OAuth de GitHub con el `client_id` de un cliente de editor (el de la extensión de Copilot), no de una app propia de ChatIApp.
 2. El usuario abre `https://github.com/login/device` e introduce un código. LiteLLM lo **imprime en la salida estándar** y sondea hasta que se autoriza.

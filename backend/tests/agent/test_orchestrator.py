@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -19,6 +22,7 @@ from app.engine.executor import QueryExecutor
 from app.engine.guard import GuardCache
 from app.llm.gateway import Gateway, ProviderConfig
 from app.llm.routing import Candidate, Router
+from app.observability import metrics
 from app.semantic.schema import SemanticModel, parse_semantic_model
 
 EXAMPLE = Path(__file__).parents[3] / "examples" / "ventas" / "semantic-model.yaml"
@@ -506,3 +510,127 @@ def test_respaldo_del_planificador_emite_step_warning(
     assert [(w.id, w.detail) for w in warnings] == [
         ("understand", "Claude no respondió; usé DeepSeek")
     ]
+
+
+def _sample(name: str, labels: dict[str, str]) -> float:
+    return metrics.REGISTRY.get_sample_value(name, labels) or 0.0
+
+
+def test_el_turno_genera_un_span_por_etapa_con_proveedor_tokens_y_tabla(
+    session: Session, model: SemanticModel, demo_url: str, query_executor: QueryExecutor
+) -> None:
+    datasource = _datasource(session)
+    conversation = _conversation(session, datasource)
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    orchestrator = _orchestrator(
+        session,
+        model,
+        datasource,
+        _gateway(METRIC_PLAN, "Este mes llevas buenas ventas."),
+        demo_url,
+        query_executor,
+    )
+    orchestrator.tracer = provider.get_tracer("prueba")
+    turns_before = _sample("chatiapp_turns_total", {"outcome": "ok"})
+
+    events = _turn(orchestrator, conversation, "¿Cuánto vendí este mes?")
+
+    spans = {s.name: s for s in exporter.get_finished_spans()}
+    for stage in ("planner", "builder", "guard", "executor", "answer"):
+        assert f"chatiapp.{stage}" in spans, stage
+    turn = spans["chatiapp.turn"]
+    assert all(
+        s.parent is not None and s.parent.span_id == turn.context.span_id
+        for name, s in spans.items()
+        if name != "chatiapp.turn"
+    )
+    planner = spans["chatiapp.planner"].attributes or {}
+    assert planner["llm.provider"] == "fake" and planner["llm.model"] == "fake-1"
+    assert int(planner["llm.tokens.input"]) > 0
+    assert "ventas_diarias" in str((spans["chatiapp.executor"].attributes or {})["db.tables"])
+    turn_attributes = turn.attributes or {}
+    assert turn_attributes["chatiapp.turn_id"] == _of(events, "turn.started")[0]["turn_id"]
+    assert turn_attributes["chatiapp.outcome"] == "ok"
+    assert _sample("chatiapp_turns_total", {"outcome": "ok"}) == turns_before + 1
+
+
+def test_un_rechazo_del_guardian_se_cuenta_en_las_metricas(
+    session: Session, model: SemanticModel, demo_url: str, query_executor: QueryExecutor
+) -> None:
+    datasource = _datasource(session)
+    conversation = _conversation(session, datasource)
+    orchestrator = _orchestrator(
+        session,
+        model,
+        datasource,
+        _gateway({"intent": "sql", "sql": "DELETE FROM facturas"}, "DELETE FROM facturas"),
+        demo_url,
+        query_executor,
+    )
+    rejections = _sample("chatiapp_guard_rejections_total", {})
+    errors = _sample("chatiapp_turns_total", {"outcome": "error"})
+
+    _turn(orchestrator, conversation, "Borra las facturas")
+
+    assert _sample("chatiapp_guard_rejections_total", {}) == rejections + 2  # intento y reparación
+    assert _sample("chatiapp_turns_total", {"outcome": "error"}) == errors + 1
+
+
+DATE_FILTER_PLAN = {
+    **METRIC_PLAN,
+    "filters": [{"field": "facturas.fecha", "op": ">=", "value": "2026-11-01"}],
+}
+
+
+def test_plan_con_filtro_de_fecha_se_corrige_con_un_reintento(
+    session: Session, model: SemanticModel, demo_url: str, query_executor: QueryExecutor
+) -> None:
+    datasource = _datasource(session)
+    conversation = _conversation(session, datasource)
+    seen: list[list[dict[str, str]]] = []
+
+    class Spy(Gateway):
+        def complete(self, messages: list[dict[str, str]], **params: Any) -> Any:
+            seen.append(messages)
+            return super().complete(messages, **params)
+
+    texts = [json.dumps(DATE_FILTER_PLAN), json.dumps(METRIC_PLAN), "Buenas ventas."]
+    gateway = Spy(ProviderConfig("fake", "fake-1", {"responses": texts}))
+    orchestrator = _orchestrator(session, model, datasource, gateway, demo_url, query_executor)
+
+    events = _turn(orchestrator, conversation, "¿Cuánto vendí este mes?")
+
+    assert "error" not in _types(events)
+    assert "sql" in _types(events) and "result" in _types(events)
+    steps = [(e.data.id, e.data.status) for e in events if isinstance(e.data, Step)]
+    assert ("replan", "warning") in steps
+    assert steps.index(("replan", "warning")) < steps.index(("verify", "done"))
+    retry = seen[1][-1]["content"]
+    assert "<plan_rechazado>" in retry and "<error>" in retry and "facturas.fecha" in retry
+    assert len(seen) == 2  # plan y reintento; la respuesta se redacta con stream
+
+
+def test_dos_planes_invalidos_terminan_con_invalid_plan_tras_un_reintento(
+    session: Session, model: SemanticModel, demo_url: str, query_executor: QueryExecutor
+) -> None:
+    datasource = _datasource(session)
+    conversation = _conversation(session, datasource)
+    calls: list[int] = []
+
+    class Spy(Gateway):
+        def complete(self, messages: list[dict[str, str]], **params: Any) -> Any:
+            calls.append(1)
+            return super().complete(messages, **params)
+
+    config = {"responses": [json.dumps(DATE_FILTER_PLAN)]}
+    gateway = Spy(ProviderConfig("fake", "fake-1", config))
+    orchestrator = _orchestrator(session, model, datasource, gateway, demo_url, query_executor)
+
+    events = _turn(orchestrator, conversation, "¿Cuánto vendí este mes?")
+
+    error = _of(events, "error")[0]
+    assert error["code"] == "invalid_plan" and error["recoverable"] is True
+    assert "sql" not in _types(events) and _types(events)[-1] == "turn.completed"
+    assert len(calls) == 2  # el plan y un solo reintento

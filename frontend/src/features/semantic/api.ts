@@ -1,5 +1,13 @@
 import { ApiError, apiRequest } from "@/lib/api";
-import type { Datasource, ModelIssue, SemanticModel, SemanticVersion, VersionInfo } from "./types";
+import type {
+  Datasource,
+  ModelIssue,
+  PreviewRequest,
+  PreviewResult,
+  SemanticModel,
+  SemanticVersion,
+  VersionInfo,
+} from "./types";
 
 export function listDatasources(): Promise<Datasource[]> {
   return apiRequest<Datasource[]>("/datasources");
@@ -27,6 +35,17 @@ export function publishSemantic(
   return apiRequest<SemanticVersion>(`/datasources/${datasourceId}/semantic`, {
     method: "PUT",
     body: { base_version: baseVersion, model },
+  });
+}
+
+/** SQL que armaría el motor para una métrica, sin IA (usa el modelo publicado). */
+export function previewMetric(
+  datasourceId: string,
+  request: PreviewRequest,
+): Promise<PreviewResult> {
+  return apiRequest<PreviewResult>(`/datasources/${datasourceId}/preview`, {
+    method: "POST",
+    body: request,
   });
 }
 

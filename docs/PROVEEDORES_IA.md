@@ -70,7 +70,7 @@ Hay dos caminos y no son equivalentes:
 | **GitHub Models** (`github/`) | API oficial de GitHub para usar modelos desde aplicaciones, con un token de GitHub | Soportado en el catálogo |
 | **Suscripción de Copilot** (`github_copilot/`) | LiteLLM trae este proveedor, que se autentica con tu suscripción de Copilot por flujo de dispositivo OAuth | **No se ofrece** (decisión del spike): el token es de una persona, depende de un endpoint interno y los términos de GitHub no contemplan servir una suscripción a varios usuarios. Detalle y condiciones para reabrirlo en [docs/spikes/github-copilot.md](spikes/github-copilot.md) |
 
-**Decisión:** ChatIApp ofrece solo GitHub Models. La confirmación de los términos en vivo y la prueba de concepto con `github/` quedan pendientes de una máquina con red (ver el spike).
+**Decisión:** ChatIApp ofrece solo GitHub Models. Siguen pendientes, sin verificar, de una máquina con red (issue #173): el flujo de autenticación de `github_copilot/` contra LiteLLM 1.111.0, la lectura de los términos de uso y la prueba de concepto con `github/`. El spike trae los guiones.
 
 ## Enrutamiento por tarea
 

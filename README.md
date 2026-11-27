@@ -330,7 +330,7 @@ docker compose exec ollama ollama pull llama3.1
 
 Entra con el correo y la clave de administrador que definiste y pregunta «¿Cuánto vendí?»; el agente pedirá el período y puedes responder «Este mes».
 
-La demo trae una base de ventas de ejemplo con su modelo semántico, para probar sin conectar nada tuyo.
+La demo trae una base de ventas de ejemplo con su modelo semántico, para probar sin conectar nada tuyo. La fuente «Ventas (demo)» ya viene creada: solo falta añadir un proveedor de IA en «Proveedores».
 
 ## Documentación
 
