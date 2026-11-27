@@ -42,6 +42,7 @@ from app.llm.gateway import Gateway, ProviderConfig
 from app.security.crypto import SecretKeyError, decrypt
 from app.security.limits import check_api_key_budget, check_turn
 from app.semantic.schema import SemanticModel
+from app.settings.env import get_settings
 from app.settings.registry import datasource_uuid, provider_uuid
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,7 @@ SSE_HEADERS = {
     "X-Accel-Buffering": "no",  # que un proxy delante no acumule los eventos
     "Connection": "keep-alive",
 }
+REJECTION_CODES = {"sql_rejected", "user_config"}  # el guardián o la configuración, no un fallo
 CANCELLED = ErrorData(code="cancelled", message="El turno fue cancelado.", recoverable=True)
 
 
@@ -375,7 +377,7 @@ def _turn_response(conversation_id: uuid.UUID, events: list[dict[str, Any]]) -> 
     by_type: dict[str, dict[str, Any]] = {e["type"]: e["data"] for e in events}
     out: dict[str, Any] = {"conversation_id": str(conversation_id)}
     if "error" in by_type:
-        out["status"] = "error"
+        out["status"] = "rejected" if by_type["error"].get("code") in REJECTION_CODES else "error"
         out["error"] = by_type["error"]
     elif "clarification" in by_type:
         out["status"] = "needs_clarification"
@@ -397,8 +399,21 @@ def _turn_response(conversation_id: uuid.UUID, events: list[dict[str, Any]]) -> 
     return out
 
 
+async def _collect(turn: _Turn) -> list[Event]:
+    """Vacía la cola del turno hasta su fin; la cancelación queda como evento `error`."""
+    events: list[Event] = []
+    while True:
+        item = await turn.queue.get()
+        if isinstance(item, _Done):
+            return events
+        if isinstance(item, _Cancelled):
+            events.append(Event(CANCELLED))
+            return events
+        events.append(item)
+
+
 @router.post("", summary="Un turno de chat sin streaming (sesión o API key)")
-def chat(
+async def chat(
     body: ChatRequest, session: SessionDep, cipher: CipherDep, principal: PrincipalDep
 ) -> dict[str, Any]:
     datasource_id = _uuid_or_config(body.datasource_id, datasource_uuid)
@@ -428,17 +443,32 @@ def chat(
     # Una API key no elige proveedor: solo la configuración del administrador.
     override = body.provider_override if principal.api_key is None else None
     provider = _provider(session, override)
-    orchestrator = Orchestrator(
-        session,
-        Gateway(ProviderConfig.from_provider(provider)),
-        datasource,
-        model,
-        version,
-        decrypt(datasource.url_encrypted, cipher),
+    engine = session.get_bind()
+    assert isinstance(engine, Engine)
+    plan = _Plan(
+        engine=engine,
+        conversation_id=conversation.id,
+        datasource_id=datasource.id,
+        provider_id=provider.id,
+        provider=ProviderConfig.from_provider(provider),
+        model=model,
+        version=version,
+        url=decrypt(datasource.url_encrypted, cipher),
         role=role,
         context=context,
-        provider_id=provider.id,
+        message=body.message,
         api_key_id=principal.api_key_id,
     )
-    events = [e.to_dict() for e in orchestrator.run(conversation, body.message)]
-    return _turn_response(conversation.id, events)
+    turn_owner = owner if principal.api_key is None else f"{principal.api_key.id}:{owner}"
+    turn = _Turn(owner=turn_owner, loop=asyncio.get_running_loop())
+    threading.Thread(target=_run_turn, args=(plan, turn), daemon=True).start()
+    seconds = get_settings().chat_timeout_seconds
+    try:
+        events = await asyncio.wait_for(_collect(turn), seconds)
+    except TimeoutError:
+        raise ApiError(
+            504, "turn_timeout", f"El turno superó el tiempo máximo de {seconds:g} s"
+        ) from None
+    finally:
+        turn.cancel.set()  # terminó o venció el plazo: que el hilo no siga
+    return _turn_response(conversation.id, [e.to_dict() for e in events])
