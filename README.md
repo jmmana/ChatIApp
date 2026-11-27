@@ -14,7 +14,7 @@ ChatIApp es un chat de IA que **razona tu pregunta, te pide lo que falta y escri
 
 [![CI](https://github.com/jmmana/ChatIApp/actions/workflows/ci.yml/badge.svg)](https://github.com/jmmana/ChatIApp/actions/workflows/ci.yml)
 [![Licencia](https://img.shields.io/badge/licencia-Apache--2.0-3B82F6)](LICENSE)
-[![Estado](https://img.shields.io/badge/estado-dise%C3%B1o%20abierto-8B5CF6)](#estado-del-proyecto)
+[![Estado](https://img.shields.io/badge/estado-previa%20a%20v0.1.0-8B5CF6)](#estado-del-proyecto)
 [![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](docs/ARQUITECTURA.md)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](docs/ARQUITECTURA.md)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](docs/INTERFAZ.md)
