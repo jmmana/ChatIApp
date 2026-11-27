@@ -308,8 +308,7 @@ Detailed plan in [docs/ROADMAP.md](docs/ROADMAP.md) and live progress on the [pr
 
 ## Quick start
 
-> [!IMPORTANT]
-> Available from **v0.1** (end of milestone M1). This is how it will look:
+With Docker installed, the demo is ready in a few minutes:
 
 ```bash
 docker run -p 8080:8080 -v chatiapp:/data \
@@ -319,6 +318,15 @@ docker run -p 8080:8080 -v chatiapp:/data \
 ```
 
 Everything lives in the `chatiapp` volume (SQLite database, demo and encryption key). For PostgreSQL or Ollama, use the profiles in [`docker-compose.yml`](docker-compose.yml).
+
+Without a cloud AI key, use Compose with the Ollama profile (local models):
+
+```bash
+docker compose --profile local-ai up --build
+docker compose exec ollama ollama pull llama3.1
+```
+
+Sign in with the admin email and password you set and ask "How much did I sell?"; the agent asks for the period and you can answer "This month".
 
 ## Documentation (Spanish)
 
