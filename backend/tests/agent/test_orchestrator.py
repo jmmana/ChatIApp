@@ -609,7 +609,7 @@ def test_plan_con_filtro_de_fecha_se_corrige_con_un_reintento(
     assert steps.index(("replan", "warning")) < steps.index(("verify", "done"))
     retry = seen[1][-1]["content"]
     assert "<plan_rechazado>" in retry and "<error>" in retry and "facturas.fecha" in retry
-    assert len(seen) == 3  # plan, reintento y respuesta
+    assert len(seen) == 2  # plan y reintento; la respuesta se redacta con stream
 
 
 def test_dos_planes_invalidos_terminan_con_invalid_plan_tras_un_reintento(
