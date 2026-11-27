@@ -17,7 +17,10 @@ beforeEach(() => {
     "fetch",
     vi.fn(
       async (url: string) =>
-        new Response(JSON.stringify(url.includes("/datasources") ? [] : session), { status: 200 }),
+        new Response(
+          JSON.stringify(url.includes("/datasources") || url.includes("/providers") ? [] : session),
+          { status: 200 },
+        ),
     ),
   );
 });
