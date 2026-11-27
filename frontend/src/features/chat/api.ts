@@ -3,36 +3,40 @@ import { apiFetch } from "@/features/auth/api";
 export interface MetricInfo {
   name: string;
   label: string;
+  description?: string | null;
   requires_period?: boolean;
-}
-
-export interface SemanticInfo {
-  metrics: MetricInfo[];
-  roles: string[];
-}
-
-interface SemanticOut {
-  model?: {
-    metrics?: MetricInfo[];
-    security?: { roles?: { name: string }[] };
-  } | null;
+  default_period?: string | null;
+  dimensions?: string[];
 }
 
 /**
- * Métricas y roles del modelo vigente. Leer el modelo exige administrador (403 para los demás) y
- * una fuente sin modelo responde 404: en ambos casos no hay nada que sugerir.
+ * Métricas que el rol de la persona puede consultar (cualquier usuario con acceso a la fuente).
+ * Sin acceso o sin modelo responde 404: no hay nada que sugerir.
  */
-export async function getSemanticInfo(datasourceId: string): Promise<SemanticInfo> {
+export async function getMetrics(datasourceId: string): Promise<MetricInfo[]> {
+  try {
+    const response = await apiFetch(`/api/v1/datasources/${datasourceId}/metrics`);
+    if (!response.ok) return [];
+    const data = (await response.json()) as { metrics?: MetricInfo[] };
+    return data.metrics ?? [];
+  } catch {
+    return [];
+  }
+}
+
+interface SemanticOut {
+  model?: { security?: { roles?: { name: string }[] } } | null;
+}
+
+/** Roles del modelo vigente, para «ver como». Leer el modelo completo exige administrador. */
+export async function getRoles(datasourceId: string): Promise<string[]> {
   try {
     const response = await apiFetch(`/api/v1/datasources/${datasourceId}/semantic`);
-    if (!response.ok) return { metrics: [], roles: [] };
+    if (!response.ok) return [];
     const data = (await response.json()) as SemanticOut;
-    return {
-      metrics: data.model?.metrics ?? [],
-      roles: (data.model?.security?.roles ?? []).map((role) => role.name),
-    };
+    return (data.model?.security?.roles ?? []).map((role) => role.name);
   } catch {
-    return { metrics: [], roles: [] };
+    return [];
   }
 }
 
