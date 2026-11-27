@@ -51,6 +51,11 @@ spec:
               value: /config/chatiapp.yaml
             - name: CHATIAPP_DATA_DIR
               value: /data
+            - name: CHATIAPP_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "existingSecret debe indicar un Secret existente" .Values.existingSecret }}
+                  key: CHATIAPP_SECRET_KEY
             - name: CHATIAPP_DATABASE_URL
               {{- if eq $dbType "postgresql" }}
               valueFrom:
