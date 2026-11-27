@@ -83,17 +83,17 @@ def _conversation(
         session.add(conversation)
         session.commit()
         return conversation
-    conversation = session.get(Conversation, body.conversation_id)
+    existing = session.get(Conversation, body.conversation_id)
     mine = (
-        conversation is not None
-        and conversation.datasource_id == datasource.id
-        and conversation.user_id == principal.user_id
-        and conversation.api_key_id == principal.api_key_id
-        and (principal.api_key is None or conversation.external_user_id == owner)
+        existing is not None
+        and existing.datasource_id == datasource.id
+        and existing.user_id == principal.user_id
+        and existing.api_key_id == principal.api_key_id
+        and (principal.api_key is None or existing.external_user_id == owner)
     )
-    if conversation is None or not mine:
+    if existing is None or not mine:
         raise ApiError(404, "conversation_not_found", "La conversación no existe")
-    return conversation
+    return existing
 
 
 def _turn_response(conversation_id: uuid.UUID, events: list[dict[str, Any]]) -> dict[str, Any]:

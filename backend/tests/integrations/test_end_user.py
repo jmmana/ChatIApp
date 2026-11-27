@@ -21,6 +21,7 @@ from app.integrations.end_user import EndUser, EndUserError, resolve_end_user
 from app.main import create_app
 from app.security.crypto import encrypt, make_cipher
 from app.semantic.schema import SemanticModel, parse_semantic_model
+from app.settings.registry import datasource_uuid
 
 EXAMPLE = Path(__file__).parents[3] / "examples" / "ventas" / "semantic-model.yaml"
 CIPHER = make_cipher("clave-de-prueba")
@@ -68,6 +69,7 @@ def session(factory: sessionmaker[Session]) -> Iterator[Session]:
 @pytest.fixture
 def datasource(session: Session, model: SemanticModel, demo_url: str) -> Datasource:
     ds = Datasource(
+        id=datasource_uuid("ventas"),
         name="ventas",
         dialect="sqlite",
         url_encrypted=encrypt(demo_url, CIPHER),
