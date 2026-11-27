@@ -184,8 +184,7 @@ class QueryRun(Base):
     provider_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("provider.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    # La tabla API_KEY llega con la tarea de integraciones: por ahora sin clave foránea.
-    api_key_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    api_key_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True, index=True)
     origin: Mapped[str] = mapped_column(String(20))  # catalog | llm
     sql_final: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary_table: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -197,6 +196,19 @@ class QueryRun(Base):
     cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
     status: Mapped[str] = mapped_column(String(20))  # ok | rejected | error
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # Auditoría (docs/SEGURIDAD.md#auditoría). Sin claves foráneas a propósito: el registro
+    # sobrevive al borrado del usuario, la fuente o la key.
+    user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True, index=True)
+    external_user_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    datasource_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True, index=True)
+    role: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    question: Mapped[str | None] = mapped_column(Text, nullable=True)
+    plan: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    sql_candidate: Mapped[str | None] = mapped_column(Text, nullable=True)
+    provider_kind: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    semantic_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     message: Mapped[Message] = relationship(back_populates="query_run")
 

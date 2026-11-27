@@ -143,8 +143,8 @@ Todos los eventos: [FLUJO_CONVERSACIONAL.md](FLUJO_CONVERSACIONAL.md#eventos-de-
 | `POST` | `/api/v1/auth/login` | Correo + contraseña → JWT |
 | `GET` | `/api/v1/users` · `POST` · `PATCH` · `DELETE` | Usuarios |
 | `PUT` | `/api/v1/users/{id}/grants` | Rol y atributos por fuente de datos |
-| `GET` | `/api/v1/audit` | Auditoría con filtros (usuario, fuente, fecha, estado) |
-| `GET` | `/api/v1/audit/export` | Exporta CSV |
+| `GET` | `/api/v1/audit` | Auditoría (solo administradores), más reciente primero. Filtros: `user_id`, `external_user_id`, `datasource_id`, `api_key_id`, `status` (`ok`, `rejected`, `error`), `date_from`, `date_to` (fechas `AAAA-MM-DD`, ambas inclusivas). Paginada con `page` y `page_size` (máx. 200) → `{items, total, page, page_size}` |
+| `GET` | `/api/v1/audit/export` | Exporta en CSV (UTF-8, hasta 50 000 filas) con los mismos filtros; las celdas que empiezan con `=`, `+`, `-` o `@` se neutralizan |
 
 ### Usuarios y permisos por fuente
 
