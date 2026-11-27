@@ -40,7 +40,7 @@ async function renderAt(path: string) {
 }
 
 describe("Layout", () => {
-  it("muestra la barra lateral con las siete secciones", async () => {
+  it("muestra la barra lateral con las ocho secciones", async () => {
     await renderAt("/chat");
     const nav = screen.getByRole("navigation", { name: "Principal" });
     for (const title of [
@@ -49,6 +49,7 @@ describe("Layout", () => {
       "Proveedores de IA",
       "Fuentes de datos",
       "Integraciones",
+      "Usuarios",
       "Auditoría",
       "Evaluación",
     ]) {
@@ -58,7 +59,7 @@ describe("Layout", () => {
 
   it("redirige la raíz al chat", async () => {
     await renderAt("/");
-    expect(screen.getByRole("heading", { level: 1, name: "Chat" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Chat" })).toBeInTheDocument();
   });
 
   it("cada ruta muestra un estado vacío con su título", async () => {

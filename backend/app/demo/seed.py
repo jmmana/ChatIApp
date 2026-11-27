@@ -13,11 +13,17 @@ from __future__ import annotations
 
 import argparse
 import random
+import re
 import sqlite3
 from collections import defaultdict
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Any
+
+from sqlalchemy import Column, Date, ForeignKey, Integer, MetaData, Numeric, String, Table, insert
+from sqlalchemy.engine import Engine
 
 FECHA_INICIO = date(2025, 1, 1)
 NUM_FACTURAS = 50_000
@@ -280,12 +286,20 @@ def _pesos_dias(dias: list[date]) -> list[float]:
     return [(1.3 if d.weekday() >= 5 else 1.0) * temporada.get(d.month, 1.0) for d in dias]
 
 
-def generar(out: Path, seed: int = 42, hasta: date | None = None) -> None:
-    """Genera la base «Ventas» en `out` (la reemplaza si existe).
+@dataclass(frozen=True)
+class Datos:
+    """Filas de cada tabla de la demo (las fechas son texto ISO)."""
 
-    `hasta` es la fecha de generación (por defecto hoy): las facturas llegan hasta ese día
-    y `ventas_mensuales` no incluye su mes.
-    """
+    sucursales: list[tuple[Any, ...]]
+    productos: list[tuple[Any, ...]]
+    clientes: list[tuple[Any, ...]]
+    facturas: list[tuple[Any, ...]]
+    factura_detalle: list[tuple[Any, ...]]
+    ventas_diarias: list[tuple[Any, ...]]
+    ventas_mensuales: list[tuple[Any, ...]]
+
+
+def _datos(seed: int, hasta: date | None) -> Datos:
     hasta = hasta or date.today()
     if hasta < FECHA_INICIO:
         raise ValueError(f"`hasta` debe ser posterior o igual a {FECHA_INICIO.isoformat()}")
@@ -377,31 +391,199 @@ def generar(out: Path, seed: int = 42, hasta: date | None = None) -> None:
             (id_, nombre, documento, email or None, segmento, ciudad, creado.isoformat())
         )
 
+    return Datos(
+        sucursales=[(i, s[0], s[1], s[2], s[3].isoformat()) for i, s in enumerate(SUCURSALES, 1)],
+        productos=list(productos),
+        clientes=filas_clientes,
+        facturas=list(facturas),
+        factura_detalle=list(detalle),
+        ventas_diarias=[(f, s, c, *v) for (f, s, c), v in sorted(diarias.items())],
+        ventas_mensuales=[(m, s, *v) for (m, s), v in sorted(mensuales.items())],
+    )
+
+
+def generar(out: Path, seed: int = 42, hasta: date | None = None) -> None:
+    """Genera la base «Ventas» en `out` (la reemplaza si existe).
+
+    `hasta` es la fecha de generación (por defecto hoy): las facturas llegan hasta ese día
+    y `ventas_mensuales` no incluye su mes.
+    """
+    datos = _datos(seed, hasta)
     out.parent.mkdir(parents=True, exist_ok=True)
     if out.exists():
         out.unlink()
     conn = sqlite3.connect(out)
     try:
         conn.executescript(DDL)
-        conn.executemany(
-            "INSERT INTO sucursales VALUES (?, ?, ?, ?, ?)",
-            [(i, s[0], s[1], s[2], s[3].isoformat()) for i, s in enumerate(SUCURSALES, 1)],
-        )
-        conn.executemany("INSERT INTO productos VALUES (?, ?, ?, ?, ?, ?)", productos)
-        conn.executemany("INSERT INTO clientes VALUES (?, ?, ?, ?, ?, ?, ?)", filas_clientes)
-        conn.executemany("INSERT INTO facturas VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", facturas)
-        conn.executemany("INSERT INTO factura_detalle VALUES (?, ?, ?, ?, ?, ?)", detalle)
-        conn.executemany(
-            "INSERT INTO ventas_diarias VALUES (?, ?, ?, ?, ?, ?)",
-            [(f, s, c, *v) for (f, s, c), v in sorted(diarias.items())],
-        )
-        conn.executemany(
-            "INSERT INTO ventas_mensuales VALUES (?, ?, ?, ?, ?)",
-            [(m, s, *v) for (m, s), v in sorted(mensuales.items())],
-        )
+        for tabla in TABLAS:
+            filas: list[tuple[Any, ...]] = getattr(datos, tabla)
+            marcas = ", ".join("?" * len(filas[0]))
+            conn.executemany(f"INSERT INTO {tabla} VALUES ({marcas})", filas)
         conn.commit()
     finally:
         conn.close()
+
+
+# Orden de carga: respeta las llaves foráneas.
+TABLAS = (
+    "sucursales",
+    "productos",
+    "clientes",
+    "facturas",
+    "factura_detalle",
+    "ventas_diarias",
+    "ventas_mensuales",
+)
+# Columnas DATE de cada tabla: en SQLite viajan como texto ISO; en el resto, como `date`.
+_COLUMNAS_FECHA = {
+    "sucursales": {"abierta_desde"},
+    "clientes": {"creado_en"},
+    "facturas": {"fecha"},
+    "ventas_diarias": {"fecha"},
+    "ventas_mensuales": {"mes"},
+}
+_LOTE = 1_000
+
+
+def _metadata() -> MetaData:
+    """El mismo esquema que `DDL`, neutro entre motores: SQLAlchemy lo traduce a cada dialecto."""
+    md = MetaData()
+
+    def pk() -> Column[int]:
+        # Sin autoincremento: los ids se insertan explícitos (SQL Server exigiría IDENTITY_INSERT).
+        return Column("id", Integer, primary_key=True, autoincrement=False)
+
+    def texto(nombre: str, largo: int, **kw: Any) -> Column[str]:
+        return Column(nombre, String(largo), **kw)
+
+    def dinero(nombre: str, precision: int = 14) -> Column[Any]:
+        return Column(nombre, Numeric(precision, 2), nullable=False)
+
+    def fk(nombre: str, destino: str) -> Column[int]:
+        return Column(nombre, Integer, ForeignKey(destino), nullable=False)
+
+    def entero(nombre: str) -> Column[int]:
+        return Column(nombre, Integer, nullable=False)
+
+    Table(
+        "sucursales",
+        md,
+        pk(),
+        texto("nombre", 80, nullable=False),
+        texto("ciudad", 60, nullable=False),
+        texto("region", 30, nullable=False),
+        Column("abierta_desde", Date, nullable=False),
+    )
+    Table(
+        "productos",
+        md,
+        pk(),
+        texto("sku", 20, nullable=False, unique=True),
+        texto("nombre", 120, nullable=False),
+        texto("categoria", 40, nullable=False),
+        texto("marca", 40, nullable=False),
+        dinero("precio_lista"),
+    )
+    Table(
+        "clientes",
+        md,
+        pk(),
+        texto("nombre", 120, nullable=False),
+        texto("documento", 20, nullable=False),
+        texto("email", 160),
+        texto("segmento", 20, nullable=False),
+        texto("ciudad", 60, nullable=False),
+        Column("creado_en", Date, nullable=False),
+    )
+    Table(
+        "facturas",
+        md,
+        pk(),
+        texto("numero", 20, nullable=False, unique=True),
+        Column("fecha", Date, nullable=False),
+        fk("cliente_id", "clientes.id"),
+        fk("sucursal_id", "sucursales.id"),
+        texto("canal", 12, nullable=False),
+        dinero("subtotal"),
+        dinero("descuento"),
+        dinero("impuesto"),
+        dinero("total"),
+        texto("estado", 12, nullable=False),
+    )
+    Table(
+        "factura_detalle",
+        md,
+        pk(),
+        fk("factura_id", "facturas.id"),
+        fk("producto_id", "productos.id"),
+        entero("cantidad"),
+        dinero("precio_unitario"),
+        dinero("total_linea"),
+    )
+    Table(
+        "ventas_diarias",
+        md,
+        Column("fecha", Date, primary_key=True),
+        Column("sucursal_id", Integer, ForeignKey("sucursales.id"), primary_key=True),
+        texto("canal", 12, primary_key=True),
+        dinero("total_ventas", 16),
+        entero("num_facturas"),
+        entero("unidades"),
+    )
+    Table(
+        "ventas_mensuales",
+        md,
+        Column("mes", Date, primary_key=True),
+        Column("sucursal_id", Integer, ForeignKey("sucursales.id"), primary_key=True),
+        dinero("total_ventas", 16),
+        entero("num_facturas"),
+        entero("unidades"),
+    )
+    return md
+
+
+_PALABRAS_DE_PRUEBA = frozenset({"it", "test", "tests", "testing", "demo"})
+
+
+def es_base_de_pruebas(nombre: str | None) -> bool:
+    """¿El nombre tiene la palabra it, test o demo? Se compara por palabras, no por fragmentos.
+
+    `chatiapp_it`, `test-db` o `demo` sí; `capital`, `audit`, `digital` o `produccion` no.
+    """
+    palabras = re.split(r"[^a-z0-9]+", (nombre or "").lower())
+    return any(p in _PALABRAS_DE_PRUEBA for p in palabras)
+
+
+def cargar(engine: Engine, seed: int = 42, hasta: date | None = None) -> None:
+    """Carga en cualquier base de SQLAlchemy los mismos datos que `generar` deja en SQLite.
+
+    Lo usan las pruebas de integración (PostgreSQL, MySQL, SQL Server). Reemplaza las tablas de
+    la demo si ya existen; con la misma `seed` y `hasta` las filas son idénticas.
+    """
+    if engine.dialect.name != "sqlite" and not es_base_de_pruebas(engine.url.database):
+        # drop_all borra las tablas de la demo: nunca sobre una base que no sea de pruebas.
+        raise ValueError(
+            "cargar() reemplaza tablas; el nombre de la base debe tener la palabra «it», «test» "
+            "o «demo» (por ejemplo chatiapp_it)"
+        )
+    datos = _datos(seed, hasta)
+    md = _metadata()
+    md.drop_all(engine)
+    md.create_all(engine)
+    for nombre in TABLAS:
+        tabla = md.tables[nombre]
+        columnas = [c.name for c in tabla.columns]
+        fechas = _COLUMNAS_FECHA.get(nombre, set())
+        registros = [
+            {
+                col: date.fromisoformat(valor) if col in fechas else valor
+                for col, valor in zip(columnas, fila, strict=True)
+            }
+            for fila in getattr(datos, nombre)
+        ]
+        with engine.begin() as conn:
+            for i in range(0, len(registros), _LOTE):
+                conn.execute(insert(tabla), registros[i : i + _LOTE])
 
 
 def main(argv: Sequence[str] | None = None) -> int:
