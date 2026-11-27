@@ -14,6 +14,7 @@ from app.api import (
     audit,
     auth,
     chat,
+    conversations,
     datasources,
     health,
     preview,
@@ -89,8 +90,10 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     application.include_router(datasources.router, prefix=API_PREFIX, dependencies=protected)
     application.include_router(semantic.router, prefix=API_PREFIX, dependencies=protected)
     application.include_router(preview.router, prefix=API_PREFIX, dependencies=protected)
-    # El chat acepta sesión de usuario o API key (alcance `chat`): no usa `get_current_user`.
+    # Cada ruta del chat declara su credencial: `/chat/stream` y `cancel` solo sesión; `POST /chat`
+    # sesión o API key con alcance `chat`. No lleva `get_current_user` global.
     application.include_router(chat.router, prefix=API_PREFIX)
+    application.include_router(conversations.router, prefix=API_PREFIX, dependencies=protected)
     register_error_handlers(application)
 
     if static_dir is None and (env_dir := os.environ.get("CHATIAPP_STATIC_DIR")):

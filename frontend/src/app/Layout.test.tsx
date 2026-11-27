@@ -18,7 +18,7 @@ beforeEach(() => {
     vi.fn(
       async (url: string) => {
         let body: unknown = session;
-        if (url.includes("/datasources")) body = [];
+        if (url.includes("/datasources") || url.includes("/providers")) body = [];
         else if (url.includes("/audit")) body = { items: [], total: 0, page: 1, page_size: 25 };
         return new Response(JSON.stringify(body), { status: 200 });
       },
