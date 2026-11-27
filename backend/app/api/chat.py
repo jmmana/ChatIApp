@@ -1,9 +1,13 @@
-"""Chat por SSE (docs/API.md#chat-y-conversaciones, ADR 0006).
+"""Chat (docs/API.md#chat-y-conversaciones, ADR 0006): SSE y `POST /chat` sin streaming.
 
 El orquestador es un generador síncrono: cada turno corre en un hilo propio, con su propia sesión
 de base de datos, y reenvía sus eventos a una cola que el endpoint vacía hacia el cliente. Así el
 bucle de eventos no se bloquea con la IA ni con la base de datos del usuario, se puede mandar un
 comentario keep-alive mientras se espera y `cancel` puede cortar el turno sin esperar al hilo.
+
+`/chat/stream` y `/chat/{turn_id}/cancel` son solo de sesión. `POST /chat` (sin streaming)
+acepta además una API key con alcance `chat`; con key, la identidad sale del campo `user` dentro
+del techo de la key y las conversaciones se aíslan por `api_key_id` + `external_user_id`.
 """
 
 import asyncio
@@ -27,21 +31,25 @@ from app.agent.orchestrator import Orchestrator
 from app.api.datasources import get_request_cipher
 from app.api.errors import ApiError
 from app.api.preview import ViewAs, load_model, resolve_identity
-from app.db.models import Conversation, Datasource, Message, Provider, User
+from app.db.models import ApiKey, Conversation, Datasource, Message, Provider, User
 from app.db.session import get_session
-from app.engine.rls import AttributeValue
+from app.integrations.api_keys import Principal, require_scope
+from app.integrations.end_user import EndUser, EndUserError, resolve_end_user
 from app.llm.gateway import Gateway, ProviderConfig
 from app.security.auth import get_current_user
 from app.security.crypto import SecretKeyError, decrypt
+from app.security.limits import check_api_key_budget, check_turn
 from app.semantic.schema import SemanticModel
 from app.settings.registry import datasource_uuid, provider_uuid
 
 logger = logging.getLogger(__name__)
 
+# Sin dependencia a nivel de router: cada ruta declara su credencial (sesión o API key con `chat`).
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 SessionDep = Annotated[Session, Depends(get_session)]
 UserDep = Annotated[User, Depends(get_current_user)]
+PrincipalDep = Annotated[Principal, Depends(require_scope("chat"))]
 CipherDep = Annotated[MultiFernet, Depends(get_request_cipher)]
 
 KEEPALIVE_SECONDS = 15.0
@@ -54,14 +62,6 @@ SSE_HEADERS = {
 CANCELLED = ErrorData(code="cancelled", message="El turno fue cancelado.", recoverable=True)
 
 
-class EndUser(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    id: str
-    role: str | None = None
-    attributes: dict[str, AttributeValue] = {}
-
-
 class ChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -70,7 +70,7 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     provider_override: str | None = Field(default=None, description="UUID o `id` del archivo")
     view_as: ViewAs | None = None
-    # Solo lo usan las API keys (aún no soportadas aquí): con otras credenciales se ignora.
+    # Obligatorio con API key (solo `POST /chat`); con sesión se ignora.
     user: EndUser | None = None
 
 
@@ -144,17 +144,39 @@ def _provider(session: Session, override: str | None) -> Provider:
 
 
 def _conversation(
-    session: Session, user: User, datasource: Datasource, body: ChatRequest
+    session: Session,
+    datasource: Datasource,
+    body: ChatRequest,
+    *,
+    user: User | None,
+    api_key: ApiKey | None,
+    owner: str | None = None,
 ) -> Conversation:
+    """La conversación pedida si es del mismo dueño; si no, 404 (no se revela que existe).
+
+    Dueño: el usuario de sesión, o la API key más el `external_user_id` del usuario final.
+    """
+    user_id = user.id if user else None
+    api_key_id = api_key.id if api_key else None
+    external = owner if api_key is not None else None
     if body.conversation_id is None:
         conversation = Conversation(
-            user_id=user.id, datasource_id=datasource.id, title=body.message.strip()[:TITLE_LENGTH]
+            user_id=user_id,
+            api_key_id=api_key_id,
+            external_user_id=external,
+            datasource_id=datasource.id,
+            title=body.message.strip()[:TITLE_LENGTH],
         )
         session.add(conversation)
         session.commit()
         return conversation
     existing = session.get(Conversation, body.conversation_id)
-    if existing is None or existing.user_id != user.id:
+    if (
+        existing is None
+        or existing.user_id != user_id
+        or existing.api_key_id != api_key_id
+        or existing.external_user_id != external
+    ):
         raise ApiError(404, "conversation_not_found", "La conversación no existe")
     if existing.datasource_id != datasource.id:
         raise ApiError(409, "datasource_mismatch", "La conversación es de otra fuente de datos")
@@ -275,7 +297,7 @@ async def chat_stream(
         url = decrypt(datasource.url_encrypted, cipher)
     except SecretKeyError as exc:
         raise ApiError(500, "secret_key_invalid", str(exc)) from exc
-    conversation = _conversation(session, user, datasource, body)
+    conversation = _conversation(session, datasource, body, user=user, api_key=None)
     engine = session.get_bind()
     assert isinstance(engine, Engine)
     plan = _Plan(
@@ -307,3 +329,79 @@ def cancel_turn(turn_id: str, user: UserDep) -> CancelOut:
     turn.cancel.set()
     turn.post(_Cancelled())
     return CancelOut(turn_id=turn_id, status="cancelled")
+
+
+# --------------------------------------------------------------------------- sin streaming
+
+
+def _turn_response(conversation_id: uuid.UUID, events: list[dict[str, Any]]) -> dict[str, Any]:
+    by_type: dict[str, dict[str, Any]] = {e["type"]: e["data"] for e in events}
+    out: dict[str, Any] = {"conversation_id": str(conversation_id)}
+    if "error" in by_type:
+        out["status"] = "error"
+        out["error"] = by_type["error"]
+    elif "clarification" in by_type:
+        out["status"] = "needs_clarification"
+        out["clarification"] = by_type["clarification"]
+    else:
+        out["status"] = "answered"
+    if "reasoning" in by_type:
+        out["reasoning"] = by_type["reasoning"]["text"]
+    if "sql" in by_type:
+        sql = dict(by_type["sql"])
+        out["period"] = sql.pop("period", None)
+        out["sql"] = sql
+    if "result" in by_type:
+        out["result"] = by_type["result"]
+    if "answer" in by_type:
+        out["answer"] = by_type["answer"]["text"]
+    if "turn.completed" in by_type:
+        out["usage"] = by_type["turn.completed"]["usage"]
+    return out
+
+
+@router.post("", summary="Un turno de chat sin streaming (sesión o API key)")
+def chat(
+    body: ChatRequest, session: SessionDep, cipher: CipherDep, principal: PrincipalDep
+) -> dict[str, Any]:
+    datasource_id = _uuid_or_config(body.datasource_id, datasource_uuid)
+    datasource, model, version = load_model(session, datasource_id)
+    role: str | None
+    context: dict[str, Any]
+    try:
+        if principal.api_key is not None:
+            access = resolve_end_user(principal.api_key, datasource, model, body.user)
+            role, context, owner = access.role, access.context, access.external_user_id
+        else:
+            assert principal.user is not None
+            role, context = resolve_identity(
+                session, principal.user, datasource, model, body.view_as
+            )
+            owner = str(principal.user.id)
+    except EndUserError as exc:
+        raise ApiError(exc.status_code, exc.code, exc.message) from exc
+
+    # Nada se ejecuta hasta aquí: la identidad ya está validada.
+    check_turn(principal)
+    if principal.api_key is not None:
+        check_api_key_budget(session, principal.api_key)
+    conversation = _conversation(
+        session, datasource, body, user=principal.user, api_key=principal.api_key, owner=owner
+    )
+    # Una API key no elige proveedor: solo la configuración del administrador.
+    override = body.provider_override if principal.api_key is None else None
+    provider = _provider(session, override)
+    orchestrator = Orchestrator(
+        session,
+        Gateway(ProviderConfig.from_provider(provider)),
+        datasource,
+        model,
+        version,
+        decrypt(datasource.url_encrypted, cipher),
+        role=role,
+        context=context,
+        provider_id=provider.id,
+        api_key_id=principal.api_key_id,
+    )
+    events = [e.to_dict() for e in orchestrator.run(conversation, body.message)]
+    return _turn_response(conversation.id, events)
