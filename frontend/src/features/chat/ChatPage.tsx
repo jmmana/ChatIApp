@@ -5,12 +5,16 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { listDatasources } from "@/features/datasources/api";
 import { listProviders } from "@/features/providers/api";
-import { cancelTurnOnServer, getConversation, getMetrics, getRoles } from "./api";
+import { Clarification } from "./Clarification";
+import { cancelTurnOnServer, getConversation, getFormatSettings, getMetrics, getRoles } from "./api";
 import { Composer } from "./Composer";
 import { messagesFromStored } from "./rebuild";
 import type { Message } from "./rebuild";
 import { CONVERSATIONS_KEY } from "./queryKeys";
+import { Reasoning } from "./Reasoning";
+import { ResultView } from "./results/ResultView";
 import { Sidebar } from "./Sidebar";
+import { SqlBlock } from "./SqlBlock";
 import { buildSuggestions } from "./suggestions";
 import type { TurnState } from "./turnReducer";
 import { useTurn } from "./useTurn";
@@ -18,8 +22,11 @@ import { useTurn } from "./useTurn";
 /** Distancia (px) al final desde la que se considera que la persona sigue «abajo». */
 const STICK_THRESHOLD = 48;
 
-/** Filas del resultado que se muestran en el chat. */
-const MAX_ROWS = 20;
+interface ResultFormat {
+  locale?: string;
+  currency?: string;
+  metricLabels: Record<string, string>;
+}
 
 const selectClass = "h-9 rounded-md border border-input bg-card px-2 text-sm";
 
@@ -47,6 +54,11 @@ export function ChatPage() {
     queryFn: () => getMetrics(selectedSource),
     enabled: selectedSource !== "",
   });
+  const formatSettings = useQuery({
+    queryKey: ["chat-format", selectedSource],
+    queryFn: () => getFormatSettings(selectedSource),
+    enabled: selectedSource !== "" && isAdmin,
+  });
   const roles = useQuery({
     queryKey: ["chat-roles", selectedSource],
     queryFn: () => getRoles(selectedSource),
@@ -55,6 +67,11 @@ export function ChatPage() {
 
   const busy = state.status === "streaming";
   const suggestions = buildSuggestions(metrics.data ?? []);
+  const format: ResultFormat = {
+    locale: formatSettings.data?.locale,
+    currency: formatSettings.data?.currency,
+    metricLabels: Object.fromEntries((metrics.data ?? []).map((m) => [m.name, m.label])),
+  };
 
   const ask = useCallback(
     (message: string) => {
@@ -221,10 +238,15 @@ export function ChatPage() {
         ) : (
           <div className="mx-auto flex max-w-3xl flex-col gap-6">
             {history.map((message, index) => (
-              <Exchange key={index} question={message.question} turn={message.turn} />
+              <Exchange
+                key={index}
+                question={message.question}
+                turn={message.turn}
+                format={format}
+              />
             ))}
             {question !== null && (
-              <Exchange question={question} turn={state} onOption={ask} live />
+              <Exchange question={question} turn={state} onOption={ask} format={format} live />
             )}
           </div>
         )}
@@ -236,82 +258,38 @@ export function ChatPage() {
   );
 }
 
-function ResultTable({ result }: { result: NonNullable<TurnState["result"]> }) {
-  const rows = result.rows.slice(0, MAX_ROWS);
-  return (
-    <div className="overflow-x-auto rounded-md border text-sm">
-      <table className="w-full">
-        <thead className="bg-muted text-left">
-          <tr>
-            {result.columns.map((column) => (
-              <th key={column} className="px-2 py-1 font-medium">
-                {column}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={index} className="border-t">
-              {row.map((cell, cellIndex) => (
-                <td key={cellIndex} className="px-2 py-1">
-                  {cell === null || cell === undefined ? "" : String(cell)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {(result.truncated || result.row_count > rows.length) && (
-        <p className="border-t px-2 py-1 text-xs text-muted-foreground">
-          Mostrando {rows.length} de {result.row_count} filas.
-        </p>
-      )}
-    </div>
-  );
-}
-
 interface ExchangeProps {
   question: string;
   turn: TurnState;
   onOption?: (option: string) => void;
+  format: ResultFormat;
   live?: boolean;
 }
 
-function Exchange({ question, turn, onOption, live = false }: ExchangeProps) {
+function Exchange({ question, turn, onOption, format, live = false }: ExchangeProps) {
   const text = turn.answer || turn.clarification?.question || "";
   return (
     <article className="flex flex-col gap-3">
       <p className="self-end rounded-xl bg-accent px-3 py-2 text-accent-foreground">{question}</p>
-      {turn.status === "streaming" && !text && (
+      <Reasoning
+        steps={turn.steps}
+        reasoning={turn.reasoning}
+        streaming={turn.status === "streaming"}
+      />
+      {turn.status === "streaming" && !text && turn.steps.length === 0 && (
         <p role="status" className="text-sm text-muted-foreground">
-          {turn.steps.at(-1)?.label ?? "Pensando…"}
+          Pensando…
         </p>
       )}
-      {turn.reasoning && (
-        <details className="text-sm text-muted-foreground">
-          <summary className="cursor-pointer">Razonamiento</summary>
-          <p className="mt-1 whitespace-pre-wrap">{turn.reasoning}</p>
-        </details>
-      )}
-      {turn.sql && (
-        <details className="text-sm">
-          <summary className="cursor-pointer text-muted-foreground">SQL</summary>
-          <pre className="mt-1 overflow-x-auto rounded-md bg-muted p-2 text-xs">
-            <code>{turn.sql.sql}</code>
-          </pre>
-        </details>
-      )}
-      {turn.result && <ResultTable result={turn.result} />}
+      {turn.sql && <SqlBlock sql={turn.sql} streaming={turn.status === "streaming"} />}
+      {turn.result && <ResultView result={turn.result} sql={turn.sql} {...format} />}
       {text && <p className="whitespace-pre-wrap">{text}</p>}
       {live && turn.status === "clarifying" && turn.clarification && (
-        <div className="flex flex-wrap gap-2">
-          {turn.clarification.options.map((option) => (
-            <Button key={option} variant="outline" size="sm" onClick={() => onOption?.(option)}>
-              {option}
-            </Button>
-          ))}
-        </div>
+        <Clarification
+          question={turn.clarification.question}
+          options={turn.clarification.options}
+          onSelect={(option) => onOption?.(option)}
+        />
       )}
       {turn.status === "error" && turn.error && (
         <p role="alert" className="text-sm text-destructive">

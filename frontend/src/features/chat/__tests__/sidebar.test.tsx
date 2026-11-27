@@ -159,7 +159,8 @@ describe("Sidebar", () => {
     await userEvent.click(within(group).getByRole("button", { name: "Ventas de hoy" }));
     expect(await screen.findByText("¿Cuánto vendí?")).toBeInTheDocument();
     expect(screen.getByText("Vendiste 10.")).toBeInTheDocument();
-    expect(screen.getByText("SELECT 1")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "SQL" }));
+    expect(document.querySelector("code")?.textContent).toMatch(/SELECT\s+1/);
   });
 
   it("Ctrl+K vuelve a una conversación nueva", async () => {

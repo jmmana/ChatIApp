@@ -25,7 +25,27 @@ export async function getMetrics(datasourceId: string): Promise<MetricInfo[]> {
 }
 
 interface SemanticOut {
-  model?: { security?: { roles?: { name: string }[] } } | null;
+  model?: {
+    settings?: { locale?: string; currency?: string };
+    security?: { roles?: { name: string }[] };
+  } | null;
+}
+
+export interface FormatSettings {
+  locale?: string;
+  currency?: string;
+}
+
+/** Configuración regional del modelo (solo administradores pueden leerlo; los demás usan el valor por defecto). */
+export async function getFormatSettings(datasourceId: string): Promise<FormatSettings> {
+  try {
+    const response = await apiFetch(`/api/v1/datasources/${datasourceId}/semantic`);
+    if (!response.ok) return {};
+    const data = (await response.json()) as SemanticOut;
+    return { locale: data.model?.settings?.locale, currency: data.model?.settings?.currency };
+  } catch {
+    return {};
+  }
 }
 
 /** Roles del modelo vigente, para «ver como». Leer el modelo completo exige administrador. */
