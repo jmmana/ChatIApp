@@ -3,26 +3,12 @@ import { useMemo, useState } from "react";
 import type { ResultData } from "../types";
 import { formatCell } from "./format";
 import type { FormatOptions } from "./format";
-import { isNumericColumn, toNumber } from "./shape";
+import { isNumericColumn } from "./shape";
+import { sortRows } from "./sort";
 
 interface Sort {
   index: number;
   dir: "asc" | "desc";
-}
-
-export function sortRows(rows: unknown[][], index: number, dir: "asc" | "desc"): unknown[][] {
-  const sign = dir === "asc" ? 1 : -1;
-  return [...rows].sort((a, b) => {
-    const x = a[index];
-    const y = b[index];
-    const xNull = x === null || x === undefined;
-    const yNull = y === null || y === undefined;
-    if (xNull || yNull) return xNull === yNull ? 0 : xNull ? 1 : -1; // nulos siempre al final
-    const nx = toNumber(x);
-    const ny = toNumber(y);
-    if (nx !== null && ny !== null) return sign * (nx - ny);
-    return sign * String(x).localeCompare(String(y));
-  });
 }
 
 export function ResultTable({ result, locale }: { result: ResultData } & FormatOptions) {
