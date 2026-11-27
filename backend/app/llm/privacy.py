@@ -64,7 +64,7 @@ class PrivacyViolation(GatewayError):
 
 def parse_level(value: object) -> Privacy:
     """Nivel válido; cualquier otro valor cae en el más restrictivo (`schema`)."""
-    return cast(Privacy, value) if value in LEVELS else DEFAULT_LEVEL
+    return value if value in LEVELS else DEFAULT_LEVEL
 
 
 def effective_level(requested: Privacy, maximum: Privacy) -> Privacy:
