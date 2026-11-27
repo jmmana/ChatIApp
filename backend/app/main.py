@@ -16,6 +16,7 @@ from app.api import (
     chat,
     conversations,
     datasources,
+    embed,
     health,
     preview,
     providers,
@@ -24,6 +25,7 @@ from app.api import (
 )
 from app.api.errors import register_error_handlers
 from app.db.session import get_engine
+from app.integrations.cors import EmbedCORSMiddleware
 from app.security.auth import AuthError, ensure_initial_admin, get_current_user, require_admin
 from app.settings.env import get_settings
 from app.settings.startup import load_and_register
@@ -93,8 +95,13 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     # Cada ruta del chat declara su credencial: `/chat/stream` y `cancel` solo sesión; `POST /chat`
     # sesión o API key con alcance `chat`. No lleva `get_current_user` global.
     application.include_router(chat.router, prefix=API_PREFIX)
-    application.include_router(conversations.router, prefix=API_PREFIX, dependencies=protected)
+    # Conversaciones: lectura con sesión o token de sesión; renombrar y eliminar, solo sesión.
+    application.include_router(conversations.router, prefix=API_PREFIX)
+    # Emisión de tokens de sesión: solo API key con alcance `embed` (`require_scope`).
+    application.include_router(embed.router, prefix=API_PREFIX)
     register_error_handlers(application)
+    # CORS solo para los orígenes permitidos de las keys con alcance `embed`.
+    application.add_middleware(EmbedCORSMiddleware, prefix=API_PREFIX)
 
     if static_dir is None and (env_dir := os.environ.get("CHATIAPP_STATIC_DIR")):
         static_dir = Path(env_dir)
