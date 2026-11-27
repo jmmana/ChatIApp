@@ -19,7 +19,8 @@ beforeEach(() => {
           expires_in: 900,
           user: { id: "1", email: "ana@example.com", is_admin: isAdmin },
         };
-        if (url.includes("/datasources") || url.includes("/providers")) body = [];
+        if (url.includes("/datasources") || url.includes("/providers") || url.includes("/evals"))
+          body = [];
         else if (url.includes("/audit")) body = { items: [], total: 0, page: 1, page_size: 25 };
         return new Response(JSON.stringify(body), { status: 200 });
       },
