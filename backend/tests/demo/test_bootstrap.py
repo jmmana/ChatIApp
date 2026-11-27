@@ -56,7 +56,12 @@ def client(factory: sessionmaker[Session]) -> Iterator[TestClient]:
             yield session
 
     guards.clear()
-    usuario = User(id=uuid.uuid4(), email="a@b.co", is_admin=True)
+    usuario = User(id=uuid.uuid4(), email="a@b.co", password_hash="no-se-usa", is_admin=True)
+    with factory() as session:  # la conversación referencia al usuario con llave foránea
+        session.add(usuario)
+        session.commit()
+        session.refresh(usuario)
+        session.expunge(usuario)
     app.dependency_overrides[get_session] = _session
     app.dependency_overrides[get_request_cipher] = lambda: CIPHER
     app.dependency_overrides[get_current_user] = lambda: usuario
