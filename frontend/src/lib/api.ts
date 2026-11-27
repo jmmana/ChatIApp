@@ -18,10 +18,12 @@ export async function apiRequest<T>(
   options: { method?: string; body?: unknown } = {},
 ): Promise<T> {
   const { method = "GET", body } = options;
+  // Un FormData lo serializa el navegador (con su `boundary`): no se fuerza Content-Type.
+  const isForm = body instanceof FormData;
   const response = await apiFetch(`/api/v1${path}`, {
     method,
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: body === undefined || isForm ? undefined : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
   });
   if (!response.ok) {
     const data = (await response.json().catch(() => null)) as {
