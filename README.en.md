@@ -328,6 +328,8 @@ docker compose exec ollama ollama pull llama3.1
 
 Sign in with the admin email and password you set and ask "How much did I sell?"; the agent asks for the period and you can answer "This month".
 
+The "Ventas (demo)" data source is already created; you only need to add an AI provider under "Proveedores" (Providers).
+
 ## Documentation (Spanish)
 
 [Vision](docs/VISION.md) · [Architecture](docs/ARQUITECTURA.md) · [Conversation flow](docs/FLUJO_CONVERSACIONAL.md) · [Semantic model](docs/MODELO_SEMANTICO.md) · [AI providers](docs/PROVEEDORES_IA.md) · [Databases](docs/BASES_DE_DATOS.md) · [Security](docs/SEGURIDAD.md) · [UI](docs/INTERFAZ.md) · [Integration](docs/INTEGRACION.md) · [API](docs/API.md) · [ADRs](docs/adr/)
