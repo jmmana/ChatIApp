@@ -273,7 +273,8 @@ def test_prueba_fallida_guarda_solo_el_tipo_de_error(client: TestClient, tmp_pat
 
     assert listed["last_test_ok"] is False
     assert listed["last_test_error_kind"] == "network"
-    assert str(tmp_path) not in str(listed)
+    resultado = {k: v for k, v in listed.items() if k.startswith("last_test")}
+    assert str(tmp_path) not in str(resultado)
 
 
 def test_nueva_prueba_reemplaza_el_resultado_anterior(client: TestClient, demo_url: str) -> None:

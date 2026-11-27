@@ -141,7 +141,7 @@ def _out(datasource: Datasource, cipher: MultiFernet) -> DatasourceOut:
         managed_by=datasource.managed_by,
         last_test_ok=datasource.last_test_ok,
         last_test_at=datasource.last_test_at,
-        last_test_error_kind=datasource.last_test_error_kind,  # type: ignore[arg-type]
+        last_test_error_kind=datasource.last_test_error_kind,
     )
 
 
