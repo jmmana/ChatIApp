@@ -19,7 +19,7 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@/*": ["../frontend/src/*"],
-      "*": ["./node_modules/*", "./node_modules/@types/*"]
+      "*": ["./node_modules/@types/*", "./node_modules/*"]
     }
   },
   "include": ["src", "react/src"]
