@@ -6,16 +6,23 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { listDatasources } from "@/features/datasources/api";
 import { listProviders } from "@/features/providers/api";
 import { Clarification } from "./Clarification";
-import { cancelTurnOnServer, getMetrics, getRoles } from "./api";
+import { cancelTurnOnServer, getFormatSettings, getMetrics, getRoles } from "./api";
 import { Composer } from "./Composer";
-import { SqlBlock } from "./SqlBlock";
 import { Reasoning } from "./Reasoning";
+import { ResultView } from "./results/ResultView";
+import { SqlBlock } from "./SqlBlock";
 import { buildSuggestions } from "./suggestions";
 import type { TurnState } from "./turnReducer";
 import { useTurn } from "./useTurn";
 
 /** Distancia (px) al final desde la que se considera que la persona sigue «abajo». */
 const STICK_THRESHOLD = 48;
+
+interface ResultFormat {
+  locale?: string;
+  currency?: string;
+  metricLabels: Record<string, string>;
+}
 
 interface Message {
   question: string;
@@ -44,6 +51,11 @@ export function ChatPage() {
     queryFn: () => getMetrics(selectedSource),
     enabled: selectedSource !== "",
   });
+  const formatSettings = useQuery({
+    queryKey: ["chat-format", selectedSource],
+    queryFn: () => getFormatSettings(selectedSource),
+    enabled: selectedSource !== "" && isAdmin,
+  });
   const roles = useQuery({
     queryKey: ["chat-roles", selectedSource],
     queryFn: () => getRoles(selectedSource),
@@ -52,6 +64,11 @@ export function ChatPage() {
 
   const busy = state.status === "streaming";
   const suggestions = buildSuggestions(metrics.data ?? []);
+  const format: ResultFormat = {
+    locale: formatSettings.data?.locale,
+    currency: formatSettings.data?.currency,
+    metricLabels: Object.fromEntries((metrics.data ?? []).map((m) => [m.name, m.label])),
+  };
 
   const ask = useCallback(
     (message: string) => {
@@ -159,10 +176,15 @@ export function ChatPage() {
         ) : (
           <div className="mx-auto flex max-w-3xl flex-col gap-6">
             {history.map((message, index) => (
-              <Exchange key={index} question={message.question} turn={message.turn} />
+              <Exchange
+                key={index}
+                question={message.question}
+                turn={message.turn}
+                format={format}
+              />
             ))}
             {question !== null && (
-              <Exchange question={question} turn={state} onOption={ask} live />
+              <Exchange question={question} turn={state} onOption={ask} format={format} live />
             )}
           </div>
         )}
@@ -177,10 +199,11 @@ interface ExchangeProps {
   question: string;
   turn: TurnState;
   onOption?: (option: string) => void;
+  format: ResultFormat;
   live?: boolean;
 }
 
-function Exchange({ question, turn, onOption, live = false }: ExchangeProps) {
+function Exchange({ question, turn, onOption, format, live = false }: ExchangeProps) {
   const text = turn.answer || turn.clarification?.question || "";
   return (
     <article className="flex flex-col gap-3">
@@ -196,6 +219,7 @@ function Exchange({ question, turn, onOption, live = false }: ExchangeProps) {
         </p>
       )}
       {turn.sql && <SqlBlock sql={turn.sql} streaming={turn.status === "streaming"} />}
+      {turn.result && <ResultView result={turn.result} sql={turn.sql} {...format} />}
       {text && <p className="whitespace-pre-wrap">{text}</p>}
       {live && turn.status === "clarifying" && turn.clarification && (
         <Clarification
