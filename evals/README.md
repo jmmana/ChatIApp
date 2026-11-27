@@ -80,7 +80,19 @@ Corre todos los casos contra cada proveedor guardado en la base de la app (los d
 uv run python -m app.eval run --set evals/ventas --providers claude,deepseek
 ```
 
-`--providers` son nombres de proveedor (su `id` en `chatiapp.yaml`). Opciones: `--model` (modelo semántico, por defecto `examples/ventas/semantic-model.yaml`) y `--out` (carpeta del informe, por defecto `eval-reports/`).
+`--providers` son nombres de proveedor (su `id` en `chatiapp.yaml`).
+
+**Control de gasto.** Con proveedores reales (todo `kind` distinto de `fake`) el comando es un **ensayo por defecto**: imprime cuántas llamadas haría (cota superior: 2 por turno) y para qué proveedores y modelos, y sale con 0 sin llamar a nadie. Para ejecutar de verdad:
+
+```bash
+uv run python -m app.eval run --providers claude,deepseek --max-calls 400 --yes
+```
+
+- `--yes`: confirma la ejecución real.
+- `--max-calls N`: obligatorio con `--yes` si hay proveedores reales. Si el plan supera N, sale con error (código 2) sin hacer ninguna llamada; si aun así se llegara a N durante la corrida, se aborta (código 3), indica cuántas llamadas hizo y no escribe informe.
+- Los proveedores `fake` o grabados siguen siendo gratis y no necesitan ninguna de las dos opciones. Las claves nunca se imprimen ni se escriben en el informe.
+
+Otras opciones: `--model` (modelo semántico, por defecto `examples/ventas/semantic-model.yaml`) y `--out` (carpeta del informe, por defecto `eval-reports/`).
 
 - **Exactitud**: se ejecuta `expect.sql` sobre la demo y se comparan las **filas** con las del evento `result` del turno (tolerancia numérica de 0,005; sin orden salvo `ordered: true`). Con `expect_clarification` el caso pasa si el agente pregunta por ese `slot` sin ejecutar nada; con `expect_out_of_scope`, si no ejecuta ninguna consulta ni pregunta (un rechazo del guardián cuenta; un fallo del proveedor, no). Con `answers`, tras cada aclaración se envía la siguiente respuesta y se evalúa el último turno.
 - **Informe**: `<set>.md` y `<set>.json` en `--out`. Trae, por proveedor, la exactitud global (fracción de 0 a 1 en el JSON) y por etiqueta, las aclaraciones correctas e innecesarias, la latencia p50 y p95 (por caso, sin contar las preguntas de `previous`), los tokens y el costo (con todos los turnos), y los casos fallidos con su SQL y el esperado.

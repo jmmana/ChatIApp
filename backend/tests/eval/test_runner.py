@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db.models import Base, EvalRun, Provider
 from app.db.session import make_engine
 from app.eval import report
-from app.eval.cli import buscar_proveedores, main
+from app.eval.cli import buscar_proveedores, llamadas_previstas, main
 from app.eval.golden import SetDorado, cargar
 from app.eval.runner import ResultadoCaso, cargar_modelo, evaluar
 from app.llm.gateway import Gateway, JsonCompletion, ProviderConfig, StreamEvent, Usage
@@ -220,3 +220,110 @@ def test_la_cli_guarda_un_eval_run_por_proveedor_y_escribe_el_informe(
 def test_un_proveedor_desconocido_lista_los_disponibles(app_db: sessionmaker[Session]) -> None:
     with app_db() as session, pytest.raises(ValueError, match="gpt.*Disponibles: claude, deepseek"):
         buscar_proveedores(session, ["claude", "gpt"])
+
+
+class Contador(GatewayGuionado):
+    llamadas = 0
+
+    def complete_json(  # type: ignore[override]
+        self, messages: list[dict[str, str]], schema: Any, **params: Any
+    ) -> JsonCompletion[Any]:
+        Contador.llamadas += 1
+        return super().complete_json(messages, schema, **params)
+
+    def stream(self, messages: list[dict[str, str]], **params: Any) -> Iterator[StreamEvent]:
+        Contador.llamadas += 1
+        return super().stream(messages, **params)
+
+
+@pytest.fixture
+def real_db(tmp_path: Path) -> Iterator[sessionmaker[Session]]:
+    engine = make_engine(f"sqlite:///{tmp_path / 'real.db'}")
+    Base.metadata.create_all(engine)
+    fabrica = sessionmaker(bind=engine, expire_on_commit=False)
+    with fabrica() as session:
+        session.add(Provider(name="claude", kind="anthropic", model="claude-x"))
+        session.commit()
+    yield fabrica
+    engine.dispose()
+
+
+def _set(tmp_path: Path) -> Path:
+    raiz = tmp_path / "set"
+    (raiz / "casos").mkdir(parents=True, exist_ok=True)
+    (raiz / "set.yaml").write_text(SET_YAML, encoding="utf-8")
+    (raiz / "casos" / "prueba.yaml").write_text(CASOS, encoding="utf-8")
+    return raiz
+
+
+def _correr(real_db: sessionmaker[Session], tmp_path: Path, *extra: str) -> int:
+    Contador.llamadas = 0
+    return main(
+        [
+            "run",
+            "--set",
+            str(_set(tmp_path)),
+            "--providers",
+            "claude",
+            "--out",
+            str(tmp_path / "o"),
+            *extra,
+        ],
+        session_factory=real_db,
+        gateway_de=lambda _p: Contador(),
+    )
+
+
+def test_ensayo_por_defecto_no_llama_a_ningun_proveedor(
+    real_db: sessionmaker[Session], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _correr(real_db, tmp_path) == 0
+
+    assert Contador.llamadas == 0
+    err = capsys.readouterr().err
+    assert "Ensayo" in err and "claude (claude-x)" in err
+    assert not (tmp_path / "o").exists()
+    with real_db() as session:
+        assert session.scalars(select(EvalRun)).all() == []
+
+
+def test_con_yes_y_tope_menor_que_el_plan_aborta_sin_llamar(
+    real_db: sessionmaker[Session], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _correr(real_db, tmp_path, "--yes", "--max-calls", "3") != 0
+
+    assert Contador.llamadas == 0
+    assert "--max-calls es 3" in capsys.readouterr().err
+
+
+def test_con_yes_sin_max_calls_falla(
+    real_db: sessionmaker[Session], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _correr(real_db, tmp_path, "--yes") != 0
+    assert Contador.llamadas == 0 and "--max-calls" in capsys.readouterr().err
+
+
+def test_con_presupuesto_suficiente_corre_y_guarda(
+    real_db: sessionmaker[Session], tmp_path: Path
+) -> None:
+    plan = llamadas_previstas(cargar(_set(tmp_path)))
+
+    assert _correr(real_db, tmp_path, "--yes", "--max-calls", str(plan)) == 0
+
+    assert 0 < Contador.llamadas <= plan
+    assert (tmp_path / "o" / "prueba.md").exists()
+
+
+def test_el_tope_se_hace_cumplir_durante_la_corrida(
+    real_db: sessionmaker[Session],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("app.eval.cli.llamadas_previstas", lambda _c: 1)
+
+    assert _correr(real_db, tmp_path, "--yes", "--max-calls", "2") == 3
+
+    assert Contador.llamadas == 2
+    assert "tras 2 llamadas" in capsys.readouterr().err
+    assert not (tmp_path / "o").exists()
