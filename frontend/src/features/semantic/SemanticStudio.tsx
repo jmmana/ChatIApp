@@ -7,6 +7,7 @@ import { getSemantic, issuesFrom, listDatasources, publishSemantic } from "./api
 import { ContextTab } from "./ContextTab";
 import { groupIssues, type FieldErrors } from "./errors";
 import { RelationsTab } from "./RelationsTab";
+import { SecurityTab } from "./security/SecurityTab";
 import { selectClass } from "./styles";
 import { TablesTab } from "./TablesTab";
 import type { Datasource, SemanticModel, SemanticVersion } from "./types";
@@ -120,6 +121,7 @@ function Editor({
           <TabsTrigger value="contexto">Contexto</TabsTrigger>
           <TabsTrigger value="tablas">Tablas</TabsTrigger>
           <TabsTrigger value="relaciones">Relaciones</TabsTrigger>
+          <TabsTrigger value="seguridad">Seguridad</TabsTrigger>
           <TabsTrigger value="historial">Historial</TabsTrigger>
         </TabsList>
         <TabsContent value="contexto" className="mt-4">
@@ -130,6 +132,15 @@ function Editor({
         </TabsContent>
         <TabsContent value="relaciones" className="mt-4">
           <RelationsTab model={draft} errors={errors} onChange={setDraft} />
+        </TabsContent>
+        <TabsContent value="seguridad" className="mt-4">
+          <SecurityTab
+            datasourceId={datasource.id}
+            model={draft}
+            errors={errors}
+            dirty={dirty}
+            onChange={setDraft}
+          />
         </TabsContent>
         <TabsContent value="historial" className="mt-4">
           <VersionHistory datasourceId={datasource.id} />
