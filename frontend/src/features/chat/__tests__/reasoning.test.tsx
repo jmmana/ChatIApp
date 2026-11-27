@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Clarification } from "../Clarification";
-import { Reasoning, summarizeSteps } from "../Reasoning";
+import { Reasoning } from "../Reasoning";
 import { initialTurnState, turnReducer, type TurnAction } from "../turnReducer";
 
 // Secuencias grabadas de un turno real (docs/FLUJO_CONVERSACIONAL.md).
@@ -69,7 +69,8 @@ describe("Reasoning", () => {
   });
 
   it("resume en singular", () => {
-    expect(summarizeSteps([{ id: "a", label: "x", status: "done" }])).toBe("1 paso");
+    render(<Reasoning steps={[{ id: "a", label: "x", status: "done" }]} reasoning={null} streaming={false} />);
+    expect(screen.getByRole("button")).toHaveTextContent("Razonamiento: 1 paso");
   });
 });
 

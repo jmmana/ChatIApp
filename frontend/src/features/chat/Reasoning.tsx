@@ -33,7 +33,7 @@ function StepIcon({ status }: { status: StepStatus }): ReactNode {
 }
 
 /** Resumen de una línea para el bloque plegado. */
-export function summarizeSteps(steps: StepData[]): string {
+function summarizeSteps(steps: StepData[]): string {
   const count = steps.length;
   const parts = [count === 1 ? "1 paso" : `${count} pasos`];
   const warnings = steps.filter((s) => s.status === "warning").length;
