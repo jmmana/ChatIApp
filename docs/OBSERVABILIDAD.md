@@ -10,7 +10,7 @@ Para diagnosticar por qué un turno fue lento, caro o falló. Código en `backen
 | `CHATIAPP_LOG_FORMAT` | `json` | `json` (una línea por registro) o `text` |
 | `CHATIAPP_OTEL_ENDPOINT` | vacío | Base OTLP/HTTP (`http://colector:4318`). Sin ella no se exportan trazas |
 | `CHATIAPP_OTEL_SERVICE_NAME` | `chatiapp` | `service.name` de las trazas |
-| `CHATIAPP_METRICS_TOKEN` | vacío | Si se define, `/metrics` exige `Authorization: Bearer <token>` |
+| `CHATIAPP_METRICS_TOKEN` | vacío | Sin token, `/metrics` responde 404 (deshabilitada). Con token exige `Authorization: Bearer <token>` (401 si no coincide) |
 
 ## Logs
 
@@ -37,8 +37,8 @@ Nunca se registran SQL, preguntas ni filas.
 
 ## Métricas
 
-`GET /metrics` (formato Prometheus, fuera de `/api/v1`; protégelo con `CHATIAPP_METRICS_TOKEN` o a
-nivel de red):
+`GET /metrics` (formato Prometheus, fuera de `/api/v1`; está deshabilitada (404) mientras no
+definas `CHATIAPP_METRICS_TOKEN`; con él exige `Authorization: Bearer <token>`):
 
 | Métrica | Tipo | Etiquetas |
 |---|---|---|

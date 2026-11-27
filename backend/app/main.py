@@ -54,13 +54,18 @@ async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
 
 
 def _metrics(request: Request) -> Response:
-    """Exposición Prometheus. Fuera de `/api/v1` porque así la espera el scraper."""
+    """Exposición Prometheus. Fuera de `/api/v1` porque así la espera el scraper.
+
+    Seguro por defecto: sin `CHATIAPP_METRICS_TOKEN` la ruta responde 404, como si no existiera.
+    Con token exige `Authorization: Bearer <token>` (comparación en tiempo constante).
+    """
     token = get_settings().metrics_token
-    if token is not None:
-        sent = request.headers.get("authorization", "")
-        expected = f"Bearer {token.get_secret_value()}"
-        if not hmac.compare_digest(sent.encode(), expected.encode()):
-            return Response(status_code=401, headers={"WWW-Authenticate": "Bearer"})
+    if token is None:
+        return Response(status_code=404)
+    sent = request.headers.get("authorization", "")
+    expected = f"Bearer {token.get_secret_value()}"
+    if not hmac.compare_digest(sent.encode(), expected.encode()):
+        return Response(status_code=401, headers={"WWW-Authenticate": "Bearer"})
     body, content_type = render_metrics()
     return Response(body, media_type=content_type)
 

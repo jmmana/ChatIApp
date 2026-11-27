@@ -15,8 +15,22 @@ def _limpia_ajustes() -> Iterator[None]:
     get_settings.cache_clear()
 
 
-def test_metrics_expone_las_series_en_formato_prometheus() -> None:
-    response = TestClient(create_app()).get("/metrics")
+TOKEN = "token-de-prueba-1234"
+
+
+def test_metrics_sin_token_configurado_responde_404(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CHATIAPP_METRICS_TOKEN", raising=False)
+    client = TestClient(create_app())
+
+    assert client.get("/metrics").status_code == 404
+    assert client.get("/metrics", headers={"Authorization": f"Bearer {TOKEN}"}).status_code == 404
+
+
+def test_metrics_expone_las_series_en_formato_prometheus(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHATIAPP_METRICS_TOKEN", TOKEN)
+    response = TestClient(create_app()).get(
+        "/metrics", headers={"Authorization": f"Bearer {TOKEN}"}
+    )
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/plain")
@@ -31,12 +45,12 @@ def test_metrics_expone_las_series_en_formato_prometheus() -> None:
 
 
 def test_metrics_exige_el_token_si_esta_configurado(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CHATIAPP_METRICS_TOKEN", "token-de-prueba-1234")
+    monkeypatch.setenv("CHATIAPP_METRICS_TOKEN", TOKEN)
     client = TestClient(create_app())
 
     assert client.get("/metrics").status_code == 401
     assert client.get("/metrics", headers={"Authorization": "Bearer otro"}).status_code == 401
-    ok = client.get("/metrics", headers={"Authorization": "Bearer token-de-prueba-1234"})
+    ok = client.get("/metrics", headers={"Authorization": f"Bearer {TOKEN}"})
     assert ok.status_code == 200
 
 

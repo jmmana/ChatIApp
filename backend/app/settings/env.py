@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     log_format: Literal["json", "text"] = "json"
     otel_endpoint: str | None = None
     otel_service_name: str = "chatiapp"
-    # Si se define, `/metrics` exige `Authorization: Bearer <token>`.
+    # Sin token `/metrics` responde 404; con token exige `Authorization: Bearer <token>`.
     metrics_token: SecretStr | None = None
 
     @model_validator(mode="after")
