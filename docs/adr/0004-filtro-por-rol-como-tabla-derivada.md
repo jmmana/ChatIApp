@@ -35,9 +35,19 @@ Se probó con sqlglot 30.35 en joins (`sqlite`), subconsultas en `WHERE` (`mysql
 - el predicado `sucursal_id` aparezca en el plan (el filtro no se pierde), y
 - la lista de operadores sea idéntica en ambas variantes, sin costos ni objetos: PostgreSQL con `EXPLAIN (COSTS OFF)` y SQL Server con `SET SHOWPLAN_TEXT ON`.
 
-Si coinciden, la tabla derivada no agrega operadores (ni `Subquery Scan` ni `Table Spool`): el optimizador empujó el filtro hacia la tabla. Cada ejecución del job `integration` sube los planes completos como artefacto (`planes-integracion`).
+Si coinciden, la tabla derivada no agrega operadores (ni `Subquery Scan` ni `Table Spool`): el optimizador empujó el filtro hacia la tabla. Cada ejecución del job de integración (`.github/workflows/integration.yml`) sube lo capturado como artefacto (`planes-de-ejecucion`).
 
-**Resultado:** pendiente de registrar. La revisión solo se puede ejecutar contra los motores reales del CI; al correr el job por primera vez, quien revisa debe anotar aquí el resultado de cada caso (y, si algún plan difiere, el operador extra y su costo) antes de dar por cerrado el criterio.
+**Resultado (27 de noviembre de 2026, corrida verde de Integración sobre `main`):**
+
+| Caso | PostgreSQL 16 | SQL Server 2022 |
+|---|---|---|
+| `facturas` (conteo) | Mismos operadores con la tabla derivada y con el `WHERE` escrito a mano: `Aggregate` → `Seq Scan on facturas` con `Filter: sucursal_id = ANY ('{1,2}')` y el filtro de estado. | La prueba pasa: lista de operadores idéntica en ambas variantes. |
+| `join` con `sucursales` | `HashAggregate` → `Hash Join` → `Seq Scan on facturas` (con el filtro de sucursal) y `Hash` → `Seq Scan on sucursales`; misma forma en ambas. Solo cambia el calificador de la condición del `Hash Join` (`facturas.sucursal_id` frente a `f.sucursal_id`), que la prueba ignora a propósito. | La prueba pasa: lista de operadores idéntica. |
+| `resumida` (`ventas_diarias`) | Mismos operadores en ambas variantes. | La prueba pasa: lista de operadores idéntica. |
+
+- **PostgreSQL:** el filtro llega hasta el recorrido de la tabla; no aparece `Subquery Scan` y la tabla derivada **no agrega operadores**. No se registró el costo porque el plan se pide con `COSTS OFF`.
+- **SQL Server:** lo comprobado es la aserción de la prueba (operadores idénticos y predicado `sucursal_id` presente, con `SET SHOWPLAN_TEXT ON`). **El artefacto solo guarda el texto de las consultas, no el plan de SQL Server**, así que el plan completo no queda archivado. Si se quiere dejar evidencia, la prueba debe escribir también el `SHOWPLAN_TEXT`.
+- Ningún caso mostró un operador extra (ni `Subquery Scan` ni `Table Spool`) en los dos motores.
 
 ## Alternativas consideradas
 
