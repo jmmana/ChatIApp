@@ -9,7 +9,16 @@ export function useTurn() {
   const controller = useRef<AbortController | null>(null);
   const lastRequest = useRef<ChatRequest | null>(null);
 
-  const cancel = useCallback(() => controller.current?.abort(), []);
+  const cancel = useCallback(() => {
+    const active = controller.current;
+    if (!active || active.signal.aborted) return;
+    active.abort();
+    // Abortar corta el stream sin evento: el estado debe reflejar la cancelación.
+    dispatch({
+      type: "error",
+      data: { code: "cancelled", message: "Turno cancelado.", recoverable: true },
+    });
+  }, []);
 
   const send = useCallback(async (request: ChatRequest) => {
     controller.current?.abort();
