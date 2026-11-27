@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { listDatasources } from "@/features/datasources/api";
 import { listProviders } from "@/features/providers/api";
-import { cancelTurnOnServer, getSemanticInfo } from "./api";
+import { cancelTurnOnServer, getFormatSettings, getMetrics, getRoles } from "./api";
 import { Composer } from "./Composer";
 import { ResultView } from "./results/ResultView";
 import { buildSuggestions } from "./suggestions";
@@ -43,18 +43,28 @@ export function ChatPage() {
   const sources = Array.isArray(datasources.data) ? datasources.data : [];
   const models = Array.isArray(providers.data) ? providers.data : [];
   const selectedSource = datasourceId || sources[0]?.id || "";
-  const semantic = useQuery({
-    queryKey: ["chat-semantic", selectedSource],
-    queryFn: () => getSemanticInfo(selectedSource),
+  const metrics = useQuery({
+    queryKey: ["chat-metrics", selectedSource],
+    queryFn: () => getMetrics(selectedSource),
     enabled: selectedSource !== "",
+  });
+  const formatSettings = useQuery({
+    queryKey: ["chat-format", selectedSource],
+    queryFn: () => getFormatSettings(selectedSource),
+    enabled: selectedSource !== "" && isAdmin,
+  });
+  const roles = useQuery({
+    queryKey: ["chat-roles", selectedSource],
+    queryFn: () => getRoles(selectedSource),
+    enabled: selectedSource !== "" && isAdmin,
   });
 
   const busy = state.status === "streaming";
-  const suggestions = buildSuggestions(semantic.data?.metrics ?? []);
+  const suggestions = buildSuggestions(metrics.data ?? []);
   const format: ResultFormat = {
-    locale: semantic.data?.locale,
-    currency: semantic.data?.currency,
-    metricLabels: Object.fromEntries((semantic.data?.metrics ?? []).map((m) => [m.name, m.label])),
+    locale: formatSettings.data?.locale,
+    currency: formatSettings.data?.currency,
+    metricLabels: Object.fromEntries((metrics.data ?? []).map((m) => [m.name, m.label])),
   };
 
   const ask = useCallback(
@@ -129,7 +139,7 @@ export function ChatPage() {
             onChange={(event) => setRole(event.target.value)}
           >
             <option value="">Rol: el mío</option>
-            {(semantic.data?.roles ?? []).map((name) => (
+            {(roles.data ?? []).map((name) => (
               <option key={name} value={name}>
                 Rol: {name}
               </option>

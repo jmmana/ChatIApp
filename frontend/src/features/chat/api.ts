@@ -3,41 +3,60 @@ import { apiFetch } from "@/features/auth/api";
 export interface MetricInfo {
   name: string;
   label: string;
+  description?: string | null;
   requires_period?: boolean;
+  default_period?: string | null;
+  dimensions?: string[];
 }
 
-export interface SemanticInfo {
-  metrics: MetricInfo[];
-  roles: string[];
-  locale?: string;
-  currency?: string;
+/**
+ * Métricas que el rol de la persona puede consultar (cualquier usuario con acceso a la fuente).
+ * Sin acceso o sin modelo responde 404: no hay nada que sugerir.
+ */
+export async function getMetrics(datasourceId: string): Promise<MetricInfo[]> {
+  try {
+    const response = await apiFetch(`/api/v1/datasources/${datasourceId}/metrics`);
+    if (!response.ok) return [];
+    const data = (await response.json()) as { metrics?: MetricInfo[] };
+    return data.metrics ?? [];
+  } catch {
+    return [];
+  }
 }
 
 interface SemanticOut {
   model?: {
     settings?: { locale?: string; currency?: string };
-    metrics?: MetricInfo[];
     security?: { roles?: { name: string }[] };
   } | null;
 }
 
-/**
- * Métricas y roles del modelo vigente. Leer el modelo exige administrador (403 para los demás) y
- * una fuente sin modelo responde 404: en ambos casos no hay nada que sugerir.
- */
-export async function getSemanticInfo(datasourceId: string): Promise<SemanticInfo> {
+export interface FormatSettings {
+  locale?: string;
+  currency?: string;
+}
+
+/** Configuración regional del modelo (solo administradores pueden leerlo; los demás usan el valor por defecto). */
+export async function getFormatSettings(datasourceId: string): Promise<FormatSettings> {
   try {
     const response = await apiFetch(`/api/v1/datasources/${datasourceId}/semantic`);
-    if (!response.ok) return { metrics: [], roles: [] };
+    if (!response.ok) return {};
     const data = (await response.json()) as SemanticOut;
-    return {
-      metrics: data.model?.metrics ?? [],
-      roles: (data.model?.security?.roles ?? []).map((role) => role.name),
-      locale: data.model?.settings?.locale,
-      currency: data.model?.settings?.currency,
-    };
+    return { locale: data.model?.settings?.locale, currency: data.model?.settings?.currency };
   } catch {
-    return { metrics: [], roles: [] };
+    return {};
+  }
+}
+
+/** Roles del modelo vigente, para «ver como». Leer el modelo completo exige administrador. */
+export async function getRoles(datasourceId: string): Promise<string[]> {
+  try {
+    const response = await apiFetch(`/api/v1/datasources/${datasourceId}/semantic`);
+    if (!response.ok) return [];
+    const data = (await response.json()) as SemanticOut;
+    return (data.model?.security?.roles ?? []).map((role) => role.name);
+  } catch {
+    return [];
   }
 }
 
