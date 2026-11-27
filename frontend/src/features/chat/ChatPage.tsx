@@ -8,6 +8,7 @@ import { listProviders } from "@/features/providers/api";
 import { Clarification } from "./Clarification";
 import { cancelTurnOnServer, getMetrics, getRoles } from "./api";
 import { Composer } from "./Composer";
+import { SqlBlock } from "./SqlBlock";
 import { Reasoning } from "./Reasoning";
 import { buildSuggestions } from "./suggestions";
 import type { TurnState } from "./turnReducer";
@@ -194,6 +195,7 @@ function Exchange({ question, turn, onOption, live = false }: ExchangeProps) {
           Pensando…
         </p>
       )}
+      {turn.sql && <SqlBlock sql={turn.sql} streaming={turn.status === "streaming"} />}
       {text && <p className="whitespace-pre-wrap">{text}</p>}
       {live && turn.status === "clarifying" && turn.clarification && (
         <Clarification
