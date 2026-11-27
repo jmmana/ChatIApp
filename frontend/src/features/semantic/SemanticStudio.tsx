@@ -8,6 +8,7 @@ import { ContextTab } from "./ContextTab";
 import { groupIssues, type FieldErrors } from "./errors";
 import { RelationsTab } from "./RelationsTab";
 import { selectClass } from "./styles";
+import { SuggestPanel } from "./suggest/SuggestPanel";
 import { TablesTab } from "./TablesTab";
 import type { Datasource, SemanticModel, SemanticVersion } from "./types";
 import { VersionHistory } from "./VersionHistory";
@@ -88,6 +89,10 @@ function Editor({
           {publish.isPending ? "Publicando…" : "Publicar"}
         </Button>
       </div>
+
+      {baseVersion > 0 && (
+        <SuggestPanel datasourceId={datasource.id} model={draft} onChange={setDraft} />
+      )}
 
       {conflict !== null && (
         <div
