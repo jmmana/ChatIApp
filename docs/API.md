@@ -49,6 +49,14 @@ Detalle y ejemplos: [INTEGRACION.md](INTEGRACION.md).
 
 Ver la lista exige sesión; crear, cambiar, borrar y probar la conexión exigen administrador (403 `forbidden` si no).
 
+## Métricas sugeridas
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/v1/datasources/{id}/metrics` | Métricas que el rol del usuario puede consultar, para sugerir preguntas. Basta con sesión (no exige administrador) |
+
+Responde `{metrics: [{name, label, description, requires_period, default_period, dimensions}]}`. Solo incluye las métricas cuya tabla no está oculta para el rol del usuario (el rol de su permiso; para administradores sin permiso, el rol por defecto del modelo). `dimensions` son nombres para mostrar (primer sinónimo de la columna o su nombre legible), sin las de tablas o columnas ocultas. No trae SQL, expresiones, filtros, tablas ni columnas físicas. Una fuente inexistente, sin modelo o sin permiso para el usuario responde la misma `404 datasource_not_found`.
+
 ## Modelo semántico
 
 | Método | Ruta | Descripción |

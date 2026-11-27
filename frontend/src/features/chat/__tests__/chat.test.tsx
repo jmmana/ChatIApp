@@ -35,8 +35,8 @@ function sse(events: [string, unknown][], keepOpen: boolean) {
   return new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } });
 }
 
-function stubApi(options: { keepOpen?: boolean } = {}) {
-  const { keepOpen = false } = options;
+function stubApi(options: { keepOpen?: boolean; isAdmin?: boolean } = {}) {
+  const { keepOpen = false, isAdmin = true } = options;
   const calls: { url: string; method: string; body?: string }[] = [];
   vi.stubGlobal(
     "fetch",
@@ -46,7 +46,7 @@ function stubApi(options: { keepOpen?: boolean } = {}) {
         return json({
           access_token: "jwt",
           expires_in: 900,
-          user: { id: "1", email: "ana@example.com", is_admin: true },
+          user: { id: "1", email: "ana@example.com", is_admin: isAdmin },
         });
       if (url.endsWith("/chat/stream"))
         return sse(
@@ -66,6 +66,7 @@ function stubApi(options: { keepOpen?: boolean } = {}) {
         );
       if (url.includes("/cancel")) return json({ turn_id: "t1", status: "cancelled" });
       if (url.endsWith("/semantic")) return json(semantic);
+      if (url.endsWith("/metrics")) return json({ metrics: semantic.model.metrics });
       if (url.endsWith("/api/v1/datasources"))
         return json([{ id: "ds1", name: "Ventas", dialect: "sqlite" }]);
       if (url.endsWith("/api/v1/providers"))
@@ -114,6 +115,17 @@ describe("ChatPage", () => {
     expect(await screen.findByRole("combobox", { name: "Fuente de datos" })).toHaveValue("ds1");
     expect(screen.getByRole("combobox", { name: "Modelo de IA" })).toBeInTheDocument();
     expect(await screen.findByRole("combobox", { name: "Rol" })).toBeInTheDocument();
+  });
+
+  it("quien no es administrador recibe sugerencias sin leer el modelo completo", async () => {
+    const calls = stubApi({ isAdmin: false });
+    renderPage();
+    expect(
+      await screen.findByRole("button", { name: "Muéstrame ventas netas de este mes" }),
+    ).toBeInTheDocument();
+    expect(calls.some((c) => c.url.endsWith("/metrics"))).toBe(true);
+    expect(calls.some((c) => c.url.endsWith("/semantic"))).toBe(false);
+    expect(screen.queryByRole("combobox", { name: "Rol" })).not.toBeInTheDocument();
   });
 
   it("una pregunta sugerida se envía como mensaje", async () => {
