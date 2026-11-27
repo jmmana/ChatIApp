@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api";
 import { getSemantic, issuesFrom, listDatasources, publishSemantic } from "./api";
 import { ContextTab } from "./ContextTab";
 import { groupIssues, type FieldErrors } from "./errors";
+import { ImportTab } from "./import/ImportTab";
 import { RelationsTab } from "./RelationsTab";
 import { selectClass } from "./styles";
 import { TablesTab } from "./TablesTab";
@@ -33,6 +34,7 @@ function Editor({
   const [conflict, setConflict] = useState<number | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [reloading, setReloading] = useState(false);
+  const [tab, setTab] = useState("tablas");
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(baseline);
   const errorCount = Object.values(errors).reduce((sum, list) => sum + list.length, 0);
@@ -60,6 +62,13 @@ function Editor({
       }
     },
   });
+
+  /** El modelo fusionado pasa a ser el borrador: queda sin publicar hasta pulsar «Publicar». */
+  function applyImport(model: SemanticModel) {
+    setDraft(model);
+    setErrors({});
+    setTab("tablas");
+  }
 
   async function reload() {
     setReloading(true);
@@ -115,13 +124,17 @@ function Editor({
         </p>
       )}
 
-      <Tabs defaultValue="tablas">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="contexto">Contexto</TabsTrigger>
           <TabsTrigger value="tablas">Tablas</TabsTrigger>
           <TabsTrigger value="relaciones">Relaciones</TabsTrigger>
+          <TabsTrigger value="importar">Importar</TabsTrigger>
           <TabsTrigger value="historial">Historial</TabsTrigger>
         </TabsList>
+        <TabsContent value="importar" className="mt-4">
+          <ImportTab datasource={datasource} onApply={applyImport} />
+        </TabsContent>
         <TabsContent value="contexto" className="mt-4">
           <ContextTab model={draft} errors={errors} onChange={setDraft} />
         </TabsContent>
