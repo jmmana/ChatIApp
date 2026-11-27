@@ -48,6 +48,11 @@ export class ChatiappChatElement extends HTMLElement {
   private readonly mount: HTMLDivElement;
   private tokenProvider: GetToken | undefined;
   private questions: string[] | undefined;
+  /** Siempre la misma función: lee el `getToken` vigente al pedir el token. */
+  private readonly provideToken: GetToken = () => {
+    if (!this.tokenProvider) throw new Error("getToken no está definido");
+    return this.tokenProvider();
+  };
 
   constructor() {
     super();
@@ -76,6 +81,12 @@ export class ChatiappChatElement extends HTMLElement {
   set suggestedQuestions(value: string[] | undefined) {
     this.questions = value;
     this.render();
+  }
+
+  /** Lo mismo que asignar las propiedades, para quien envuelve el elemento (React). */
+  configure(options: { getToken?: GetToken; suggestedQuestions?: string[] }): void {
+    this.tokenProvider = options.getToken;
+    this.suggestedQuestions = options.suggestedQuestions;
   }
 
   connectedCallback(): void {
@@ -110,11 +121,7 @@ export class ChatiappChatElement extends HTMLElement {
     this.root.render(
       createElement(EmbeddedChat, {
         baseUrl: this.getAttribute("base-url") ?? "",
-        // Un solo getToken estable: el valor vigente se lee al pedir el token.
-        getToken: () => {
-          if (!this.tokenProvider) throw new Error("getToken no está definido");
-          return this.tokenProvider();
-        },
+        getToken: this.provideToken,
         lang: parseLang(this.getAttribute("lang")),
         showSql: flag(this.getAttribute("show-sql")),
         showReasoning: flag(this.getAttribute("show-reasoning")),

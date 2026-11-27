@@ -66,12 +66,9 @@ export function EmbeddedChat({
   onError,
 }: EmbeddedChatProps) {
   const text = MESSAGES[lang];
-  // El token vive en una ref: cambiar `getToken` no pierde el token ni la conversación.
-  const getTokenRef = useRef(getToken);
-  useEffect(() => {
-    getTokenRef.current = getToken;
-  });
-  const tokens = useMemo(() => createTokenSource(() => getTokenRef.current), []);
+  // `getToken` debe ser estable (el elemento entrega siempre la misma función): así el token
+  // guardado y la conversación sobreviven a los renders.
+  const tokens = useMemo(() => createTokenSource(() => getToken), [getToken]);
   const authorize = useCallback((force: boolean) => tokens.get(force), [tokens]);
 
   const { state, send, cancel } = useTurn({ baseUrl: baseUrl.replace(/\/+$/, ""), authorize });

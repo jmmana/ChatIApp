@@ -24,6 +24,7 @@ from app.api import (
     semantic,
     users,
 )
+from app.api.embed import mount_embed_assets
 from app.api.errors import register_error_handlers
 from app.db.session import get_engine
 from app.integrations.cors import EmbedCORSMiddleware
@@ -108,6 +109,7 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     if static_dir is None and (env_dir := os.environ.get("CHATIAPP_STATIC_DIR")):
         static_dir = Path(env_dir)
     if static_dir is not None:
+        mount_embed_assets(application, static_dir)
         mount_web(application, static_dir)
     return application
 

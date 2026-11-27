@@ -1,4 +1,4 @@
-import { createElement, useEffect, useRef } from "react";
+import { createElement, useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import type { AnswerDetail, ClarificationDetail, ErrorDetail } from "../../src/EmbeddedChat";
 import { ChatiappChatElement, defineChatiappChat, TAG_NAME } from "../../src/element";
@@ -40,17 +40,14 @@ export function ChatIAppChat({
   style,
 }: ChatIAppChatProps) {
   defineChatiappChat();
-  const ref = useRef<ChatiappChatElement>(null);
+  const [element, setElement] = useState<ChatiappChatElement | null>(null);
 
   useEffect(() => {
-    const element = ref.current;
     if (!element) return;
-    element.getToken = getToken;
-    element.suggestedQuestions = suggestedQuestions;
-  }, [getToken, suggestedQuestions]);
+    element.configure({ getToken, suggestedQuestions });
+  }, [element, getToken, suggestedQuestions]);
 
   useEffect(() => {
-    const element = ref.current;
     if (!element) return;
     const listeners: [string, ((detail: never) => void) | undefined][] = [
       ["chatiapp:answer", onAnswer],
@@ -63,10 +60,10 @@ export function ChatIAppChat({
       return () => element.removeEventListener(name, listener);
     });
     return () => bound.forEach((unbind) => unbind());
-  }, [onAnswer, onClarification, onError]);
+  }, [element, onAnswer, onClarification, onError]);
 
   return createElement(TAG_NAME, {
-    ref,
+    ref: setElement,
     "base-url": baseUrl,
     lang,
     theme,
