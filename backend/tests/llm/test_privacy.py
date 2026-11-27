@@ -130,9 +130,7 @@ def test_classify_reconoce_las_categorias() -> None:
 
 @pytest.mark.parametrize("level", LEVELS)
 @pytest.mark.parametrize("task", ["planner", "sql", "answer", "suggest"])
-def test_lo_enviado_respeta_el_nivel(
-    model: SemanticModel, level: Privacy, task: str
-) -> None:
+def test_lo_enviado_respeta_el_nivel(model: SemanticModel, level: Privacy, task: str) -> None:
     provider, log = Proveedor(), PrivacyLog()
     _run_task(task, model, level, provider, log)
     enviado = provider.texto()
@@ -150,7 +148,7 @@ def test_lo_enviado_respeta_el_nivel(
         assert SAMPLE not in enviado
         assert str(ROW_VALUE) not in enviado
         assert "Fila:" not in enviado
-        assert "sample_value" not in log.categories()
+        assert "sample_values" not in log.categories()
         assert "result_rows" not in log.categories()
     if level == "aggregates":
         assert SAMPLE not in enviado
