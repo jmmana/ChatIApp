@@ -158,6 +158,16 @@ def test_modelos_ollama() -> None:
     result = list_models(provider, transport=_transport(200, body, seen))
     assert result.models == ["llama3.1:latest", "qwen2.5:7b"]
     assert seen[0].url.path == "/api/tags"
+    assert seen[0].headers["authorization"] == f"Bearer {SECRET}"
+
+
+def test_modelos_ollama_sin_clave_no_envia_authorization() -> None:
+    seen: list[httpx.Request] = []
+    provider = ProviderConfig(
+        kind="ollama", model="llama3.1", config={"api_base": "http://localhost:11434"}, secrets={}
+    )
+    list_models(provider, transport=_transport(200, {"models": []}, seen))
+    assert "authorization" not in seen[0].headers
 
 
 @pytest.mark.parametrize("kind", ["bedrock", "azure_openai", "vertex_ai", "doubao"])

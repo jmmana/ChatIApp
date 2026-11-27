@@ -6,8 +6,9 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+from sqlalchemy import create_engine
 
-from app.demo.seed import generar
+from app.demo.seed import cargar, generar
 
 HASTA = date(2026, 11, 25)
 EJEMPLOS = Path(__file__).resolve().parents[3] / "examples" / "ventas"
@@ -179,8 +180,55 @@ def _base_generada(conn: sqlite3.Connection) -> dict[str, set[str]]:
     return {t: {r[1] for r in conn.execute(f"PRAGMA table_info({t})")} for t in nombres}
 
 
+def test_cargar_con_sqlalchemy_deja_los_mismos_datos(
+    db_path: Path, tmp_path: Path, conn: sqlite3.Connection
+) -> None:
+    # `cargar` es el camino de las pruebas multimotor: aquí se comprueba sobre SQLite.
+    otra = tmp_path / "sqlalchemy.db"
+    engine = create_engine(f"sqlite:///{otra}")
+    try:
+        cargar(engine, seed=42, hasta=HASTA)
+    finally:
+        engine.dispose()
+    copia = sqlite3.connect(otra)
+    try:
+        for tabla in TABLAS:
+            consulta = f"SELECT * FROM {tabla} ORDER BY 1, 2"
+            assert copia.execute(consulta).fetchall() == conn.execute(consulta).fetchall(), tabla
+        assert copia.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        copia.close()
+
+
 def test_modelo_semantico_y_ddl_describen_la_base(conn: sqlite3.Connection) -> None:
     generada = _base_generada(conn)
     assert set(generada) == set(TABLAS)
     assert _modelo_semantico() == generada
     assert _esquema_sql() == generada
+
+
+def test_cargar_rechaza_una_base_que_no_parece_de_pruebas(monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+
+    from app.demo.seed import cargar
+
+    # Un motor falso: no hace falta el driver de PostgreSQL para probar la protección.
+    falso = SimpleNamespace(
+        url=SimpleNamespace(database="produccion"), dialect=SimpleNamespace(name="postgresql")
+    )
+    with pytest.raises(ValueError, match="debe tener la palabra"):
+        cargar(falso)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("nombre", ["chatiapp_it", "test-db", "demo", "IT", "ventas_test_2026"])
+def test_reconoce_bases_de_pruebas(nombre: str) -> None:
+    from app.demo.seed import es_base_de_pruebas
+
+    assert es_base_de_pruebas(nombre)
+
+
+@pytest.mark.parametrize("nombre", ["produccion", "capital", "audit", "digital", "units", "", None])
+def test_no_confunde_fragmentos_con_bases_de_pruebas(nombre: str | None) -> None:
+    from app.demo.seed import es_base_de_pruebas
+
+    assert not es_base_de_pruebas(nombre)

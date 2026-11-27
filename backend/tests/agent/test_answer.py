@@ -88,9 +88,7 @@ def test_la_respuesta_de_la_ia_siempre_menciona_el_periodo(
     assert "".join(deltas) == writer.text
 
 
-def test_el_prompt_lleva_locale_y_moneda_del_modelo(
-    model: SemanticModel, ventas: Metric
-) -> None:
+def test_el_prompt_lleva_locale_y_moneda_del_modelo(model: SemanticModel, ventas: Metric) -> None:
     gateway = EspiaGateway("ok Marzo 2026")
 
     _redactar(gateway, model, "aggregates", _outcome(ventas))
@@ -136,9 +134,7 @@ def test_la_plantilla_formatea_con_locale_y_moneda(ventas: Metric) -> None:
 
     assert template_answer(outcome, locale="es-CO", currency="COP").endswith("$1.234.567,50.")
     assert template_answer(outcome, locale="en-US", currency="USD").endswith("US$1,234,567.50.")
-    assert template_answer(outcome, locale="de-DE", currency="EUR").endswith(
-        "1.234.567,50 €."
-    )
+    assert template_answer(outcome, locale="de-DE", currency="EUR").endswith("1.234.567,50 €.")
 
 
 def test_format_value_sin_metrica_ni_numero() -> None:

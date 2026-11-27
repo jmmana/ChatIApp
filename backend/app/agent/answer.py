@@ -14,7 +14,8 @@ from typing import Any
 from app.agent.events import AnswerDelta, Event
 from app.engine.compare import Comparison
 from app.engine.periods import PeriodRange
-from app.llm.gateway import Gateway, GatewayError, Usage
+from app.llm.gateway import GatewayError, Usage
+from app.llm.routing import LlmClient
 from app.semantic.context import Privacy
 from app.semantic.schema import Metric, SemanticModel
 
@@ -165,7 +166,7 @@ class AnswerWriter:
     """Redacta la respuesta de un turno; tras `stream`, `text`, `usage` y `warning` están listos."""
 
     def __init__(
-        self, gateway: Gateway, model: SemanticModel, privacy: Privacy, question: str
+        self, gateway: LlmClient, model: SemanticModel, privacy: Privacy, question: str
     ) -> None:
         self.gateway = gateway
         self.privacy = privacy
