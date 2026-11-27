@@ -2,7 +2,7 @@
 
 ChatIApp se distribuye como contenedores que corren en **tu** infraestructura. Puedes usar la aplicación completa, o integrarla dentro de tu propio producto: tu backend le hace preguntas por API, o tu frontend muestra el chat embebido, con tu marca y tus usuarios.
 
-> Estado: **diseño**. Este documento es el contrato de la épica de integración (hito M3). Decisión de fondo: [ADR 0007](adr/0007-api-keys-y-tokens-de-sesion.md).
+> Estado: **ejemplo ejecutable**. La app anfitriona mínima está en [`examples/integracion/`](../examples/integracion/). Decisión de fondo: [ADR 0007](adr/0007-api-keys-y-tokens-de-sesion.md).
 
 ## Tres formas de usarlo
 
@@ -163,6 +163,45 @@ for await (const event of client.chatStream({ datasource: "ventas", message: "¿
 ```
 
 ## Chat embebido
+
+### Ejemplo ejecutable
+
+El ejemplo incluye una app FastAPI anfitriona con su propio login. Los usuarios `andino` y
+`medellin` tienen asignadas, respectivamente, las sucursales 1 (Bogotá Andino) y 4 (Medellín El
+Tesoro); la contraseña de demostración es `demo-andino` o `demo-medellin`. No reutilices estas
+credenciales en un despliegue real.
+
+Antes de arrancar, crea `.env` con credenciales de administrador de demostración de ChatIApp
+(nunca se envían al navegador):
+
+```dotenv
+CHATIAPP_ADMIN_EMAIL=admin@example.com
+CHATIAPP_ADMIN_PASSWORD=pon-aqui-una-clave-local-de-prueba
+```
+
+Arranca ChatIApp y la app anfitriona:
+
+```bash
+docker compose --profile integracion up --build
+```
+
+Abre <http://localhost:8081>, inicia sesión con uno de los usuarios anteriores y pregunta por las
+ventas. El servicio anfitrión crea una API key con alcance `embed`, fuente y origen limitados; la
+usa únicamente desde su backend para emitir el token corto. La API key de administración y la key
+de integración deben estar disponibles en `.env` o en el gestor de secretos del despliegue; nunca
+las incluyas en el HTML, el script o el navegador.
+
+ChatIApp prepara la base SQLite de ventas, pero no configura un proveedor de IA: para obtener
+respuestas en vivo, configura uno desde la interfaz de administración. La prueba E2E usa el
+proveedor simulado y SQLite, por lo que no necesita red ni credenciales de IA:
+
+```bash
+cd backend
+PYTHONPATH=.. uv run pytest tests/integrations/test_embed_sessions.py -k app_anfitriona
+```
+
+La prueba recorre login, emisión de token y chat para ambos usuarios, y comprueba también que la
+API key no aparece en el HTML, el script ni la respuesta de token entregados al navegador.
 
 ### Cómo se obtiene el token
 

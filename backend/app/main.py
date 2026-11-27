@@ -24,6 +24,7 @@ from app.api import (
     providers,
     semantic,
     users,
+    widget,
 )
 from app.api.errors import register_error_handlers
 from app.db.session import get_engine
@@ -127,6 +128,7 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     application.include_router(conversations.router, prefix=API_PREFIX)
     # Emisión de tokens de sesión: solo API key con alcance `embed` (`require_scope`).
     application.include_router(embed.router, prefix=API_PREFIX)
+    application.include_router(widget.router)
     register_error_handlers(application)
     # CORS solo para los orígenes permitidos de las keys con alcance `embed`.
     application.add_middleware(EmbedCORSMiddleware, prefix=API_PREFIX)

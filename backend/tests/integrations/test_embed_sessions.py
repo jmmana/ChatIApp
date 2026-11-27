@@ -1,5 +1,6 @@
 import importlib
 import json
+import sys
 import uuid
 from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
@@ -30,6 +31,7 @@ from app.semantic.schema import parse_semantic_model
 from app.settings.registry import datasource_uuid
 
 EXAMPLE = Path(__file__).parents[3] / "examples" / "ventas" / "semantic-model.yaml"
+HOST_APP_PATH = Path(__file__).parents[3] / "examples" / "integracion" / "app.py"
 CIPHER = make_cipher("clave-de-prueba")
 ORIGIN = "https://portal.example.com"
 OTRO_ORIGEN = "https://sitio-ajeno.example.org"
@@ -41,6 +43,12 @@ PLAN = {
     "period_text": "2026",
 }
 GERENTE = {"id": "u-1", "role": "gerente_sucursal", "attributes": {"sucursales": [1]}}
+
+_host_spec = importlib.util.spec_from_file_location("chatiapp_example_host", HOST_APP_PATH)
+assert _host_spec is not None and _host_spec.loader is not None
+_host_module = importlib.util.module_from_spec(_host_spec)
+sys.modules[_host_spec.name] = _host_module
+_host_spec.loader.exec_module(_host_module)
 
 
 @pytest.fixture(autouse=True)
@@ -148,6 +156,13 @@ def _stream(client: TestClient, token: str, **extra: Any) -> Any:
     return client.post(f"{API_PREFIX}/chat/stream", json=body, headers=_auth(token))
 
 
+def _event(response: Any, event_type: str) -> dict[str, Any]:
+    for frame in response.text.split("\n\n"):
+        if frame.startswith(f"event: {event_type}\n"):
+            return json.loads(frame.split("\ndata: ", 1)[1])
+    raise AssertionError(f"No se recibió el evento {event_type}.")
+
+
 # --- POST /embed/sessions -------------------------------------------------------------------
 
 
@@ -252,6 +267,54 @@ def test_el_token_sirve_para_chatear_y_guarda_la_conversacion_del_usuario_final(
     assert [c["id"] for c in listado.json()] == [str(conversation.id)]
     detalle = client.get(f"{API_PREFIX}/conversations/{conversation.id}", headers=_auth(token))
     assert detalle.status_code == 200 and len(detalle.json()["messages"]) == 2
+
+
+def test_app_anfitriona_aisla_sucursales_y_no_expone_la_key(
+    client: TestClient, session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, secret = _key(session)
+    monkeypatch.setattr(_host_module, "APP_ORIGIN", ORIGIN)
+
+    def emitir_token(url: str, payload: dict[str, Any], bearer: str) -> dict[str, Any]:
+        assert url.endswith("/api/v1/embed/sessions")
+        assert bearer == secret
+        response = client.post(
+            f"{API_PREFIX}/embed/sessions",
+            json=payload,
+            headers=_auth(bearer, None),
+        )
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    monkeypatch.setattr(_host_module, "_request_json", emitir_token)
+    host = _host_module.create_app(api_key=secret, datasource_id="ventas")
+    resultados = []
+    recursos = []
+
+    for username, password in (("andino", "demo-andino"), ("medellin", "demo-medellin")):
+        with TestClient(host) as browser:
+            login_page = browser.get("/login")
+            assert login_page.status_code == 200
+            login = browser.post("/login", data={"username": username, "password": password})
+            assert login.status_code == 200
+            page = browser.get("/")
+            assert "<chatiapp-chat" in page.text
+            assert browser.post("/chatiapp-token").status_code == 403
+            token_response = browser.post("/chatiapp-token", headers={"Origin": ORIGIN})
+            assert token_response.status_code == 200
+            token = token_response.json()["token"]
+            stream = _stream(client, token)
+            assert stream.status_code == 200
+            recursos.extend((login_page.text, page.text, token_response.text, stream.text))
+            resultados.append(_event(stream, "result")["rows"])
+
+    widget = client.get("/embed/v1/chatiapp.js")
+    assert widget.status_code == 200
+    recursos.append(widget.text)
+    assert all(secret not in recurso for recurso in recursos)
+    assert resultados[0] != resultados[1]
+    assert resultados[0][0][0] == "Bogotá Andino"
+    assert resultados[1][0][0] == "Medellín El Tesoro"
 
 
 # --- Garantía 1: no puede cambiar de fuente, de rol ni de atributos ---------------------------
