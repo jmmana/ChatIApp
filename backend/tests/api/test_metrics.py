@@ -94,7 +94,14 @@ def test_administrador_ve_las_metricas_con_el_rol_por_defecto(
     response = _get(client, datasource_id)
     assert response.status_code == 200, response.text
     metrics = {m["name"]: m for m in response.json()["metrics"]}
-    assert set(metrics) == {"ventas_netas", "ventas_sin_iva", "num_facturas"}
+    assert set(metrics) == {
+        "ventas_netas",
+        "ventas_sin_iva",
+        "num_facturas",
+        "ticket_promedio",
+        "unidades_vendidas",
+        "clientes_activos",
+    }
     ventas = metrics["ventas_netas"]
     assert ventas["label"] == "Ventas netas"
     assert ventas["description"]
@@ -112,6 +119,9 @@ def test_gerente_con_sucursales_ve_sus_metricas(
         "ventas_netas",
         "ventas_sin_iva",
         "num_facturas",
+        "ticket_promedio",
+        "unidades_vendidas",
+        "clientes_activos",
     ]
 
 
