@@ -38,6 +38,36 @@ export interface SemanticSettings {
   week_starts_on?: Weekday;
 }
 
+export interface SemanticMetric {
+  name: string;
+  label: string;
+  table: string;
+  [other: string]: unknown;
+}
+
+export interface SemanticSummaryTable {
+  table: string;
+  metrics?: Record<string, string>;
+  [other: string]: unknown;
+}
+
+export interface RoleFilter {
+  table: string;
+  condition: string;
+}
+
+export interface SecurityRole {
+  name: string;
+  description?: string | null;
+  filters?: RoleFilter[];
+  hidden_tables?: string[];
+}
+
+export interface SemanticSecurity {
+  default_role?: string | null;
+  roles?: SecurityRole[];
+}
+
 /** Modelo semántico (docs/MODELO_SEMANTICO.md). Los campos que la pantalla no edita se conservan. */
 export interface SemanticModel {
   version: 1;
@@ -46,6 +76,9 @@ export interface SemanticModel {
   settings?: SemanticSettings;
   tables?: SemanticTable[];
   relationships?: SemanticRelationship[];
+  metrics?: SemanticMetric[];
+  summary_tables?: SemanticSummaryTable[];
+  security?: SemanticSecurity;
   [other: string]: unknown;
 }
 

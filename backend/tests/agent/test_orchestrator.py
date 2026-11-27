@@ -578,6 +578,64 @@ def test_un_rechazo_del_guardian_se_cuenta_en_las_metricas(
     assert _sample("chatiapp_turns_total", {"outcome": "error"}) == errors + 1
 
 
+DATE_FILTER_PLAN = {
+    **METRIC_PLAN,
+    "filters": [{"field": "facturas.fecha", "op": ">=", "value": "2026-11-01"}],
+}
+
+
+def test_plan_con_filtro_de_fecha_se_corrige_con_un_reintento(
+    session: Session, model: SemanticModel, demo_url: str, query_executor: QueryExecutor
+) -> None:
+    datasource = _datasource(session)
+    conversation = _conversation(session, datasource)
+    seen: list[list[dict[str, str]]] = []
+
+    class Spy(Gateway):
+        def complete(self, messages: list[dict[str, str]], **params: Any) -> Any:
+            seen.append(messages)
+            return super().complete(messages, **params)
+
+    texts = [json.dumps(DATE_FILTER_PLAN), json.dumps(METRIC_PLAN), "Buenas ventas."]
+    gateway = Spy(ProviderConfig("fake", "fake-1", {"responses": texts}))
+    orchestrator = _orchestrator(session, model, datasource, gateway, demo_url, query_executor)
+
+    events = _turn(orchestrator, conversation, "¿Cuánto vendí este mes?")
+
+    assert "error" not in _types(events)
+    assert "sql" in _types(events) and "result" in _types(events)
+    steps = [(e.data.id, e.data.status) for e in events if isinstance(e.data, Step)]
+    assert ("replan", "warning") in steps
+    assert steps.index(("replan", "warning")) < steps.index(("verify", "done"))
+    retry = seen[1][-1]["content"]
+    assert "<plan_rechazado>" in retry and "<error>" in retry and "facturas.fecha" in retry
+    assert len(seen) == 2  # plan y reintento; la respuesta se redacta con stream
+
+
+def test_dos_planes_invalidos_terminan_con_invalid_plan_tras_un_reintento(
+    session: Session, model: SemanticModel, demo_url: str, query_executor: QueryExecutor
+) -> None:
+    datasource = _datasource(session)
+    conversation = _conversation(session, datasource)
+    calls: list[int] = []
+
+    class Spy(Gateway):
+        def complete(self, messages: list[dict[str, str]], **params: Any) -> Any:
+            calls.append(1)
+            return super().complete(messages, **params)
+
+    config = {"responses": [json.dumps(DATE_FILTER_PLAN)]}
+    gateway = Spy(ProviderConfig("fake", "fake-1", config))
+    orchestrator = _orchestrator(session, model, datasource, gateway, demo_url, query_executor)
+
+    events = _turn(orchestrator, conversation, "¿Cuánto vendí este mes?")
+
+    error = _of(events, "error")[0]
+    assert error["code"] == "invalid_plan" and error["recoverable"] is True
+    assert "sql" not in _types(events) and _types(events)[-1] == "turn.completed"
+    assert len(calls) == 2  # el plan y un solo reintento
+
+
 def _plan_con_dimensiones(*dimensions: str) -> dict[str, Any]:
     return {**METRIC_PLAN, "dimensions": list(dimensions)}
 

@@ -45,6 +45,8 @@ stateDiagram-v2
 
 La salida de **Entender** es un JSON que se valida con Pydantic. Si no es JSON válido o no cumple el esquema, se reintenta una vez con el error; si vuelve a fallar, el turno termina con un error claro.
 
+**Reintento del plan.** Si la **Verificación** rechaza el plan con un `invalid_plan` que el modelo puede corregir (filtro sobre una columna de fecha, dimensión o métrica inexistente, valor fuera del catálogo), el orquestador emite un `step` `replan` en estado `warning` («Corrigiendo el plan») y pide **un solo reintento** al planificador. Le envía el plan rechazado y el mensaje exacto del error dentro de `<plan_rechazado>` y `<error>`, escapados como datos igual que en **Reparar**, y cuenta ese uso en los tokens del turno. Si el segundo plan también falla (o no es un plan de métrica), el turno termina con el mismo `invalid_plan` recuperable; no hay tercer intento y no se omite ninguna verificación ni el guardián.
+
 ```json
 {
   "intent": "metric",

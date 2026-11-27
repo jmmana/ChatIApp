@@ -5,19 +5,20 @@ import { vi } from "vitest";
 import { App } from "./App";
 import { appRoutes } from "./routes";
 
-const session = {
-  access_token: "jwt",
-  expires_in: 900,
-  user: { id: "1", email: "ana@example.com", is_admin: false },
-};
+let isAdmin = true;
 
 beforeEach(() => {
+  isAdmin = true;
   // La cookie de refresco vigente: la app recupera la sesión al abrir.
   vi.stubGlobal(
     "fetch",
     vi.fn(
       async (url: string) => {
-        let body: unknown = session;
+        let body: unknown = {
+          access_token: "jwt",
+          expires_in: 900,
+          user: { id: "1", email: "ana@example.com", is_admin: isAdmin },
+        };
         if (url.includes("/datasources") || url.includes("/providers")) body = [];
         else if (url.includes("/audit")) body = { items: [], total: 0, page: 1, page_size: 25 };
         return new Response(JSON.stringify(body), { status: 200 });
@@ -69,5 +70,30 @@ describe("Layout", () => {
       await userEvent.click(within(nav).getByRole("link", { name: route.title }));
       expect(screen.getByRole("heading", { level: 1, name: route.title })).toBeInTheDocument();
     }
+  });
+
+  it("oculta las pantallas de administración a quien no es administrador", async () => {
+    isAdmin = false;
+    await renderAt("/chat");
+    const nav = screen.getByRole("navigation", { name: "Principal" });
+    expect(within(nav).getByRole("link", { name: "Chat" })).toBeInTheDocument();
+    for (const route of appRoutes.filter((r) => r.adminOnly)) {
+      expect(within(nav).queryByRole("link", { name: route.title })).not.toBeInTheDocument();
+    }
+  });
+
+  it("muestra «Necesitas permisos de administrador» si entra por URL", async () => {
+    isAdmin = false;
+    await renderAt("/integraciones");
+    expect(await screen.findByText("Necesitas permisos de administrador")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Integraciones" })).not.toBeInTheDocument();
+  });
+
+  it("el administrador ve la pantalla de administración", async () => {
+    await renderAt("/integraciones");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Integraciones" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Necesitas permisos de administrador")).not.toBeInTheDocument();
   });
 });

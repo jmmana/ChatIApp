@@ -97,6 +97,7 @@ _HISTORY_WINDOW = 12
 
 _LABELS = {
     "understand": "Entendiendo la pregunta",
+    "replan": "Corrigiendo el plan",
     "verify": "Verificando la métrica y los permisos",
     "period": "Resolviendo el período",
     "build": "Construyendo la consulta",
@@ -539,6 +540,16 @@ class Orchestrator:
         yield _step("verify", "running")
         try:
             verified = self._verify(plan, t.question, t.prior_plan)
+        except _Fail as fail:
+            if fail.code != "invalid_plan" or fail.step != "verify":
+                raise
+            plan = yield from self._replan(t, plan, fail)
+            yield _step("verify", "running")
+            try:
+                verified = self._verify(plan, t.question, t.prior_plan)
+            except _Ask:
+                t.last_plan = plan.model_dump(mode="json")
+                raise
         except _Ask:
             t.last_plan = plan.model_dump(mode="json")  # queda pendiente para la respuesta
             raise
@@ -598,6 +609,32 @@ class Orchestrator:
             yield self._sql_event(t, guarded.sql, period)
             yield from self._execute(t, guarded.sql, outcome)
         yield from self._answer(t, outcome)
+
+    def _replan(self, t: _Turn, plan: Plan, fail: _Fail) -> Generator[Event, None, Plan]:
+        """Un solo reintento: el planificador recibe el plan rechazado y el error exacto."""
+        yield _step("replan", "warning", fail.message)
+        llm = self._llm("planner")
+        try:
+            result = plan_question(
+                llm,
+                self.model,
+                t.question,
+                now=self.now(),
+                history=t.history,
+                last_plan=t.prior_plan,
+                privacy=self.privacy,
+                role=self.role,
+                rejected=(plan, fail.message),
+            )
+        except PlannerError as exc:
+            code = "invalid_plan" if exc.kind == "invalid_plan" else "provider_error"
+            raise _Fail("replan", code, exc.message) from exc
+        t.usage += result.usage
+        new = result.plan
+        if new.intent != "metric" or not new.metric:
+            raise fail  # el reintento no dio un plan de métrica: termina con el error original
+        t.plan = new.model_dump(mode="json")
+        return new
 
     def _verify(
         self, plan: Plan, question: str = "", prior_plan: Plan | None = None
