@@ -3,8 +3,10 @@ import {
   Database,
   FlaskConical,
   MessageSquare,
+  Plug,
   ScrollText,
   Table2,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -39,6 +41,18 @@ export const appRoutes: AppRoute[] = [
     title: "Fuentes de datos",
     description: "Aquí podrás conectar y revisar las bases de datos.",
     icon: Database,
+  },
+  {
+    path: "/integraciones",
+    title: "Integraciones",
+    description: "Aquí podrás administrar las API keys de las apps que integran ChatIApp.",
+    icon: Plug,
+  },
+  {
+    path: "/usuarios",
+    title: "Usuarios",
+    description: "Aquí podrás administrar usuarios, su rol por fuente y sus atributos.",
+    icon: Users,
   },
   {
     path: "/auditoria",

@@ -19,7 +19,7 @@ Los drivers son extras opcionales: se instala solo lo que se usa.
 
 ## Diferencias de dialecto que resuelve el motor
 
-Verificado con sqlglot 30.35 parseando y regenerando SQL en cada dialecto (ida y vuelta). Las pruebas contra motores reales llegan con la tarea de integración multimotor del backlog.
+Verificado con sqlglot 30.35 parseando y regenerando SQL en cada dialecto (ida y vuelta). PostgreSQL 16, MySQL 8 y SQL Server 2022 además se prueban contra motores reales: ver [Pruebas de integración](#pruebas-de-integración-multimotor).
 
 | Motor | Truncar al mes | Literal de fecha en filtros | Límite de filas |
 |---|---|---|---|
@@ -39,6 +39,26 @@ Verificado con sqlglot 30.35 parseando y regenerando SQL en cada dialecto (ida y
 - **BigQuery no compara `DATE` con `TIMESTAMP`.** El tipo del literal debe coincidir con el de la columna; el motor lo toma del `type` de la columna en el modelo semántico. Además, `DATE_TRUNC` lleva los argumentos en otro orden.
 - **MySQL no tiene `DATE_TRUNC`.** `DATE_FORMAT` devuelve texto; ordena bien porque el formato es ISO.
 - **Zonas horarias.** Si la columna de tiempo es `timestamp` en UTC, los límites del período se convierten desde la zona horaria del negocio antes de comparar.
+
+## Pruebas de integración multimotor
+
+`backend/tests/integration/` ejecuta el constructor, las tablas resumidas, el guardián y el filtro por rol contra PostgreSQL 16, MySQL 8 y SQL Server 2022. El generador de la demo (`app.demo.seed.cargar`) carga en cada motor los mismos datos que en SQLite y **SQLite es la referencia**: cada consulta debe devolver las mismas filas (los números con tolerancia, porque SQLite divide en flotante y los demás en decimal).
+
+Cada motor se activa con una variable de entorno; sin ella, sus pruebas se omiten y `pytest` a secas sigue funcionando:
+
+| Variable | Ejemplo |
+|---|---|
+| `CHATIAPP_IT_POSTGRES_URL` | `postgresql+psycopg://usuario:clave@localhost:5432/ventas` |
+| `CHATIAPP_IT_MYSQL_URL` | `mysql+pymysql://usuario:clave@localhost:3306/ventas` |
+| `CHATIAPP_IT_TSQL_URL` | `mssql+pyodbc://sa:clave@localhost:1433/master?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes` |
+
+Las bases de PostgreSQL y MySQL deben existir y estar vacías (las pruebas reemplazan las tablas de la demo). En SQL Server la URL apunta al servidor y las pruebas crean la base `chatiapp_it`. Con los extras instalados (`uv sync --extra postgres --extra mysql --extra sqlserver`):
+
+```bash
+cd backend && uv run pytest tests/integration -m integration
+```
+
+Además de la equivalencia con SQLite, hay pruebas específicas: SQL Server con `SET LANGUAGE british` (el literal `'YYYYMMDD'`) y los planes de ejecución del filtro por rol en PostgreSQL y SQL Server ([ADR 0004](adr/0004-filtro-por-rol-como-tabla-derivada.md#revisión-de-planes-de-ejecución)). El job `integration` del CI las corre en `main` y en los PR con la etiqueta `área:datos`.
 
 ## Usuario de solo lectura
 

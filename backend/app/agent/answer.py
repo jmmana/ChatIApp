@@ -1,0 +1,229 @@
+"""Redacción de la respuesta final del turno (docs/FLUJO_CONVERSACIONAL.md, estado «Responder»).
+
+Con privacidad `aggregates` o `samples` y hasta `MAX_ANSWER_ROWS` filas, la IA redacta con
+streaming (`answer.delta`). Con `schema`, con resultados grandes o si la IA falla, la respuesta
+sale de una plantilla local que formatea los números con el `locale` y la moneda del modelo. En
+ambos casos la respuesta menciona el período resuelto. Con `schema` nunca se envía una fila.
+"""
+
+from collections.abc import Iterator
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from app.agent.events import AnswerDelta, Event
+from app.engine.compare import Comparison
+from app.engine.periods import PeriodRange
+from app.llm.gateway import GatewayError, Usage
+from app.llm.routing import LlmClient
+from app.semantic.context import Privacy
+from app.semantic.schema import Metric, SemanticModel
+
+MAX_ANSWER_ROWS = 50  # filas que, como máximo, se envían a la IA para redactar (privacidad)
+PROMPT_PATH = Path(__file__).parent / "prompts" / "answer.md"
+DEFAULT_LOCALE = "es-CO"
+
+NBSP = " "
+NARROW_NBSP = " "
+
+# Idiomas con «1.234,5», con «1 234,5» y regiones de español con «1,234.5».
+_DOT_GROUP = {"es", "de", "it", "pt", "nl", "id", "tr", "da", "el", "ro", "hr", "sl"}
+_SPACE_GROUP = {"fr", "ru", "pl", "cs", "sv", "nb", "no", "fi", "uk", "sk", "bg", "hu"}
+_ES_COMMA_GROUP = {"MX", "US", "PR", "DO", "GT", "HN", "NI", "SV", "PA", "PE"}
+_SUFFIX_CURRENCY = _SPACE_GROUP | {"de", "it", "pt"}  # «1.234,50 €»
+_SYMBOLS = {"USD": "US$", "EUR": "€", "GBP": "£", "JPY": "¥", "MXN": "MX$"}
+_DOLLAR_LIKE = {"COP", "CLP", "ARS", "UYU"}
+
+
+@dataclass
+class Outcome:
+    """Lo que el turno sabe para redactar la respuesta."""
+
+    columns: list[str] = field(default_factory=list)
+    rows: list[list[Any]] = field(default_factory=list)
+    truncated: bool = False
+    executed: bool = True
+    metric: Metric | None = None
+    period: PeriodRange | None = None
+    comparison: Comparison | None = None
+
+
+def escape_data(text: str) -> str:
+    """Escapa `&`, `<` y `>` para que un dato no pueda abrir ni cerrar etiquetas del prompt."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def may_send_rows(privacy: Privacy, outcome: Outcome) -> bool:
+    """`schema` nunca envía filas; `aggregates` y `samples` hasta MAX_ANSWER_ROWS."""
+    return privacy != "schema" and outcome.executed and 0 < len(outcome.rows) <= MAX_ANSWER_ROWS
+
+
+# --------------------------------------------------------------------------- formato
+
+
+def _number(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parts(locale: str) -> tuple[str, str]:
+    lang, _, region = locale.replace("_", "-").partition("-")
+    return lang.lower(), region.upper()
+
+
+def _separators(locale: str) -> tuple[str, str]:
+    """(separador de miles, separador decimal) del `locale`."""
+    lang, region = _parts(locale)
+    if lang == "es" and region in _ES_COMMA_GROUP:
+        return ",", "."
+    if lang in _DOT_GROUP:
+        return ".", ","
+    if lang in _SPACE_GROUP:
+        return (NARROW_NBSP if lang == "fr" else NBSP), ","
+    return ",", "."
+
+
+def _currency(text: str, code: str | None, locale: str) -> str:
+    symbol = "$" if not code or code in _DOLLAR_LIKE else _SYMBOLS.get(code, code)
+    lang, region = _parts(locale)
+    if lang in _SUFFIX_CURRENCY or (lang, region) == ("es", "ES"):
+        return f"{text}{NBSP}{symbol}"
+    return f"{symbol}{NBSP}{text}" if symbol.isalpha() else f"{symbol}{text}"
+
+
+def format_value(
+    value: Any,
+    metric: Metric | None = None,
+    *,
+    locale: str = DEFAULT_LOCALE,
+    currency: str | None = None,
+) -> str:
+    """Formatea un valor según el formato de la métrica, el `locale` y la moneda del modelo."""
+    number = _number(value)
+    if number is None:
+        return "sin datos" if value is None else str(value)
+    kind = metric.format if metric else None
+    decimals = 0 if kind == "integer" or (number.is_integer() and kind != "currency") else 2
+    group, decimal = _separators(locale)
+    text = f"{number:,.{decimals}f}".translate(str.maketrans(",.", "\x00\x01"))
+    text = text.replace("\x00", group).replace("\x01", decimal)
+    if kind == "currency":
+        return _currency(text, currency, locale)
+    return f"{text} %" if kind == "percent" else text
+
+
+def variation_text(comparison: Comparison, locale: str = DEFAULT_LOCALE) -> str:
+    if comparison.change_pct is None:
+        return comparison.change_note or "sin variación"
+    word = "más" if comparison.change_pct >= 0 else "menos"
+    _, decimal = _separators(locale)
+    pct = f"{abs(comparison.change_pct):.1f}".replace(".", decimal)
+    return f"{pct} % {word} que {comparison.previous_period.label}"
+
+
+def _period_label(outcome: Outcome) -> str | None:
+    if outcome.comparison is not None:
+        return outcome.comparison.period.label
+    return outcome.period.label if outcome.period is not None else None
+
+
+def template_answer(
+    outcome: Outcome, *, locale: str = DEFAULT_LOCALE, currency: str | None = None
+) -> str:
+    """Respuesta determinista, sin IA: la de privacidad `schema`, resultados grandes o fallos."""
+    metric = outcome.metric
+    label = _period_label(outcome)
+    in_period = f" en {label}" if label else ""
+    if not outcome.executed:
+        return (
+            f"Armé y validé la consulta{in_period}, pero esta fuente no ejecuta consultas. "
+            "Revisa el SQL."
+        )
+    comparison = outcome.comparison
+    if comparison is not None:
+        name = metric.label if metric else "Valor"
+        value = format_value(comparison.value, metric, locale=locale, currency=currency)
+        return f"{name}{in_period}: {value}; {variation_text(comparison, locale)}."
+    if not outcome.rows:
+        return f"La consulta no devolvió filas{in_period}."
+    if len(outcome.rows) == 1 and len(outcome.rows[0]) == 1:
+        value = format_value(outcome.rows[0][0], metric, locale=locale, currency=currency)
+        if metric is None:
+            return f"Resultado{in_period}: {value}."
+        return f"{metric.label}{in_period}: {value}."
+    cut = " (resultado recortado)" if outcome.truncated else ""
+    return f"La consulta devolvió {len(outcome.rows)} filas{in_period}{cut}. Revisa la tabla."
+
+
+# --------------------------------------------------------------------------- redacción
+
+
+class AnswerWriter:
+    """Redacta la respuesta de un turno; tras `stream`, `text`, `usage` y `warning` están listos."""
+
+    def __init__(
+        self, gateway: LlmClient, model: SemanticModel, privacy: Privacy, question: str
+    ) -> None:
+        self.gateway = gateway
+        self.privacy = privacy
+        self.question = question
+        self.locale = model.settings.locale or DEFAULT_LOCALE
+        self.currency = model.settings.currency
+        self.text = ""
+        self.usage = Usage()
+        self.warning: str | None = None
+
+    def stream(self, outcome: Outcome) -> Iterator[Event]:
+        """Emite los `answer.delta` (solo si redacta la IA) y deja la respuesta en `text`."""
+        self.text = template_answer(outcome, locale=self.locale, currency=self.currency)
+        if not may_send_rows(self.privacy, outcome):
+            return
+        drafted = ""
+        try:
+            for chunk in self.gateway.stream(self.messages(outcome)):
+                if chunk.delta:
+                    drafted += chunk.delta
+                    yield Event(AnswerDelta(text=chunk.delta))
+                if chunk.usage is not None:
+                    self.usage += chunk.usage
+        except GatewayError as exc:
+            self.warning = f"{exc.message} Se usó la respuesta de plantilla."
+            return
+        if not drafted.strip():
+            return
+        self.text = drafted.strip()
+        label = _period_label(outcome)
+        if label and label.casefold() not in self.text.casefold():
+            suffix = f" (Período: {label}.)"
+            self.text += suffix
+            yield Event(AnswerDelta(text=suffix))
+
+    def messages(self, outcome: Outcome) -> list[dict[str, str]]:
+        """Prompt para la IA; solo se arma con las filas que `may_send_rows` permite."""
+        facts: list[str] = []
+        if outcome.metric is not None:
+            facts.append(f"Métrica: {outcome.metric.label}")
+        if outcome.period is not None:
+            facts.append(f"Período: {outcome.period.label}")
+        comparison = outcome.comparison
+        if comparison is not None:
+            facts.append(f"Período anterior: {comparison.previous_period.label}")
+            facts.append(f"Variación: {variation_text(comparison, self.locale)}")
+        moneda = f", moneda {self.currency}" if self.currency else ""
+        facts.append(f"Formato: locale {self.locale}{moneda}")
+        facts.append(f"Columnas: {', '.join(outcome.columns)}")
+        facts += [f"Fila: {row}" for row in outcome.rows]
+        # Los valores vienen de la base y no son confiables: sin `<` ni `>` ningún valor puede
+        # cerrar <resultado> y colar instrucciones fuera de los datos.
+        body = escape_data("\n".join(facts))
+        return [
+            {"role": "system", "content": PROMPT_PATH.read_text(encoding="utf-8")},
+            {
+                "role": "user",
+                "content": f"Pregunta: {self.question}\n<resultado>\n{body}\n</resultado>",
+            },
+        ]

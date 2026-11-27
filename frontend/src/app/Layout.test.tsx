@@ -16,8 +16,12 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn(
-      async (url: string) =>
-        new Response(JSON.stringify(url.endsWith("/datasources") ? [] : session), { status: 200 }),
+      async (url: string) => {
+        let body: unknown = session;
+        if (url.includes("/datasources") || url.includes("/providers")) body = [];
+        else if (url.includes("/audit")) body = { items: [], total: 0, page: 1, page_size: 25 };
+        return new Response(JSON.stringify(body), { status: 200 });
+      },
     ),
   );
 });
@@ -36,7 +40,7 @@ async function renderAt(path: string) {
 }
 
 describe("Layout", () => {
-  it("muestra la barra lateral con las seis secciones", async () => {
+  it("muestra la barra lateral con las ocho secciones", async () => {
     await renderAt("/chat");
     const nav = screen.getByRole("navigation", { name: "Principal" });
     for (const title of [
@@ -44,6 +48,8 @@ describe("Layout", () => {
       "Modelo semántico",
       "Proveedores de IA",
       "Fuentes de datos",
+      "Integraciones",
+      "Usuarios",
       "Auditoría",
       "Evaluación",
     ]) {
@@ -53,7 +59,7 @@ describe("Layout", () => {
 
   it("redirige la raíz al chat", async () => {
     await renderAt("/");
-    expect(screen.getByRole("heading", { level: 1, name: "Chat" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Chat" })).toBeInTheDocument();
   });
 
   it("cada ruta muestra un estado vacío con su título", async () => {

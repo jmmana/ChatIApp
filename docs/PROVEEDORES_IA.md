@@ -30,10 +30,10 @@ Los prefijos de LiteLLM se verificaron contra **LiteLLM 1.111.0** (`litellm.prov
 
 | Plataforma | Prefijo LiteLLM | Campos | Notas |
 |---|---|---|---|
-| AWS Bedrock | `bedrock/` | `aws_region`, y `aws_access_key_id` + `aws_secret_access_key` **o** rol IAM de la máquina | Claude, Llama, Mistral, Nova y otros; usa perfiles de inferencia entre regiones si aplica |
+| AWS Bedrock | `bedrock/` | `aws_region`, y `aws_access_key_id` + `aws_secret_access_key` **o** rol IAM de la máquina | Claude, Llama, Mistral, Nova y otros; sin llaves se usa la cadena de credenciales de AWS (rol IAM). Perfiles de inferencia entre regiones: usa su id como modelo (`us.anthropic.…`); para perfiles de aplicación, el campo opcional `model_id` lleva el ARN |
 | Azure OpenAI | `azure/` | `api_base`, `api_key`, `api_version`, nombre del *deployment* como modelo | El modelo es el nombre de tu deployment, no el del modelo base |
 | Azure AI Foundry | `azure_ai/` | `api_base`, `api_key` | Modelos del catálogo de Foundry |
-| Google Vertex AI | `vertex_ai/` | `vertex_project`, `vertex_location`, credenciales de cuenta de servicio (JSON) | Gemini y modelos de socios en Vertex |
+| Google Vertex AI | `vertex_ai/` | `vertex_project`, `vertex_location`, `vertex_credentials` (JSON de la cuenta de servicio, **se guarda como secreto cifrado**) | Gemini y modelos de socios en Vertex |
 | OpenRouter | `openrouter/` | `api_key` | Cientos de modelos con una cuenta |
 | GitHub Models | `github/` | Token de GitHub con permiso de modelos | Ver [GitHub Copilot](#github-copilot) |
 
@@ -54,10 +54,12 @@ Cada uno permite cambiar `api_base` para usar el endpoint de **China continental
 
 | Servidor | Prefijo LiteLLM | Campos |
 |---|---|---|
-| Ollama | `ollama_chat/` | `api_base` (por defecto `http://localhost:11434`) |
+| Ollama | `ollama_chat/` | `api_base` (por defecto `http://localhost:11434`), `api_key` opcional |
 | vLLM | `hosted_vllm/` | `api_base`, `api_key` opcional |
-| LM Studio | `lm_studio/` | `api_base` |
+| LM Studio | `lm_studio/` | `api_base`, `api_key` opcional |
 | Cualquier servidor compatible con OpenAI | `openai/` + `api_base` | `api_base`, `api_key` opcional |
+
+Los modelos se listan desde `GET {api_base}/api/tags` en Ollama y desde `GET {api_base}/models` (`/v1/models`) en los demás; la `api_key`, si existe, se envía como `Bearer`. Con `docker compose --profile local-ai up`, Ollama queda en `http://ollama:11434` dentro de la red de Compose (descarga un modelo con `docker compose exec ollama ollama pull llama3.1`).
 
 ## GitHub Copilot
 
@@ -91,7 +93,7 @@ ai:
     fallback: [deepseek, local]
 ```
 
-**Respaldo (fallback):** si el proveedor de una tarea falla por autenticación, cuota, tiempo de espera o error 5xx, se intenta el siguiente de `fallback` y queda registrado en el razonamiento («Claude no respondió; usé DeepSeek»). Un plan **inválido** no dispara el respaldo: se reintenta con el mismo proveedor y el error.
+**Respaldo (fallback):** si el proveedor de una tarea falla por autenticación, cuota, tiempo de espera o error 5xx, se intenta el siguiente de `fallback` y queda registrado en el razonamiento («Claude no respondió; usé DeepSeek»). Un plan **inválido** no dispara el respaldo: se reintenta con el mismo proveedor y el error. Tampoco `model_not_found`: es un error de configuración. Sin asignación, la tarea usa el proveedor predeterminado. El orquestador emite un `step` con `status: warning` por cada respaldo. La asignación se guarda con `PUT /api/v1/providers/routing` o se declara en `chatiapp.yaml`; la implementación está en `backend/app/llm/routing.py`.
 
 ## Probar conexión
 

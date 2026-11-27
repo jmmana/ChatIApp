@@ -1,0 +1,99 @@
+name: Integración
+
+# Pruebas del motor contra PostgreSQL 16, MySQL 8 y SQL Server 2022 reales (backend/tests/integration),
+# comparadas con SQLite. Las credenciales son de contenedores desechables de este job, no secretos.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "backend/app/engine/**"
+      - "backend/app/demo/**"
+      - "backend/app/semantic/**"
+      - "backend/tests/integration/**"
+      - "backend/pyproject.toml"
+      - "backend/uv.lock"
+      - ".github/workflows/integration.yml"
+  schedule:
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integracion:
+    name: PostgreSQL, MySQL y SQL Server
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: chatiapp
+          POSTGRES_PASSWORD: chatiapp
+          POSTGRES_DB: chatiapp_it
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U chatiapp -d chatiapp_it"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: chatiapp
+          MYSQL_DATABASE: chatiapp_it
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pchatiapp"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "Chatiapp-IT-2026"
+        ports: ["1433:1433"]
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P Chatiapp-IT-2026 -Q 'SELECT 1' || exit 1"
+          --health-interval 10s --health-timeout 5s --health-retries 30 --health-start-period 20s
+    env:
+      CHATIAPP_IT_POSTGRES_URL: postgresql+psycopg://chatiapp:chatiapp@localhost:5432/chatiapp_it
+      CHATIAPP_IT_MYSQL_URL: mysql+pymysql://root:chatiapp@127.0.0.1:3306/chatiapp_it
+      # Las pruebas crean la base chatiapp_it desde master (tests/integration/helpers.py).
+      CHATIAPP_IT_TSQL_URL: mssql+pyodbc://sa:Chatiapp-IT-2026@localhost:1433/master?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
+      CHATIAPP_IT_PLANES_DIR: ${{ github.workspace }}/planes
+    steps:
+      - uses: actions/checkout@v4
+
+      # pyodbc necesita el driver de Microsoft. El runner ya trae el repositorio de Microsoft
+      # configurado; solo se agrega si falta (agregarlo dos veces rompe apt por Signed-By distinto).
+      - name: ODBC Driver 18 para SQL Server
+        run: |
+          if ! odbcinst -q -d -n "ODBC Driver 18 for SQL Server" >/dev/null 2>&1; then
+            if ! grep -rqs "packages.microsoft.com" /etc/apt/sources.list /etc/apt/sources.list.d/; then
+              curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+              curl -fsSL "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list" | sudo tee /etc/apt/sources.list.d/mssql-release.list
+            fi
+            sudo apt-get update -q
+            sudo ACCEPT_EULA=Y apt-get install -y -q msodbcsql18 unixodbc
+          fi
+          odbcinst -q -d
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Dependencias con los drivers de las tres bases
+        working-directory: backend
+        run: uv sync --locked --extra postgres --extra mysql --extra sqlserver
+
+      - name: Pruebas de integración
+        working-directory: backend
+        run: uv run pytest -m integration -v -rs
+
+      - name: Planes de ejecución
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: planes-de-ejecucion
+          path: planes/
+          if-no-files-found: ignore

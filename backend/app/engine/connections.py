@@ -106,14 +106,17 @@ def classify_error(exc: BaseException, dialect: Dialect) -> ConnectionFailure:
     return ConnectionFailure("unknown", f"Error al conectar ({type(exc).__name__})")
 
 
+def connect_args(dialect: Dialect, timeout_seconds: int) -> dict[str, Any]:
+    """Argumentos del driver que limitan la espera al conectar (vacío si no hay uno conocido)."""
+    arg = _CONNECT_TIMEOUT_ARG.get(dialect)
+    return {arg: timeout_seconds} if arg is not None else {}
+
+
 def check_connection(url: str, dialect: Dialect, timeout_seconds: int = 10) -> ConnectionResult:
     """Abre una conexión, ejecuta ``SELECT 1`` y mide la latencia."""
-    connect_args: dict[str, Any] = {}
-    if (arg := _CONNECT_TIMEOUT_ARG.get(dialect)) is not None:
-        connect_args[arg] = timeout_seconds
     engine: Engine | None = None
     try:
-        engine = create_engine(url, connect_args=connect_args)
+        engine = create_engine(url, connect_args=connect_args(dialect, timeout_seconds))
         started = time.perf_counter()
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))

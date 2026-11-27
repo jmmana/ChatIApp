@@ -271,7 +271,7 @@ class Principal:
         return self.api_key.id if self.api_key else None
 
 
-def _bearer_token(request: Request) -> str:
+def bearer_token(request: Request) -> str:
     header = request.headers.get("Authorization", "")
     scheme, _, token = header.partition(" ")
     if scheme.lower() != "bearer" or not token.strip():
@@ -285,7 +285,7 @@ def get_principal(request: Request, session: Annotated[Session, Depends(get_sess
     Los usuarios tienen todos los alcances (sus límites son sus permisos y concesiones); las keys,
     solo los suyos.
     """
-    token = _bearer_token(request)
+    token = bearer_token(request)
     if looks_like_api_key(token):
         api_key = authenticate_api_key(session, token)
         return Principal("api_key", frozenset(api_key.scopes), api_key=api_key)

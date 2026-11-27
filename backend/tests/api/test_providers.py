@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from app.db.models import Base, Provider
+from app.db.models import Base, Provider, User
 from app.db.session import get_session, make_engine
 from app.llm.catalog import CATALOG
 from app.main import create_app
@@ -43,7 +43,7 @@ def client(engine: Engine) -> Iterator[TestClient]:
             yield session
 
     application.dependency_overrides[get_session] = _session
-    application.dependency_overrides[get_current_user] = lambda: object()
+    application.dependency_overrides[get_current_user] = lambda: User(email="a@b.co", is_admin=True)
     yield TestClient(application)
 
 
@@ -226,3 +226,52 @@ def test_ningun_endpoint_devuelve_un_secreto_en_claro(client: TestClient) -> Non
         assert SECRETO not in response.text
         assert SECRETO_NUEVO not in response.text
     assert created["id"] in respuestas[1].text
+
+
+def test_probar_sin_guardar_con_proveedor_simulado(client: TestClient) -> None:
+    body = {"kind": "fake", "model": "fake-1", "config": {"error": "auth"}}
+    result = client.post("/api/v1/providers/test", json=body).json()
+    assert result["ok"] is False
+    assert result["error_kind"] == "auth"
+
+
+def test_probar_sin_guardar_valida_campos(client: TestClient) -> None:
+    response = client.post("/api/v1/providers/test", json={"kind": "anthropic", "model": "m"})
+    assert response.status_code == 422
+
+
+def test_probar_y_listar_modelos_de_proveedor_inexistente(client: TestClient) -> None:
+    missing = uuid.uuid4()
+    assert client.post(f"/api/v1/providers/{missing}/test").status_code == 404
+    assert client.get(f"/api/v1/providers/{missing}/models").status_code == 404
+
+
+def test_modelos_no_soportado_en_proveedor_guardado(client: TestClient) -> None:
+    body = {
+        "name": "nube",
+        "kind": "azure_ai",
+        "model": "m",
+        "config": {"api_base": "https://x.example.com"},
+        "secrets": {"api_key": SECRETO},
+    }
+    created = client.post("/api/v1/providers", json=body).json()
+    result = client.get(f"/api/v1/providers/{created['id']}/models").json()
+    assert result["supported"] is False
+
+
+def test_probar_conexion_exige_administrador(client: TestClient) -> None:
+    creado = _crear(client)
+    app = client.app
+    app.dependency_overrides[get_current_user] = lambda: User(email="u@b.co", is_admin=False)  # type: ignore[attr-defined]
+    base = "/api/v1/providers"
+    assert client.post(f"{base}/test", json={"kind": "fake", "model": "m"}).status_code == 403
+    assert client.post(f"{base}/{creado['id']}/test").status_code == 403
+    assert client.get(f"{base}/{creado['id']}/models").status_code == 403
+
+
+def test_probar_sin_guardar_rechaza_params(client: TestClient) -> None:
+    respuesta = client.post(
+        "/api/v1/providers/test",
+        json={"kind": "fake", "model": "m", "params": {"api_base": "http://169.254.169.254"}},
+    )
+    assert respuesta.status_code == 422

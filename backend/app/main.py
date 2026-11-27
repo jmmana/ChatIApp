@@ -9,9 +9,24 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.api import api_keys, auth, datasources, health, providers, semantic
+from app.api import (
+    api_keys,
+    audit,
+    auth,
+    chat,
+    conversations,
+    datasources,
+    embed,
+    health,
+    metrics,
+    preview,
+    providers,
+    semantic,
+    users,
+)
 from app.api.errors import register_error_handlers
 from app.db.session import get_engine
+from app.integrations.cors import EmbedCORSMiddleware
 from app.security.auth import AuthError, ensure_initial_admin, get_current_user, require_admin
 from app.settings.env import get_settings
 from app.settings.startup import load_and_register
@@ -32,10 +47,16 @@ async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
 
 def _auth_error_handler(_request: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, AuthError)
+    headers: dict[str, str] = {}
+    if exc.status_code == 401:
+        headers["WWW-Authenticate"] = "Bearer"
+    retry_after = getattr(exc, "retry_after", None)
+    if retry_after:
+        headers["Retry-After"] = str(retry_after)
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": {"code": exc.code, "message": exc.message, "details": {}}},
-        headers={"WWW-Authenticate": "Bearer"} if exc.status_code == 401 else None,
+        headers=headers or None,
     )
 
 
@@ -63,9 +84,26 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     application.include_router(
         api_keys.router, prefix=API_PREFIX, dependencies=[Depends(require_admin)]
     )
+    application.include_router(
+        audit.router, prefix=API_PREFIX, dependencies=[Depends(require_admin)]
+    )
+    application.include_router(
+        users.router, prefix=API_PREFIX, dependencies=[Depends(require_admin)]
+    )
     application.include_router(datasources.router, prefix=API_PREFIX, dependencies=protected)
     application.include_router(semantic.router, prefix=API_PREFIX, dependencies=protected)
+    application.include_router(metrics.router, prefix=API_PREFIX, dependencies=protected)
+    application.include_router(preview.router, prefix=API_PREFIX, dependencies=protected)
+    # Cada ruta del chat declara su credencial: `/chat/stream` y `cancel` solo sesión; `POST /chat`
+    # sesión o API key con alcance `chat`. No lleva `get_current_user` global.
+    application.include_router(chat.router, prefix=API_PREFIX)
+    # Conversaciones: lectura con sesión o token de sesión; renombrar y eliminar, solo sesión.
+    application.include_router(conversations.router, prefix=API_PREFIX)
+    # Emisión de tokens de sesión: solo API key con alcance `embed` (`require_scope`).
+    application.include_router(embed.router, prefix=API_PREFIX)
     register_error_handlers(application)
+    # CORS solo para los orígenes permitidos de las keys con alcance `embed`.
+    application.add_middleware(EmbedCORSMiddleware, prefix=API_PREFIX)
 
     if static_dir is None and (env_dir := os.environ.get("CHATIAPP_STATIC_DIR")):
         static_dir = Path(env_dir)
