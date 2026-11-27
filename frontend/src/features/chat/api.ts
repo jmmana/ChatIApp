@@ -9,10 +9,13 @@ export interface MetricInfo {
 export interface SemanticInfo {
   metrics: MetricInfo[];
   roles: string[];
+  locale?: string;
+  currency?: string;
 }
 
 interface SemanticOut {
   model?: {
+    settings?: { locale?: string; currency?: string };
     metrics?: MetricInfo[];
     security?: { roles?: { name: string }[] };
   } | null;
@@ -30,6 +33,8 @@ export async function getSemanticInfo(datasourceId: string): Promise<SemanticInf
     return {
       metrics: data.model?.metrics ?? [],
       roles: (data.model?.security?.roles ?? []).map((role) => role.name),
+      locale: data.model?.settings?.locale,
+      currency: data.model?.settings?.currency,
     };
   } catch {
     return { metrics: [], roles: [] };

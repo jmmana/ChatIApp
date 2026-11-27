@@ -7,12 +7,19 @@ import { listDatasources } from "@/features/datasources/api";
 import { listProviders } from "@/features/providers/api";
 import { cancelTurnOnServer, getSemanticInfo } from "./api";
 import { Composer } from "./Composer";
+import { ResultView } from "./results/ResultView";
 import { buildSuggestions } from "./suggestions";
 import type { TurnState } from "./turnReducer";
 import { useTurn } from "./useTurn";
 
 /** Distancia (px) al final desde la que se considera que la persona sigue «abajo». */
 const STICK_THRESHOLD = 48;
+
+interface ResultFormat {
+  locale?: string;
+  currency?: string;
+  metricLabels: Record<string, string>;
+}
 
 interface Message {
   question: string;
@@ -44,6 +51,11 @@ export function ChatPage() {
 
   const busy = state.status === "streaming";
   const suggestions = buildSuggestions(semantic.data?.metrics ?? []);
+  const format: ResultFormat = {
+    locale: semantic.data?.locale,
+    currency: semantic.data?.currency,
+    metricLabels: Object.fromEntries((semantic.data?.metrics ?? []).map((m) => [m.name, m.label])),
+  };
 
   const ask = useCallback(
     (message: string) => {
@@ -151,10 +163,15 @@ export function ChatPage() {
         ) : (
           <div className="mx-auto flex max-w-3xl flex-col gap-6">
             {history.map((message, index) => (
-              <Exchange key={index} question={message.question} turn={message.turn} />
+              <Exchange
+                key={index}
+                question={message.question}
+                turn={message.turn}
+                format={format}
+              />
             ))}
             {question !== null && (
-              <Exchange question={question} turn={state} onOption={ask} live />
+              <Exchange question={question} turn={state} onOption={ask} format={format} live />
             )}
           </div>
         )}
@@ -169,10 +186,11 @@ interface ExchangeProps {
   question: string;
   turn: TurnState;
   onOption?: (option: string) => void;
+  format: ResultFormat;
   live?: boolean;
 }
 
-function Exchange({ question, turn, onOption, live = false }: ExchangeProps) {
+function Exchange({ question, turn, onOption, format, live = false }: ExchangeProps) {
   const text = turn.answer || turn.clarification?.question || "";
   return (
     <article className="flex flex-col gap-3">
@@ -182,6 +200,7 @@ function Exchange({ question, turn, onOption, live = false }: ExchangeProps) {
           {turn.steps.at(-1)?.label ?? "Pensando…"}
         </p>
       )}
+      {turn.result && <ResultView result={turn.result} sql={turn.sql} {...format} />}
       {text && <p className="whitespace-pre-wrap">{text}</p>}
       {live && turn.status === "clarifying" && turn.clarification && (
         <div className="flex flex-wrap gap-2">
