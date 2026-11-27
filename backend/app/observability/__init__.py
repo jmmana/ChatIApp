@@ -1,4 +1,7 @@
-"""Observabilidad: logs JSON, trazas OpenTelemetry y métricas Prometheus (docs/OBSERVABILIDAD.md)."""
+"""Observabilidad: logs JSON, trazas OpenTelemetry y métricas Prometheus.
+
+Ver docs/OBSERVABILIDAD.md.
+"""
 
 from app.observability.logs import JsonFormatter, LogScope, configure_logging, redact
 from app.observability.metrics import render as render_metrics

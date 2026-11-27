@@ -6,6 +6,7 @@ import {
   Plug,
   ScrollText,
   Table2,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -46,6 +47,12 @@ export const appRoutes: AppRoute[] = [
     title: "Integraciones",
     description: "Aquí podrás administrar las API keys de las apps que integran ChatIApp.",
     icon: Plug,
+  },
+  {
+    path: "/usuarios",
+    title: "Usuarios",
+    description: "Aquí podrás administrar usuarios, su rol por fuente y sus atributos.",
+    icon: Users,
   },
   {
     path: "/auditoria",
