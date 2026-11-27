@@ -26,9 +26,9 @@ from .test_chat_stream import (  # noqa: F401 (fixtures de pytest)
 )
 
 
-def _post(client: TestClient, datasource_id: str, message: str, **extra: Any) -> Any:
-    body = {"datasource_id": datasource_id, "message": message, "view_as": GENERAL, **extra}
-    return client.post("/api/v1/chat", json=body)
+def _post(http: TestClient, ds_id: str, message: str, **extra: Any) -> Any:
+    body = {"datasource_id": ds_id, "message": message, "view_as": GENERAL, **extra}
+    return http.post("/api/v1/chat", json=body)
 
 
 def test_cuanto_vendi_y_luego_este_mes(
