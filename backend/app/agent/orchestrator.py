@@ -8,7 +8,7 @@ período, el guardián y la ejecución son código (ADR 0001).
 `Orchestrator.run` es un generador síncrono de `Event`: el endpoint de chat lo recorre en un hilo
 y reenvía cada evento por SSE. Un fallo en cualquier etapa termina con un evento `error`, nunca
 con una excepción. Al final del turno se guardan el mensaje del asistente con sus eventos, el
-`last_plan` de la conversación y un `QueryRun` si hubo una consulta ejecutada o rechazada.
+`last_plan` de la conversación y un `QueryRun` (el registro de auditoría), con o sin consulta.
 """
 
 import logging
@@ -52,6 +52,7 @@ from app.agent.events import (
     TurnStarted,
     UsageData,
 )
+from app.agent.free_sql import RepairError, repair_sql
 from app.agent.plan import Plan
 from app.agent.planner import PlannerError, Turn, plan_question
 from app.db.models import Conversation, Datasource, Message, QueryRun, User
@@ -78,10 +79,10 @@ from app.engine.guard import UnknownRoleError as GuardRoleError
 from app.engine.periods import PeriodConfig, PeriodRange, resolve_period
 from app.engine.rls import role_row_filters
 from app.engine.summary import plan_for_summary, route_summary
-from app.llm.gateway import Gateway, GatewayError, Usage
+from app.llm.gateway import Gateway, GatewayError, ProviderConfig, Usage
 from app.llm.routing import LlmClient, Router, TaskGateway
 from app.security.grants import ViewAs, resolve_access
-from app.semantic.context import Privacy, build_context
+from app.semantic.context import Privacy
 from app.semantic.schema import Metric, SemanticModel
 
 logger = logging.getLogger(__name__)
@@ -101,14 +102,6 @@ _LABELS = {
     "execute": "Ejecutando la consulta",
     "answer": "Redactando la respuesta",
 }
-
-_REPAIR_PROMPT = """\
-Eres el reparador de SQL de ChatIApp. El SQL de abajo falló. Corrígelo con el mensaje de error
-exacto y devuelve ÚNICAMENTE el SQL corregido: una sola sentencia SELECT de solo lectura, sin
-explicaciones ni bloques de código. Usa solo tablas y columnas del modelo.
-
-{contexto}
-"""
 
 _ANSWER_PROMPT = """\
 Redactas la respuesta final de ChatIApp, en español, breve y clara (de 1 a 3 frases). Usa solo
@@ -194,6 +187,10 @@ class _Turn:
     notes: list[str] = field(default_factory=list)
     fallbacks: list[str] = field(default_factory=list)  # avisos de respaldo de `_repair`
     text: str = ""  # lo que se guarda como contenido del mensaje del asistente
+    plan: dict[str, Any] | None = None  # plan de la IA tal como llegó (auditoría)
+    sql_candidate: str | None = None  # SQL antes del guardián (auditoría)
+    error_code: str | None = None
+    failed: bool = False
 
 
 # --------------------------------------------------------------------------- orquestador
@@ -374,31 +371,55 @@ class Orchestrator:
                 t.run.status = "error"
             yield from self._fail(t, _Fail("answer", "internal_error", _UNEXPECTED))
 
+    def _audit_provider(self) -> ProviderConfig:
+        """Proveedor a registrar: con `Router`, el principal de la cadena de respuesta."""
+        if isinstance(self.gateway, Router):
+            chain = self.gateway.for_task("answer").chain
+            if chain:
+                return chain[0].gateway.provider
+            return ProviderConfig("none", "none")
+        return self.gateway.provider
+
     def _persist(self, t: _Turn) -> None:
         try:
             t.assistant.content = t.text
             t.assistant.events = [e.to_dict() for e in t.events if e.type != "answer.delta"]
             if t.last_plan is not None:
                 t.conversation.last_plan = t.last_plan
-            if t.run is not None:
-                run, usage = t.run, t.usage
-                self.session.add(
-                    QueryRun(
-                        message_id=t.assistant.id,
-                        provider_id=self.provider_id,
-                        api_key_id=self.api_key_id,
-                        origin=run.origin,
-                        sql_final=run.sql_final,
-                        summary_table=run.summary_table,
-                        filters_applied=dict(run.filters_applied),
-                        row_count=run.row_count,
-                        elapsed_ms=run.elapsed_ms,
-                        tokens_in=usage.input_tokens,
-                        tokens_out=usage.output_tokens,
-                        cost_usd=Decimal(str(usage.cost_usd or 0.0)),
-                        status=run.status,
-                    )
+            # Auditoría: todo turno deja un registro, tenga o no consulta (solo conteos de filas).
+            run, usage, conversation = t.run, t.usage, t.conversation
+            if run is None:
+                intent = (t.plan or {}).get("intent")
+                run = _Run("llm" if intent == "sql" else "catalog", "error" if t.failed else "ok")
+            provider = self._audit_provider()
+            self.session.add(
+                QueryRun(
+                    message_id=t.assistant.id,
+                    provider_id=self.provider_id,
+                    api_key_id=self.api_key_id or conversation.api_key_id,
+                    user_id=conversation.user_id,
+                    external_user_id=conversation.external_user_id,
+                    datasource_id=self.datasource.id,
+                    role=self.role,
+                    question=t.question,
+                    plan=t.plan,
+                    sql_candidate=t.sql_candidate,
+                    provider_kind=provider.kind,
+                    model=provider.model,
+                    semantic_version=self.version,
+                    error_code=t.error_code,
+                    origin=run.origin,
+                    sql_final=run.sql_final,
+                    summary_table=run.summary_table,
+                    filters_applied=dict(run.filters_applied),
+                    row_count=run.row_count,
+                    elapsed_ms=run.elapsed_ms,
+                    tokens_in=usage.input_tokens,
+                    tokens_out=usage.output_tokens,
+                    cost_usd=Decimal(str(usage.cost_usd or 0.0)),
+                    status=run.status,
                 )
+            )
             self.session.commit()
         except Exception:
             logger.exception("No se pudo guardar el turno %s", t.assistant.id)
@@ -454,6 +475,7 @@ class Orchestrator:
         except ValueError as exc:  # rol que el modelo semántico no define
             raise _Fail("understand", "unknown_role", str(exc), recoverable=False) from exc
         t.usage += result.usage
+        t.plan = result.plan.model_dump(mode="json")
         for notice in self._notices(llm):
             yield _step("understand", "warning", notice)
         yield _step("understand", "done", result.plan.intent)
@@ -524,6 +546,7 @@ class Orchestrator:
         yield _step("build", "done", decision.reason)
 
         filters = self._filters_applied(verified, period)
+        t.sql_candidate = query.sql
         t.run = _Run("catalog", "rejected", query.sql, decision.table, filters)
         outcome = _Outcome(metric=verified.metric, period=period)
 
@@ -647,6 +670,7 @@ class Orchestrator:
         assert plan.sql is not None
         t.last_plan = plan.model_dump(mode="json")
         sql = plan.sql
+        t.sql_candidate = sql
         t.run = _Run("llm", "rejected", sql, None, self._role_filters())
         outcome = _Outcome()
         repaired = False
@@ -680,24 +704,22 @@ class Orchestrator:
 
     def _repair(self, t: _Turn, sql: str, problem: str) -> str:
         """Pide a la IA una corrección con el mensaje exacto del guardián o de la base."""
-        context = build_context(self.model, t.question, privacy=self.privacy, role=self.role)
-        messages = [
-            {"role": "system", "content": _REPAIR_PROMPT.format(contexto=context)},
-            {
-                "role": "user",
-                "content": f"Pregunta: {t.question}\nSQL: {sql}\nError exacto: {problem}",
-            },
-        ]
         llm = self._llm("sql")
         try:
-            completion = llm.complete(messages)
-        except GatewayError as exc:
-            raise _Fail("repair", "provider_error", exc.message) from exc
+            fixed, usage = repair_sql(
+                llm,
+                self.model,
+                t.question,
+                sql,
+                problem,
+                dialect=self.dialect,
+                privacy=self.privacy,
+                role=self.role,
+            )
+        except RepairError as exc:
+            raise _Fail("repair", exc.kind, exc.message) from exc
         t.fallbacks = self._notices(llm)
-        t.usage += completion.usage
-        fixed = _strip_sql(completion.text)
-        if not fixed:
-            raise _Fail("repair", "invalid_plan", "La IA no devolvió un SQL corregido.")
+        t.usage += usage
         return fixed
 
     # -- validación y ejecución
@@ -887,6 +909,7 @@ class Orchestrator:
         yield Event(ClarificationData(question=ask.question, options=ask.options, slot=ask.slot))
 
     def _fail(self, t: _Turn, fail: _Fail) -> Iterator[Event]:
+        t.failed, t.error_code = True, fail.code
         if t.run is not None and t.run.status == "ok" and fail.code != "internal_error":
             t.run.status = "error"
         yield _step(fail.step, "error", fail.message)
@@ -959,14 +982,6 @@ def _comparison_skipped(
     if not can_execute:
         return "La fuente no ejecuta consultas: no se puede comparar"
     return None
-
-
-def _strip_sql(text: str) -> str:
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1] if "\n" in text else ""
-        text = text.rsplit("```", 1)[0]
-    return text.strip()
 
 
 def _number(value: Any) -> float | None:

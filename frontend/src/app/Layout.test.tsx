@@ -16,11 +16,12 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn(
-      async (url: string) =>
-        new Response(
-          JSON.stringify(url.includes("/datasources") || url.includes("/providers") ? [] : session),
-          { status: 200 },
-        ),
+      async (url: string) => {
+        let body: unknown = session;
+        if (url.includes("/datasources") || url.includes("/providers")) body = [];
+        else if (url.includes("/audit")) body = { items: [], total: 0, page: 1, page_size: 25 };
+        return new Response(JSON.stringify(body), { status: 200 });
+      },
     ),
   );
 });
