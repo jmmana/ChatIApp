@@ -11,13 +11,7 @@ interface ChipInputProps {
 }
 
 /** Lista de chips editable: Enter o coma agrega; Retroceso en vacío quita el último. */
-export function ChipInput({
-  label,
-  values,
-  onChange,
-  placeholder,
-  describedBy,
-}: ChipInputProps) {
+export function ChipInput({ label, values, onChange, placeholder, describedBy }: ChipInputProps) {
   const [text, setText] = useState("");
   const current = values.map(String);
 
@@ -57,11 +51,7 @@ export function ChipInput({
           if (event.key === "Enter" || event.key === ",") {
             event.preventDefault();
             commit();
-          } else if (
-            event.key === "Backspace" &&
-            text === "" &&
-            current.length > 0
-          ) {
+          } else if (event.key === "Backspace" && text === "" && current.length > 0) {
             onChange(current.slice(0, -1));
           }
         }}

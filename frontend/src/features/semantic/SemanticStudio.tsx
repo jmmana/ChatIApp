@@ -3,12 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiError } from "@/lib/api";
-import {
-  getSemantic,
-  issuesFrom,
-  listDatasources,
-  publishSemantic,
-} from "./api";
+import { getSemantic, issuesFrom, listDatasources, publishSemantic } from "./api";
 import { ContextTab } from "./ContextTab";
 import { groupIssues, type FieldErrors } from "./errors";
 import { MetricsTab } from "./metrics/MetricsTab";
@@ -33,9 +28,7 @@ function Editor({
   onReload: () => Promise<void>;
 }) {
   const queryClient = useQueryClient();
-  const [baseline, setBaseline] = useState(
-    () => initial?.model ?? emptyModel(datasource),
-  );
+  const [baseline, setBaseline] = useState(() => initial?.model ?? emptyModel(datasource));
   const [draft, setDraft] = useState(baseline);
   const [baseVersion, setBaseVersion] = useState(initial?.version ?? 0);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -44,10 +37,7 @@ function Editor({
   const [reloading, setReloading] = useState(false);
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(baseline);
-  const errorCount = Object.values(errors).reduce(
-    (sum, list) => sum + list.length,
-    0,
-  );
+  const errorCount = Object.values(errors).reduce((sum, list) => sum + list.length, 0);
 
   const publish = useMutation({
     mutationFn: () => publishSemantic(datasource.id, baseVersion, draft),
@@ -70,11 +60,7 @@ function Editor({
       } else if (error instanceof ApiError && error.status === 409) {
         setConflict(Number(error.details.current_version ?? 0));
       } else {
-        setFailure(
-          error instanceof Error
-            ? error.message
-            : "No se pudo publicar el modelo.",
-        );
+        setFailure(error instanceof Error ? error.message : "No se pudo publicar el modelo.");
       }
     },
   });
@@ -89,8 +75,7 @@ function Editor({
   }
 
   let status = "sin versión publicada";
-  if (baseVersion > 0)
-    status = `v${baseVersion} · ${dirty ? "cambios sin publicar" : "guardado"}`;
+  if (baseVersion > 0) status = `v${baseVersion} · ${dirty ? "cambios sin publicar" : "guardado"}`;
   else if (dirty) status = "cambios sin publicar";
 
   return (
@@ -114,35 +99,22 @@ function Editor({
           className="flex flex-wrap items-center gap-3 rounded-md border border-destructive p-3 text-sm"
         >
           <span>
-            Alguien publicó la versión {conflict} antes que tú. Recarga el
-            modelo para ver los cambios; los tuyos sin publicar se descartarán.
+            Alguien publicó la versión {conflict} antes que tú. Recarga el modelo para ver los
+            cambios; los tuyos sin publicar se descartarán.
           </span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={reloading}
-            onClick={reload}
-          >
+          <Button type="button" size="sm" variant="outline" disabled={reloading} onClick={reload}>
             Recargar
           </Button>
         </div>
       )}
       {errorCount > 0 && (
-        <p
-          role="alert"
-          className="rounded-md border border-destructive p-3 text-sm"
-        >
+        <p role="alert" className="rounded-md border border-destructive p-3 text-sm">
           El modelo no se publicó: corrige{" "}
-          {errorCount === 1 ? "el error" : `los ${errorCount} errores`} marcados
-          junto a cada campo.
+          {errorCount === 1 ? "el error" : `los ${errorCount} errores`} marcados junto a cada campo.
         </p>
       )}
       {failure && (
-        <p
-          role="alert"
-          className="rounded-md border border-destructive p-3 text-sm"
-        >
+        <p role="alert" className="rounded-md border border-destructive p-3 text-sm">
           {failure}
         </p>
       )}
@@ -195,11 +167,9 @@ function Loaded({ datasource }: { datasource: Datasource }) {
     refetchOnWindowFocus: false,
   });
 
-  if (semantic.isPending)
-    return <p className="text-sm text-muted-foreground">Cargando…</p>;
+  if (semantic.isPending) return <p className="text-sm text-muted-foreground">Cargando…</p>;
   if (semantic.isError) {
-    const forbidden =
-      semantic.error instanceof ApiError && semantic.error.status === 403;
+    const forbidden = semantic.error instanceof ApiError && semantic.error.status === 403;
     return (
       <p role="alert" className="text-sm text-destructive">
         {forbidden
@@ -239,9 +209,7 @@ export function SemanticStudio() {
   return (
     <section className="mx-auto flex max-w-6xl flex-col gap-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Modelo semántico
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Modelo semántico</h1>
         {list.length > 1 && datasource && (
           <select
             aria-label="Fuente de datos"
@@ -256,13 +224,9 @@ export function SemanticStudio() {
             ))}
           </select>
         )}
-        {list.length === 1 && (
-          <p className="text-sm text-muted-foreground">{list[0].name}</p>
-        )}
+        {list.length === 1 && <p className="text-sm text-muted-foreground">{list[0].name}</p>}
       </header>
-      {datasources.isPending && (
-        <p className="text-sm text-muted-foreground">Cargando…</p>
-      )}
+      {datasources.isPending && <p className="text-sm text-muted-foreground">Cargando…</p>}
       {datasources.isError && (
         <p role="alert" className="text-sm text-destructive">
           No se pudieron cargar las fuentes de datos.

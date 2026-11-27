@@ -68,9 +68,7 @@ export function ContextTab({ model, errors, onChange }: Props) {
           placeholder="Qué hace tu negocio, cómo se llaman las cosas y qué reglas importan al interpretar los datos."
           value={model.business_context ?? ""}
           aria-describedby={describedBy(errors, "business_context")}
-          onChange={(event) =>
-            onChange({ ...model, business_context: event.target.value })
-          }
+          onChange={(event) => onChange({ ...model, business_context: event.target.value })}
         />,
       )}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -95,9 +93,7 @@ export function ContextTab({ model, errors, onChange }: Props) {
             placeholder="COP"
             value={settings.currency ?? ""}
             aria-describedby={describedBy(errors, "settings.currency")}
-            onChange={(event) =>
-              patch({ currency: event.target.value || null })
-            }
+            onChange={(event) => patch({ currency: event.target.value || null })}
           />,
         )}
         {field(
@@ -121,9 +117,7 @@ export function ContextTab({ model, errors, onChange }: Props) {
             className={selectClass}
             value={settings.week_starts_on ?? "monday"}
             aria-describedby={describedBy(errors, "settings.week_starts_on")}
-            onChange={(event) =>
-              patch({ week_starts_on: event.target.value as Weekday })
-            }
+            onChange={(event) => patch({ week_starts_on: event.target.value as Weekday })}
           >
             {WEEKDAYS.map(([value, label]) => (
               <option key={value} value={value}>
@@ -140,13 +134,8 @@ export function ContextTab({ model, errors, onChange }: Props) {
             id="ajuste-fiscal"
             className={selectClass}
             value={settings.fiscal_year_start_month ?? 1}
-            aria-describedby={describedBy(
-              errors,
-              "settings.fiscal_year_start_month",
-            )}
-            onChange={(event) =>
-              patch({ fiscal_year_start_month: Number(event.target.value) })
-            }
+            aria-describedby={describedBy(errors, "settings.fiscal_year_start_month")}
+            onChange={(event) => patch({ fiscal_year_start_month: Number(event.target.value) })}
           >
             {MONTHS.map((label, i) => (
               <option key={label} value={i + 1}>

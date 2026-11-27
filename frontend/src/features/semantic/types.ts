@@ -1,12 +1,6 @@
 export type ColumnRole = "time" | "measure" | "dimension" | "id" | "other";
 export type Weekday =
-  | "monday"
-  | "tuesday"
-  | "wednesday"
-  | "thursday"
-  | "friday"
-  | "saturday"
-  | "sunday";
+  "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
 
 export interface SemanticColumn {
   name: string;

@@ -64,13 +64,7 @@ function Field({
   );
 }
 
-export function MetricsTab({
-  model,
-  errors,
-  datasourceId,
-  dialect,
-  onChange,
-}: Props) {
+export function MetricsTab({ model, errors, datasourceId, dialect, onChange }: Props) {
   const metrics = model.metrics ?? [];
   const tables = model.tables ?? [];
   const [selected, setSelected] = useState(0);
@@ -96,13 +90,11 @@ export function MetricsTab({
       <div className="grid gap-6 md:grid-cols-[16rem_1fr]">
         <div className="flex flex-col gap-2">
           <p className="text-sm text-muted-foreground">
-            Una métrica es la definición oficial de un número del negocio: el
-            motor arma siempre el mismo SQL para ella.
+            Una métrica es la definición oficial de un número del negocio: el motor arma siempre el
+            mismo SQL para ella.
           </p>
           {metrics.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Todavía no hay métricas.
-            </p>
+            <p className="text-sm text-muted-foreground">Todavía no hay métricas.</p>
           )}
           <ul aria-label="Métricas" className="flex flex-col gap-1">
             {metrics.map((item, i) => (
@@ -114,16 +106,11 @@ export function MetricsTab({
                   className={cn(
                     "w-full rounded-md border px-3 py-2 text-left text-sm",
                     i === index ? "border-primary bg-accent" : "bg-card",
-                    hasErrorsUnder(errors, `metrics[${i}]`) &&
-                      "border-destructive",
+                    hasErrorsUnder(errors, `metrics[${i}]`) && "border-destructive",
                   )}
                 >
-                  <span className="block font-medium">
-                    {item.label || "(sin nombre)"}
-                  </span>
-                  <span className="block text-xs text-muted-foreground">
-                    {item.name}
-                  </span>
+                  <span className="block font-medium">{item.label || "(sin nombre)"}</span>
+                  <span className="block text-xs text-muted-foreground">{item.name}</span>
                 </button>
               </li>
             ))}
@@ -134,9 +121,7 @@ export function MetricsTab({
         </div>
 
         {metric && (
-          <section
-            aria-label={`Editor de la métrica ${metric.label || metric.name}`}
-          >
+          <section aria-label={`Editor de la métrica ${metric.label || metric.name}`}>
             <div className="grid gap-4 md:grid-cols-2">
               <Field
                 label="Nombre"
@@ -175,9 +160,7 @@ export function MetricsTab({
                     aria-label="Descripción de la métrica"
                     rows={2}
                     value={metric.description ?? ""}
-                    onChange={(event) =>
-                      patch({ description: event.target.value })
-                    }
+                    onChange={(event) => patch({ description: event.target.value })}
                   />
                 </Field>
               </div>
@@ -204,10 +187,9 @@ export function MetricsTab({
                   onChange={(event) => patch({ table: event.target.value })}
                 >
                   <option value="">Elige una tabla…</option>
-                  {metric.table !== "" &&
-                    !tables.some((t) => t.name === metric.table) && (
-                      <option value={metric.table}>{metric.table}</option>
-                    )}
+                  {metric.table !== "" && !tables.some((t) => t.name === metric.table) && (
+                    <option value={metric.table}>{metric.table}</option>
+                  )}
                   {tables.map((table) => (
                     <option key={table.name} value={table.name}>
                       {table.name}
@@ -241,26 +223,21 @@ export function MetricsTab({
                     aria-describedby={describedBy(errors, `${at}.expression`)}
                     className="font-mono"
                     value={metric.expression}
-                    onChange={(event) =>
-                      patch({ expression: event.target.value })
-                    }
+                    onChange={(event) => patch({ expression: event.target.value })}
                   />
                 </Field>
               </div>
               <div className="md:col-span-2">
                 <span className="text-sm font-medium">Filtros fijos</span>
                 <p className="mb-2 text-xs text-muted-foreground">
-                  Condiciones que siempre aplican, p. ej.{" "}
-                  <code>estado = &apos;PAGADA&apos;</code>
+                  Condiciones que siempre aplican, p. ej. <code>estado = &apos;PAGADA&apos;</code>
                 </p>
                 <StringList
                   label="Filtro de la métrica"
                   addLabel="Agregar filtro"
                   values={metric.filters ?? []}
                   onChange={(filters) => patch({ filters })}
-                  renderError={(i) => (
-                    <FieldError errors={errors} path={`${at}.filters[${i}]`} />
-                  )}
+                  renderError={(i) => <FieldError errors={errors} path={`${at}.filters[${i}]`} />}
                 />
               </div>
               <div className="md:col-span-2">
@@ -268,10 +245,7 @@ export function MetricsTab({
                 <p className="mb-2 text-xs text-muted-foreground">
                   Por qué se puede desglosar la métrica.
                 </p>
-                <ul
-                  aria-label="Dimensiones de la métrica"
-                  className="flex flex-col gap-2"
-                >
+                <ul aria-label="Dimensiones de la métrica" className="flex flex-col gap-2">
                   {(metric.dimensions ?? []).map((dimension, i) => (
                     <li key={i} className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
@@ -279,14 +253,11 @@ export function MetricsTab({
                           label={`Dimensión ${i + 1}`}
                           value={dimension}
                           model={model}
-                          describedById={describedBy(
-                            errors,
-                            `${at}.dimensions[${i}]`,
-                          )}
+                          describedById={describedBy(errors, `${at}.dimensions[${i}]`)}
                           onChange={(value) =>
                             patch({
-                              dimensions: (metric.dimensions ?? []).map(
-                                (d, j) => (j === i ? value : d),
+                              dimensions: (metric.dimensions ?? []).map((d, j) =>
+                                j === i ? value : d,
                               ),
                             })
                           }
@@ -298,19 +269,14 @@ export function MetricsTab({
                           aria-label={`Quitar dimensión ${i + 1}`}
                           onClick={() =>
                             patch({
-                              dimensions: (metric.dimensions ?? []).filter(
-                                (_, j) => j !== i,
-                              ),
+                              dimensions: (metric.dimensions ?? []).filter((_, j) => j !== i),
                             })
                           }
                         >
                           <Trash2 aria-hidden />
                         </Button>
                       </div>
-                      <FieldError
-                        errors={errors}
-                        path={`${at}.dimensions[${i}]`}
-                      />
+                      <FieldError errors={errors} path={`${at}.dimensions[${i}]`} />
                     </li>
                   ))}
                 </ul>
@@ -319,9 +285,7 @@ export function MetricsTab({
                   variant="outline"
                   size="sm"
                   className="mt-2"
-                  onClick={() =>
-                    patch({ dimensions: [...(metric.dimensions ?? []), ""] })
-                  }
+                  onClick={() => patch({ dimensions: [...(metric.dimensions ?? []), ""] })}
                 >
                   <Plus aria-hidden /> Agregar dimensión
                 </Button>
@@ -333,8 +297,7 @@ export function MetricsTab({
                   value={metric.format ?? ""}
                   onChange={(event) =>
                     patch({
-                      format: (event.target.value ||
-                        null) as MetricFormat | null,
+                      format: (event.target.value || null) as MetricFormat | null,
                     })
                   }
                 >
@@ -356,18 +319,14 @@ export function MetricsTab({
                   aria-label="Período por defecto"
                   placeholder="este mes"
                   value={metric.default_period ?? ""}
-                  onChange={(event) =>
-                    patch({ default_period: event.target.value || null })
-                  }
+                  onChange={(event) => patch({ default_period: event.target.value || null })}
                 />
               </Field>
               <label className="flex items-center gap-2 text-sm">
                 <Switch
                   aria-label="Requiere período"
                   checked={metric.requires_period ?? true}
-                  onCheckedChange={(requires_period) =>
-                    patch({ requires_period })
-                  }
+                  onCheckedChange={(requires_period) => patch({ requires_period })}
                 />
                 Requiere período (si falta, se pregunta)
               </label>

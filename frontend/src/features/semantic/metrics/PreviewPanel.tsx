@@ -53,12 +53,7 @@ function describeError(error: unknown): string {
 }
 
 /** Panel «Probar»: SQL que armaría el motor, sin IA. Usa el modelo publicado, no el borrador. */
-export function PreviewPanel({
-  datasourceId,
-  dialect,
-  model,
-  initialMetric,
-}: Props) {
+export function PreviewPanel({ datasourceId, dialect, model, initialMetric }: Props) {
   const metrics = model.metrics ?? [];
   const [chosen, setChosen] = useState<string | null>(null);
   const [period, setPeriod] = useState("");
@@ -81,16 +76,12 @@ export function PreviewPanel({
   const result = preview.data;
 
   return (
-    <section
-      aria-label="Probar"
-      className="flex flex-col gap-4 rounded-lg border bg-card p-4"
-    >
+    <section aria-label="Probar" className="flex flex-col gap-4 rounded-lg border bg-card p-4">
       <header>
         <h2 className="text-lg font-semibold">Probar</h2>
         <p className="text-sm text-muted-foreground">
-          Mira el SQL que generaría el motor, sin gastar tokens. Prueba con el
-          modelo <strong>publicado</strong>: publica tus cambios para verlos
-          aquí.
+          Mira el SQL que generaría el motor, sin gastar tokens. Prueba con el modelo{" "}
+          <strong>publicado</strong>: publica tus cambios para verlos aquí.
         </p>
       </header>
 
@@ -133,16 +124,11 @@ export function PreviewPanel({
         <fieldset className="md:col-span-2">
           <legend className="text-sm font-medium">Dimensiones</legend>
           {available.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              La métrica no declara dimensiones.
-            </p>
+            <p className="text-xs text-muted-foreground">La métrica no declara dimensiones.</p>
           ) : (
             <div className="flex flex-wrap gap-3 pt-1">
               {available.map((dimension) => (
-                <label
-                  key={dimension}
-                  className="flex items-center gap-1 text-sm"
-                >
+                <label key={dimension} className="flex items-center gap-1 text-sm">
                   <input
                     type="checkbox"
                     checked={dimensions.includes(dimension)}
@@ -165,18 +151,13 @@ export function PreviewPanel({
           <span className="text-sm font-medium">Filtros</span>
           <ul aria-label="Filtros de la prueba" className="flex flex-col gap-2">
             {filters.map((row, i) => (
-              <li
-                key={i}
-                className="grid items-center gap-2 md:grid-cols-[1fr_8rem_1fr_auto]"
-              >
+              <li key={i} className="grid items-center gap-2 md:grid-cols-[1fr_8rem_1fr_auto]">
                 <ColumnSelect
                   label={`Campo del filtro ${i + 1}`}
                   value={row.field}
                   model={model}
                   onChange={(field) =>
-                    setFilters(
-                      filters.map((f, j) => (j === i ? { ...f, field } : f)),
-                    )
+                    setFilters(filters.map((f, j) => (j === i ? { ...f, field } : f)))
                   }
                 />
                 <select
@@ -185,9 +166,7 @@ export function PreviewPanel({
                   value={row.op}
                   onChange={(event) =>
                     setFilters(
-                      filters.map((f, j) =>
-                        j === i ? { ...f, op: event.target.value } : f,
-                      ),
+                      filters.map((f, j) => (j === i ? { ...f, op: event.target.value } : f)),
                     )
                   }
                 >
@@ -203,9 +182,7 @@ export function PreviewPanel({
                   value={row.value}
                   onChange={(event) =>
                     setFilters(
-                      filters.map((f, j) =>
-                        j === i ? { ...f, value: event.target.value } : f,
-                      ),
+                      filters.map((f, j) => (j === i ? { ...f, value: event.target.value } : f)),
                     )
                   }
                 />
@@ -226,9 +203,7 @@ export function PreviewPanel({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() =>
-                setFilters([...filters, { field: "", op: "=", value: "" }])
-              }
+              onClick={() => setFilters([...filters, { field: "", op: "=", value: "" }])}
             >
               <Plus aria-hidden /> Agregar filtro de prueba
             </Button>
@@ -243,34 +218,21 @@ export function PreviewPanel({
       </form>
 
       {preview.isError && (
-        <p
-          role="alert"
-          className="rounded-md border border-destructive p-3 text-sm"
-        >
+        <p role="alert" className="rounded-md border border-destructive p-3 text-sm">
           {describeError(preview.error)}
         </p>
       )}
 
       {result && (
-        <div
-          aria-label="Resultado de la prueba"
-          className="flex flex-col gap-3"
-          role="region"
-        >
+        <div aria-label="Resultado de la prueba" className="flex flex-col gap-3" role="region">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <Badge variant="secondary">
-              {result.summary_table
-                ? `Tabla resumida: ${result.summary_table}`
-                : "Tablas base"}
+              {result.summary_table ? `Tabla resumida: ${result.summary_table}` : "Tablas base"}
             </Badge>
             {result.role && <Badge variant="outline">Rol: {result.role}</Badge>}
-            {result.period && (
-              <Badge variant="outline">Período: {result.period.label}</Badge>
-            )}
+            {result.period && <Badge variant="outline">Período: {result.period.label}</Badge>}
             <Badge variant={result.guard.allowed ? "outline" : "destructive"}>
-              {result.guard.allowed
-                ? "Guardián: permitido"
-                : "Guardián: rechazado"}
+              {result.guard.allowed ? "Guardián: permitido" : "Guardián: rechazado"}
             </Badge>
           </div>
           <p className="text-sm">
@@ -290,15 +252,10 @@ export function PreviewPanel({
           {result.filters_applied.length > 0 && (
             <div>
               <p className="text-sm font-medium">Filtros aplicados</p>
-              <ul
-                aria-label="Filtros aplicados"
-                className="text-sm text-muted-foreground"
-              >
+              <ul aria-label="Filtros aplicados" className="text-sm text-muted-foreground">
                 {result.filters_applied.map((f) => (
                   <li key={`${f.source}:${f.text}`}>
-                    <span className="font-medium">
-                      {SOURCE_LABELS[f.source] ?? f.source}:
-                    </span>{" "}
+                    <span className="font-medium">{SOURCE_LABELS[f.source] ?? f.source}:</span>{" "}
                     <code>{f.text}</code>
                   </li>
                 ))}

@@ -43,13 +43,8 @@ export function ColumnSelect({
       {tables.map((table) => (
         <optgroup key={table.name} label={table.name}>
           {(table.columns ?? []).map((column) => (
-            <option
-              key={column.name}
-              value={optionValue(table.name, column.name)}
-            >
-              {onlyTable === undefined
-                ? `${table.name}.${column.name}`
-                : column.name}
+            <option key={column.name} value={optionValue(table.name, column.name)}>
+              {onlyTable === undefined ? `${table.name}.${column.name}` : column.name}
             </option>
           ))}
         </optgroup>

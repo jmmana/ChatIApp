@@ -83,9 +83,7 @@ interface Calls {
   puts: { model: SemanticModel }[];
 }
 
-function setup(
-  handlers: { preview?: () => Response; put?: () => Response } = {},
-) {
+function setup(handlers: { preview?: () => Response; put?: () => Response } = {}) {
   const calls: Calls = { previews: [], puts: [] };
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.endsWith("/auth/refresh")) return json(session);
@@ -136,19 +134,11 @@ describe("pestaña Métricas", () => {
 
     const list = screen.getByRole("list", { name: "Métricas" });
     expect(within(list).getByText("Ventas netas")).toBeInTheDocument();
-    expect(screen.getByLabelText("Nombre de la métrica")).toHaveValue(
-      "ventas_netas",
-    );
+    expect(screen.getByLabelText("Nombre de la métrica")).toHaveValue("ventas_netas");
     expect(screen.getByLabelText("Tabla base")).toHaveValue("facturas");
-    expect(screen.getByLabelText("Columna de tiempo")).toHaveValue(
-      "facturas.fecha",
-    );
-    expect(screen.getByLabelText("Expresión de la métrica")).toHaveValue(
-      "SUM(total)",
-    );
-    expect(screen.getByLabelText("Filtro de la métrica 1")).toHaveValue(
-      "estado = 'PAGADA'",
-    );
+    expect(screen.getByLabelText("Columna de tiempo")).toHaveValue("facturas.fecha");
+    expect(screen.getByLabelText("Expresión de la métrica")).toHaveValue("SUM(total)");
+    expect(screen.getByLabelText("Filtro de la métrica 1")).toHaveValue("estado = 'PAGADA'");
     expect(screen.getByLabelText("Dimensión 1")).toHaveValue("facturas.canal");
     expect(screen.getByLabelText("Requiere período")).toBeChecked();
     expect(screen.getByLabelText("Aditiva")).toBeChecked();
@@ -181,12 +171,8 @@ describe("pestaña Métricas", () => {
     await userEvent.type(expression, "SUM(total");
     await userEvent.click(screen.getByRole("button", { name: "Publicar" }));
 
-    expect(
-      await screen.findByText("SQL inválido: paréntesis sin cerrar"),
-    ).toBeInTheDocument();
-    expect(expression).toHaveAccessibleDescription(
-      "SQL inválido: paréntesis sin cerrar",
-    );
+    expect(await screen.findByText("SQL inválido: paréntesis sin cerrar")).toBeInTheDocument();
+    expect(expression).toHaveAccessibleDescription("SQL inválido: paréntesis sin cerrar");
   });
 });
 
@@ -203,29 +189,16 @@ describe("pestaña Resumidas", () => {
     });
     await openTab("Resumidas");
 
-    expect(screen.getByLabelText("Tabla resumida")).toHaveValue(
-      "ventas_mensuales",
-    );
+    expect(screen.getByLabelText("Tabla resumida")).toHaveValue("ventas_mensuales");
     expect(screen.getByLabelText("Granularidad")).toHaveValue("month");
-    expect(
-      screen.getByLabelText("Columna de tiempo de la resumida"),
-    ).toHaveValue("mes");
-    expect(
-      screen.getByLabelText("Incluye el período en curso"),
-    ).not.toBeChecked();
-    expect(screen.getByLabelText("Expresión de la métrica 1")).toHaveValue(
-      "SUM(total_ventas)",
-    );
+    expect(screen.getByLabelText("Columna de tiempo de la resumida")).toHaveValue("mes");
+    expect(screen.getByLabelText("Incluye el período en curso")).not.toBeChecked();
+    expect(screen.getByLabelText("Expresión de la métrica 1")).toHaveValue("SUM(total_ventas)");
 
     await userEvent.selectOptions(screen.getByLabelText("Granularidad"), "day");
     await userEvent.click(screen.getByLabelText("Incluye el período en curso"));
-    await userEvent.click(
-      screen.getByRole("button", { name: "Agregar dimensión" }),
-    );
-    await userEvent.selectOptions(
-      screen.getByLabelText("Dimensión 1"),
-      "facturas.canal",
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Agregar dimensión" }));
+    await userEvent.selectOptions(screen.getByLabelText("Dimensión 1"), "facturas.canal");
     await userEvent.selectOptions(
       screen.getByLabelText("Columna de la resumida 1"),
       "total_ventas",
@@ -265,16 +238,13 @@ describe("pestaña Resumidas", () => {
         ),
     });
     await openTab("Resumidas");
-    await userEvent.type(
-      screen.getByLabelText("Expresión de la métrica 1"),
-      " ",
-    );
+    await userEvent.type(screen.getByLabelText("Expresión de la métrica 1"), " ");
     await userEvent.click(screen.getByRole("button", { name: "Publicar" }));
 
     expect(await screen.findByText("Expresión inválida")).toBeInTheDocument();
-    expect(
-      screen.getByLabelText("Expresión de la métrica 1"),
-    ).toHaveAccessibleDescription("Expresión inválida");
+    expect(screen.getByLabelText("Expresión de la métrica 1")).toHaveAccessibleDescription(
+      "Expresión inválida",
+    );
   });
 });
 
@@ -284,25 +254,15 @@ describe("panel «Probar»", () => {
     await openTab("Métricas");
     const panel = screen.getByRole("region", { name: "Probar" });
 
-    await userEvent.type(
-      within(panel).getByLabelText("Período a probar"),
-      "este mes",
-    );
+    await userEvent.type(within(panel).getByLabelText("Período a probar"), "este mes");
     await userEvent.click(within(panel).getByLabelText("facturas.canal"));
-    await userEvent.click(
-      within(panel).getByRole("button", { name: "Agregar filtro de prueba" }),
-    );
+    await userEvent.click(within(panel).getByRole("button", { name: "Agregar filtro de prueba" }));
     await userEvent.selectOptions(
       within(panel).getByLabelText("Campo del filtro 1"),
       "facturas.canal",
     );
-    await userEvent.type(
-      within(panel).getByLabelText("Valor del filtro 1"),
-      "web",
-    );
-    await userEvent.click(
-      within(panel).getByRole("button", { name: "Ver SQL" }),
-    );
+    await userEvent.type(within(panel).getByLabelText("Valor del filtro 1"), "web");
+    await userEvent.click(within(panel).getByRole("button", { name: "Ver SQL" }));
 
     const result = await within(panel).findByRole("region", {
       name: "Resultado de la prueba",
@@ -315,16 +275,10 @@ describe("panel «Probar»", () => {
         filters: [{ field: "facturas.canal", op: "=", value: "web" }],
       },
     ]);
-    expect(
-      within(result).getByText("Tabla resumida: ventas_diarias"),
-    ).toBeInTheDocument();
-    expect(
-      within(result).getByText(/no incluye el mes en curso/),
-    ).toBeInTheDocument();
+    expect(within(result).getByText("Tabla resumida: ventas_diarias")).toBeInTheDocument();
+    expect(within(result).getByText(/no incluye el mes en curso/)).toBeInTheDocument();
     expect(within(result).getByText(/SELECT/)).toBeInTheDocument();
-    expect(
-      within(result).getByText("Período: Noviembre 2026"),
-    ).toBeInTheDocument();
+    expect(within(result).getByText("Período: Noviembre 2026")).toBeInTheDocument();
     expect(within(result).getByText("Guardián: permitido")).toBeInTheDocument();
   });
 
@@ -361,8 +315,6 @@ describe("panel «Probar»", () => {
     await userEvent.type(screen.getByLabelText("Período a probar"), "xyz");
     await userEvent.click(screen.getByRole("button", { name: "Ver SQL" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "No entiendo el período «xyz»",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("No entiendo el período «xyz»");
   });
 });

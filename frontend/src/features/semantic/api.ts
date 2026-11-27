@@ -14,24 +14,17 @@ export function listDatasources(): Promise<Datasource[]> {
 }
 
 /** Versión vigente; `null` si la fuente aún no tiene modelo. */
-export async function getSemantic(
-  datasourceId: string,
-): Promise<SemanticVersion | null> {
+export async function getSemantic(datasourceId: string): Promise<SemanticVersion | null> {
   try {
-    return await apiRequest<SemanticVersion>(
-      `/datasources/${datasourceId}/semantic`,
-    );
+    return await apiRequest<SemanticVersion>(`/datasources/${datasourceId}/semantic`);
   } catch (error) {
-    if (error instanceof ApiError && error.code === "semantic_model_not_found")
-      return null;
+    if (error instanceof ApiError && error.code === "semantic_model_not_found") return null;
     throw error;
   }
 }
 
 export function listVersions(datasourceId: string): Promise<VersionInfo[]> {
-  return apiRequest<VersionInfo[]>(
-    `/datasources/${datasourceId}/semantic/versions`,
-  );
+  return apiRequest<VersionInfo[]>(`/datasources/${datasourceId}/semantic/versions`);
 }
 
 export function publishSemantic(

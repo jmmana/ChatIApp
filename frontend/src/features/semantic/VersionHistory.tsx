@@ -14,8 +14,7 @@ export function VersionHistory({ datasourceId }: { datasourceId: string }) {
     queryFn: () => listVersions(datasourceId),
   });
 
-  if (versions.isPending)
-    return <p className="text-sm text-muted-foreground">Cargando…</p>;
+  if (versions.isPending) return <p className="text-sm text-muted-foreground">Cargando…</p>;
   if (versions.isError) {
     return (
       <p role="alert" className="text-sm text-destructive">
@@ -24,11 +23,7 @@ export function VersionHistory({ datasourceId }: { datasourceId: string }) {
     );
   }
   if (versions.data.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Todavía no hay versiones publicadas.
-      </p>
-    );
+    return <p className="text-sm text-muted-foreground">Todavía no hay versiones publicadas.</p>;
   }
 
   // La API solo devuelve el id del autor: el propio usuario se reconoce por su correo.
@@ -57,9 +52,7 @@ export function VersionHistory({ datasourceId }: { datasourceId: string }) {
         {versions.data.map((item) => (
           <tr key={item.version} className="border-b">
             <td className="py-2 pr-4 font-medium">v{item.version}</td>
-            <td className="py-2 pr-4">
-              {dateFormat.format(new Date(item.created_at))}
-            </td>
+            <td className="py-2 pr-4">{dateFormat.format(new Date(item.created_at))}</td>
             <td className="py-2">{author(item.created_by)}</td>
           </tr>
         ))}

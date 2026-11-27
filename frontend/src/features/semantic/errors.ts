@@ -16,16 +16,10 @@ export function errorId(path: string): string {
 /** ¿Hay errores en `prefix` o debajo de él (`tables[0]` incluye `tables[0].columns[1].name`)? */
 export function hasErrorsUnder(errors: FieldErrors, prefix: string): boolean {
   return Object.keys(errors).some(
-    (path) =>
-      path === prefix ||
-      path.startsWith(`${prefix}.`) ||
-      path.startsWith(`${prefix}[`),
+    (path) => path === prefix || path.startsWith(`${prefix}.`) || path.startsWith(`${prefix}[`),
   );
 }
 
-export function describedBy(
-  errors: FieldErrors,
-  path: string,
-): string | undefined {
+export function describedBy(errors: FieldErrors, path: string): string | undefined {
   return errors[path] ? errorId(path) : undefined;
 }
