@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { listDatasources } from "@/features/datasources/api";
 import { listProviders } from "@/features/providers/api";
+import { Clarification } from "./Clarification";
 import { cancelTurnOnServer, getFormatSettings, getMetrics, getRoles } from "./api";
 import { Composer } from "./Composer";
+import { Reasoning } from "./Reasoning";
 import { ResultView } from "./results/ResultView";
+import { SqlBlock } from "./SqlBlock";
 import { buildSuggestions } from "./suggestions";
 import type { TurnState } from "./turnReducer";
 import { useTurn } from "./useTurn";
@@ -205,21 +208,25 @@ function Exchange({ question, turn, onOption, format, live = false }: ExchangePr
   return (
     <article className="flex flex-col gap-3">
       <p className="self-end rounded-xl bg-accent px-3 py-2 text-accent-foreground">{question}</p>
-      {turn.status === "streaming" && !text && (
+      <Reasoning
+        steps={turn.steps}
+        reasoning={turn.reasoning}
+        streaming={turn.status === "streaming"}
+      />
+      {turn.status === "streaming" && !text && turn.steps.length === 0 && (
         <p role="status" className="text-sm text-muted-foreground">
-          {turn.steps.at(-1)?.label ?? "Pensando…"}
+          Pensando…
         </p>
       )}
+      {turn.sql && <SqlBlock sql={turn.sql} streaming={turn.status === "streaming"} />}
       {turn.result && <ResultView result={turn.result} sql={turn.sql} {...format} />}
       {text && <p className="whitespace-pre-wrap">{text}</p>}
       {live && turn.status === "clarifying" && turn.clarification && (
-        <div className="flex flex-wrap gap-2">
-          {turn.clarification.options.map((option) => (
-            <Button key={option} variant="outline" size="sm" onClick={() => onOption?.(option)}>
-              {option}
-            </Button>
-          ))}
-        </div>
+        <Clarification
+          question={turn.clarification.question}
+          options={turn.clarification.options}
+          onSelect={(option) => onOption?.(option)}
+        />
       )}
       {turn.status === "error" && turn.error && (
         <p role="alert" className="text-sm text-destructive">
