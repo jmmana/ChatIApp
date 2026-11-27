@@ -26,9 +26,7 @@ def _exactitud(correctos: int, total: int) -> float:
     return correctos / total if total else 0.0
 
 
-def resumir(
-    proveedor: str, kind: str, modelo: str, resultados: Sequence[ResultadoCaso]
-) -> Informe:
+def resumir(proveedor: str, kind: str, modelo: str, resultados: Sequence[ResultadoCaso]) -> Informe:
     """Métricas de un proveedor. La exactitud es una fracción de 0 a 1."""
     total = len(resultados)
     correctos = sum(1 for r in resultados if r.correcto)

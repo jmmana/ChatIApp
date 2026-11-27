@@ -202,9 +202,7 @@ def evaluar(
         carpeta = Path(tmp)
         conn = _abrir_demo(config, carpeta)
         try:
-            esperados = {
-                c.id: _ejecutar(conn, c.expect.sql)[1] for c in conjunto.casos if c.expect
-            }
+            esperados = {c.id: _ejecutar(conn, c.expect.sql)[1] for c in conjunto.casos if c.expect}
         finally:
             conn.close()
         engine = make_engine(f"sqlite:///{carpeta / 'eval.db'}")

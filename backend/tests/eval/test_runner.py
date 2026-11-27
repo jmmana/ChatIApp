@@ -140,7 +140,9 @@ def test_fuera_de_alcance_no_ejecuta_nada(resultados: dict[str, ResultadoCaso]) 
 def test_aclara_y_responde_suma_los_dos_turnos(resultados: dict[str, ResultadoCaso]) -> None:
     caso = resultados["aclara-y-responde"]
     assert caso.correcto
-    assert caso.tokens_in > resultados["ok-mes-pasado"].tokens_in  # dos planes, no uno
+    # La respuesta a la aclaración completa el plan pendiente sin llamar a la IA (main): el uso
+    # suma los dos turnos, pero el segundo ya no cuesta tokens.
+    assert caso.tokens_in >= resultados["ok-mes-pasado"].tokens_in
 
 
 def test_resumen_con_exactitud_por_etiqueta_latencia_y_costo(
