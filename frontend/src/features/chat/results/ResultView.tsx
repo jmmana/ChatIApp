@@ -75,6 +75,12 @@ export function ResultView({
         </Button>
       </div>
 
+      {shape.constants.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {shape.constants.map((c) => `${result.columns[c.index]}: ${c.value}`).join(" · ")}
+        </p>
+      )}
+
       {view === "kpi" && (
         <KpiCard
           label={metricLabels[metricName] ?? metricName}

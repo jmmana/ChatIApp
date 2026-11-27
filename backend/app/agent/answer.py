@@ -6,6 +6,7 @@ sale de una plantilla local que formatea los números con el `locale` y la moned
 ambos casos la respuesta menciona el período resuelto. Con `schema` nunca se envía una fila.
 """
 
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -22,6 +23,8 @@ from app.semantic.schema import Metric, SemanticModel
 MAX_ANSWER_ROWS = 50  # filas que, como máximo, se envían a la IA para redactar (privacidad)
 PROMPT_PATH = Path(__file__).parent / "prompts" / "answer.md"
 DEFAULT_LOCALE = "es-CO"
+MIN_FIGURE_DIGITS = 3  # cifras más cortas («3», «12») no sirven para detectar una fila citada
+_FIGURE = re.compile(r"\d(?:[\d.,]|[   ](?=\d))*")
 
 NBSP = " "
 NARROW_NBSP = " "
@@ -159,6 +162,47 @@ def template_answer(
     return f"La consulta devolvió {len(outcome.rows)} filas{in_period}{cut}. Revisa la tabla."
 
 
+def _digits(text: str) -> str:
+    return "".join(ch for ch in text if ch.isdigit())
+
+
+def _cell_figures(value: Any, metric: Metric | None, locale: str, currency: str | None) -> set[str]:
+    """Cifras (solo dígitos) con que una celda numérica puede citarse en un texto."""
+    number = _number(value)
+    if number is None:
+        return set()
+    shown = {
+        _digits(format_value(value, metric, locale=locale, currency=currency)),
+        _digits(format_value(value, None, locale=locale, currency=currency)),
+        str(int(abs(round(number)))),
+    }
+    return {d for d in shown if len(d) >= MIN_FIGURE_DIGITS}
+
+
+def quotes_only_first_row(
+    text: str, outcome: Outcome, *, locale: str = DEFAULT_LOCALE, currency: str | None = None
+) -> bool:
+    """¿El texto cita una cifra que solo está en la primera de varias filas?
+
+    Es la señal de que la IA respondió con una fila como si fuera el total.
+    """
+    if len(outcome.rows) < 2:
+        return False
+
+    def figures(rows: list[list[Any]]) -> set[str]:
+        found: set[str] = set()
+        for row in rows:
+            for cell in row:
+                found |= _cell_figures(cell, outcome.metric, locale, currency)
+        return found
+
+    others = figures(outcome.rows[1:])
+    only_first = figures(outcome.rows[:1]) - others
+    cited = {_digits(m) for m in _FIGURE.findall(text)}
+    # Citar también cifras de las demás filas significa que las enumera todas.
+    return bool(only_first & cited) and not (others & cited)
+
+
 # --------------------------------------------------------------------------- redacción
 
 
@@ -195,6 +239,12 @@ class AnswerWriter:
             return
         if not drafted.strip():
             return
+        if quotes_only_first_row(drafted, outcome, locale=self.locale, currency=self.currency):
+            self.warning = (
+                "La respuesta de la IA citaba solo la primera de varias filas. "
+                "Se usó la respuesta de plantilla."
+            )
+            return
         self.text = drafted.strip()
         label = _period_label(outcome)
         if label and label.casefold() not in self.text.casefold():
@@ -224,6 +274,9 @@ class AnswerWriter:
             {"role": "system", "content": PROMPT_PATH.read_text(encoding="utf-8")},
             {
                 "role": "user",
-                "content": f"Pregunta: {self.question}\n<resultado>\n{body}\n</resultado>",
+                "content": (
+                    f"<pregunta>{escape_data(self.question)}</pregunta>\n"
+                    f"<resultado>\n{body}\n</resultado>"
+                ),
             },
         ]

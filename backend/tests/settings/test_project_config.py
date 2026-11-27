@@ -183,9 +183,39 @@ def test_registra_proveedores_y_fuentes_como_config(tmp_path: Path, engine: Engi
         assert cipher.decrypt(datasources[0].url_encrypted).decode() == ENV["VENTAS_DB_URL"]
 
 
+def test_el_bloque_routing_rellena_tasks_y_fallback(engine: Engine) -> None:
+    config = load_project_config(EXAMPLE, ENV)
+
+    with Session(engine) as session:
+        sync_config_to_db(session, config, make_cipher("clave"))
+        params = {p.name: p.params for p in session.scalars(select(Provider)).all()}
+
+    assert params["claude"] == {"tasks": ["planner", "sql"]}
+    assert params["deepseek"] == {"tasks": ["answer"], "fallback": 0}
+    assert params["local"] == {"tasks": ["suggest"], "fallback": 1}
+    assert params["bedrock"] == {"tasks": []}
+
+
 def test_arranque_con_archivo_invalido_falla(tmp_path: Path) -> None:
     path = _write(tmp_path, "version: 2\n")
     settings = Settings(config=path)
 
     with pytest.raises(ConfigError, match="version"):
         load_and_register(settings)
+
+
+def test_chat_timeout_por_encima_del_maximo_se_rechaza_al_arrancar(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CHATIAPP_CHAT_TIMEOUT_SECONDS", "601")
+
+    with pytest.raises(
+        ValidationError, match=r"(?s)chat_timeout_seconds.*less than or equal to 600"
+    ):
+        Settings()
+
+
+def test_chat_timeout_en_el_maximo_es_valido(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHATIAPP_CHAT_TIMEOUT_SECONDS", "600")
+
+    assert Settings().chat_timeout_seconds == 600

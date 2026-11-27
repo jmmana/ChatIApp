@@ -25,6 +25,8 @@ frontend/dist/
 embed/react/dist/
 embed/test-results/
 embed/playwright-report/
+frontend/playwright-report/
+frontend/test-results/
 .vite/
 *.tsbuildinfo
 
@@ -40,3 +42,6 @@ data/
 .idea/
 .vscode/
 *.swp
+
+# Informes de evaluación
+eval-reports/

@@ -10,6 +10,8 @@ NAME="chatiapp-smoke-$$"
 VOLUME="chatiapp-smoke-$$"
 PORT="${SMOKE_PORT:-18080}"
 URL="http://127.0.0.1:$PORT"
+ADMIN_EMAIL="humo@example.com"
+ADMIN_PASSWORD="clave-de-humo-1234"
 
 cleanup() {
     docker rm -f "$NAME" > /dev/null 2>&1 || true
@@ -24,7 +26,9 @@ fail() {
 }
 
 start() {
-    docker run -d --name "$NAME" -p "$PORT:8080" -v "$VOLUME:/data" "$IMAGE" > /dev/null
+    docker run -d --name "$NAME" -p "$PORT:8080" -v "$VOLUME:/data" \
+        -e CHATIAPP_ADMIN_EMAIL="$ADMIN_EMAIL" -e CHATIAPP_ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+        "$IMAGE" > /dev/null
     i=0
     until [ "$(docker inspect -f '{{.State.Health.Status}}' "$NAME")" = "healthy" ]; do
         i=$((i + 1))
@@ -65,6 +69,15 @@ docker exec "$NAME" test -s /data/demo/ventas.db || fail "no se creó la demo"
 docker exec "$NAME" test -s /data/chatiapp.db || fail "no se creó la base de la app"
 [ "$(docker exec "$NAME" stat -c '%a' /data/secret.key)" = "600" ] || fail "secret.key sin permisos 600"
 echo "ok  demo, base de la app y llave en /data, usuario sin root"
+
+# La fuente «Ventas (demo)» ya viene creada: se lista con una sesión de administrador.
+TOKEN="$(curl -s -X POST "$URL/api/v1/auth/login" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" \
+    | sed -n 's/.*"access_token" *: *"\([^"]*\)".*/\1/p')"
+[ -n "$TOKEN" ] || fail "no se pudo iniciar sesión como administrador"
+curl -s "$URL/api/v1/datasources" -H "Authorization: Bearer $TOKEN" | grep -q 'Ventas (demo)' \
+    || fail "GET /api/v1/datasources no lista «Ventas (demo)»"
+echo "ok  GET /api/v1/datasources lista «Ventas (demo)»"
 
 KEY="$(docker exec "$NAME" cat /data/secret.key)"
 docker rm -f "$NAME" > /dev/null

@@ -35,8 +35,11 @@ function sse(events: [string, unknown][], keepOpen: boolean) {
   return new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } });
 }
 
-function stubApi(options: { keepOpen?: boolean; isAdmin?: boolean } = {}) {
-  const { keepOpen = false, isAdmin = true } = options;
+function stubApi(
+  options: { keepOpen?: boolean; isAdmin?: boolean; firstTurn?: "network" | "fatal" } = {},
+) {
+  const { keepOpen = false, isAdmin = true, firstTurn } = options;
+  let chatCalls = 0;
   const calls: { url: string; method: string; body?: string }[] = [];
   vi.stubGlobal(
     "fetch",
@@ -48,6 +51,17 @@ function stubApi(options: { keepOpen?: boolean; isAdmin?: boolean } = {}) {
           expires_in: 900,
           user: { id: "1", email: "ana@example.com", is_admin: isAdmin },
         });
+      if (url.endsWith("/chat/stream")) chatCalls += 1;
+      if (url.endsWith("/chat/stream") && chatCalls === 1 && firstTurn === "network")
+        throw new TypeError("Fallo de red");
+      if (url.endsWith("/chat/stream") && chatCalls === 1 && firstTurn === "fatal")
+        return sse(
+          [
+            ["turn.started", { turn_id: "t1", conversation_id: "c1" }],
+            ["error", { code: "sql_rejected", message: "Consulta rechazada.", recoverable: false }],
+          ],
+          false,
+        );
       if (url.endsWith("/chat/stream"))
         return sse(
           [
@@ -68,7 +82,7 @@ function stubApi(options: { keepOpen?: boolean; isAdmin?: boolean } = {}) {
       if (url.endsWith("/semantic")) return json(semantic);
       if (url.endsWith("/metrics")) return json({ metrics: semantic.model.metrics });
       if (url.endsWith("/api/v1/datasources"))
-        return json([{ id: "ds1", name: "Ventas", dialect: "sqlite" }]);
+        return json([{ id: "ds1", name: "Ventas", dialect: "sqlite", privacy: "aggregates" }]);
       if (url.endsWith("/api/v1/providers"))
         return json([{ id: "p1", name: "Simulado", kind: "fake", model: "fake-1" }]);
       return json({});
@@ -115,6 +129,7 @@ describe("ChatPage", () => {
     expect(await screen.findByRole("combobox", { name: "Fuente de datos" })).toHaveValue("ds1");
     expect(screen.getByRole("combobox", { name: "Modelo de IA" })).toBeInTheDocument();
     expect(await screen.findByRole("combobox", { name: "Rol" })).toBeInTheDocument();
+    expect(await screen.findByTestId("privacy-level")).toHaveTextContent("Privacidad: Agregados");
   });
 
   it("quien no es administrador recibe sugerencias sin leer el modelo completo", async () => {
@@ -168,5 +183,31 @@ describe("ChatPage", () => {
     expect(
       calls.some((c) => c.url.endsWith("/chat/t1/cancel") && c.method === "POST"),
     ).toBe(true);
+  });
+
+  it("ante un error de red ofrece «Reintentar» y reenvía la misma pregunta", async () => {
+    const calls = stubApi({ firstTurn: "network" });
+    renderPage();
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Fuente de datos" })).toHaveValue("ds1"));
+    await userEvent.type(screen.getByLabelText("Pregunta"), "¿Cuánto vendí?{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Fallo de red");
+
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    expect(await screen.findByText("Vendiste 10.")).toBeInTheDocument();
+    const bodies = calls
+      .filter((c) => c.url.endsWith("/chat/stream"))
+      .map((c) => JSON.parse(c.body ?? "null"));
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1]).toEqual(bodies[0]);
+    expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument();
+  });
+
+  it("ante un error no recuperable no muestra «Reintentar»", async () => {
+    stubApi({ firstTurn: "fatal" });
+    renderPage();
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Fuente de datos" })).toHaveValue("ds1"));
+    await userEvent.type(screen.getByLabelText("Pregunta"), "hola{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Consulta rechazada.");
+    expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument();
   });
 });

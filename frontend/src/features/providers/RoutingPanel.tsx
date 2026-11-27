@@ -2,25 +2,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { putRouting, type Provider, type Task } from "./api";
-import { TASKS, fallbackIndex } from "./catalog";
+import { putRouting, type Provider } from "./api";
+import { TASKS, initialRouting } from "./catalog";
 
 const selectClass =
   "flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-sm disabled:opacity-50";
-
-/** Estado inicial a partir de lo guardado; los proveedores de `chatiapp.yaml` no se reasignan. */
-function initialRouting(editable: Provider[]) {
-  const tasks: Partial<Record<Task, string>> = {};
-  for (const { value } of TASKS) {
-    const owner = editable.find((p) => p.tasks.includes(value));
-    if (owner) tasks[value] = owner.id;
-  }
-  const fallback = editable
-    .filter((p) => fallbackIndex(p) !== null)
-    .sort((a, b) => (fallbackIndex(a) ?? 0) - (fallbackIndex(b) ?? 0))
-    .map((p) => p.id);
-  return { tasks, fallback };
-}
 
 export function RoutingPanel({ providers }: { providers: Provider[] }) {
   const queryClient = useQueryClient();

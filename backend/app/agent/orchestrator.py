@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal, cast
 
+from opentelemetry.trace import Tracer
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -37,6 +38,7 @@ from app.agent.clarify import (
     should_assume_default,
     trailing_clarifications,
 )
+from app.agent.dimensions import unrequested_dimensions
 from app.agent.entities import EntityQuestion, resolve_filters
 from app.agent.events import (
     Answer,
@@ -82,18 +84,20 @@ from app.engine.periods import PeriodConfig, PeriodRange, resolve_period
 from app.engine.rls import role_row_filters
 from app.engine.summary import plan_for_summary, route_summary
 from app.llm.gateway import Gateway, ProviderConfig, Usage
+from app.llm.privacy import PrivacyGateway, PrivacyLog, parse_level
 from app.llm.routing import LlmClient, Router, TaskGateway
+from app.observability import LogScope, Totals, TurnObserver, metrics
 from app.security.grants import ViewAs, resolve_access
 from app.semantic.context import Privacy
 from app.semantic.schema import Metric, SemanticModel
 
 logger = logging.getLogger(__name__)
 
-_PRIVACY_LEVELS = ("schema", "aggregates", "samples")
 _HISTORY_WINDOW = 12
 
 _LABELS = {
     "understand": "Entendiendo la pregunta",
+    "replan": "Corrigiendo el plan",
     "verify": "Verificando la métrica y los permisos",
     "period": "Resolviendo el período",
     "build": "Construyendo la consulta",
@@ -167,6 +171,7 @@ class _Turn:
     last_plan: dict[str, Any] | None = None
     run: _Run | None = None
     notes: list[str] = field(default_factory=list)
+    tables: list[str] = field(default_factory=list)  # tablas de la consulta, para las trazas
     fallbacks: list[str] = field(default_factory=list)  # avisos de respaldo de `_repair`
     text: str = ""  # lo que se guarda como contenido del mensaje del asistente
     plan: dict[str, Any] | None = None  # plan de la IA tal como llegó (auditoría)
@@ -201,7 +206,9 @@ class Orchestrator:
         query_executor: QueryExecutor = executor,
         guard_cache: GuardCache = guards,
         now: datetime | None = None,
+        tracer: Tracer | None = None,
     ) -> None:
+        self.tracer = tracer
         self.session = session
         self.gateway = gateway
         self.datasource = datasource
@@ -216,8 +223,8 @@ class Orchestrator:
         self.guard_cache = guard_cache
         self._now = now
         self.dialect = cast(Dialect, datasource.dialect)
-        level = datasource.privacy if datasource.privacy in _PRIVACY_LEVELS else "schema"
-        self.privacy = cast(Privacy, level)
+        self.privacy: Privacy = parse_level(datasource.privacy)
+        self.privacy_log = PrivacyLog()
         settings = model.settings
         self.period_config = PeriodConfig(
             timezone=settings.timezone,
@@ -228,12 +235,13 @@ class Orchestrator:
 
     def _llm(self, task: Literal["planner", "sql", "answer"]) -> LlmClient:
         """Pasarela de la tarea: con un `Router`, la de su cadena de respaldo."""
-        return self.gateway.for_task(task) if isinstance(self.gateway, Router) else self.gateway
+        inner = self.gateway.for_task(task) if isinstance(self.gateway, Router) else self.gateway
+        return PrivacyGateway(inner, task, self.privacy, self.privacy_log)
 
     @staticmethod
     def _notices(llm: LlmClient) -> list[str]:
         """Avisos de respaldo ocurridos en `llm` (vacío si no es una pasarela con respaldo)."""
-        return llm.take_notices() if isinstance(llm, TaskGateway) else []
+        return llm.take_notices() if isinstance(llm, TaskGateway | PrivacyGateway) else []
 
     @classmethod
     def for_user(
@@ -273,6 +281,11 @@ class Orchestrator:
 
     def run(self, conversation: Conversation, question: str) -> Iterator[Event]:
         """Recorre el turno y emite sus eventos; `turn.completed` es siempre el último."""
+        user = conversation.user_id or conversation.external_user_id
+        scope = LogScope(str(conversation.id), str(user) if user else None)
+        return scope.wrap(self._run(conversation, question, scope))
+
+    def _run(self, conversation: Conversation, question: str, scope: LogScope) -> Iterator[Event]:
         started = time.perf_counter()
         conversation_id = str(conversation.id)
         try:
@@ -281,14 +294,17 @@ class Orchestrator:
             # Sin turno no hay nada que guardar, pero el cliente recibe igual su burbuja, un error
             # claro y el cierre del turno: nunca una excepción sin manejar.
             logger.exception("No se pudo iniciar el turno en la conversación %s", conversation_id)
+            metrics.TURNS.labels("error").inc()
             if not self.session.is_active:  # un flush fallido deja la transacción por deshacer
                 self.session.rollback()
             yield from _begin_failed(conversation_id, started)
             return
+        observer = self._observer(t, scope)
         persisted = False
         try:
             for event in self._guarded(t):
                 t.events.append(event)
+                self._observe(observer, t, event)
                 yield event
             usage = t.usage
             completed = Event(
@@ -304,10 +320,42 @@ class Orchestrator:
             t.events.append(completed)
             self._persist(t)
             persisted = True
+            observer.finish(_totals(t.usage), t.tables)
             yield completed
         finally:
             if not persisted:  # el consumidor cerró el generador: se guarda lo que haya
                 self._persist(t)
+                observer.finish(_totals(t.usage), t.tables, completed=False)
+
+    def _observer(self, t: _Turn, scope: LogScope) -> TurnObserver:
+        provider = self._audit_provider()
+        conversation = t.conversation
+        user = conversation.user_id or conversation.external_user_id
+        return TurnObserver(
+            scope,
+            turn_id=str(t.assistant.id),
+            conversation_id=str(conversation.id),
+            user=str(user) if user else None,
+            provider=getattr(provider, "kind", None),
+            model=getattr(provider, "model", None),
+            role=self.role,
+            datasource_id=str(self.datasource.id),
+            tracer=self.tracer,
+        )
+
+    @staticmethod
+    def _observe(observer: TurnObserver, t: _Turn, event: Event) -> None:
+        """Traduce los eventos del turno a spans y métricas; nunca interrumpe el turno."""
+        try:
+            data = event.data
+            if isinstance(data, Step):
+                observer.step(data.id, data.status, _totals(t.usage), t.tables)
+            elif isinstance(data, ErrorData):
+                observer.error(data.code)
+            elif isinstance(data, ClarificationData):
+                observer.clarification()
+        except Exception:
+            logger.exception("No se pudo registrar la observabilidad del turno")
 
     def _begin(self, conversation: Conversation, question: str) -> _Turn:
         recent = list(
@@ -492,7 +540,17 @@ class Orchestrator:
         assert plan.metric is not None
         yield _step("verify", "running")
         try:
-            verified = self._verify(plan)
+            verified = self._verify(plan, t.question, t.prior_plan)
+        except _Fail as fail:
+            if fail.code != "invalid_plan" or fail.step != "verify":
+                raise
+            plan = yield from self._replan(t, plan, fail)
+            yield _step("verify", "running")
+            try:
+                verified = self._verify(plan, t.question, t.prior_plan)
+            except _Ask:
+                t.last_plan = plan.model_dump(mode="json")
+                raise
         except _Ask:
             t.last_plan = plan.model_dump(mode="json")  # queda pendiente para la respuesta
             raise
@@ -525,6 +583,7 @@ class Orchestrator:
             )
         except BuilderError as exc:
             raise _Fail("build", "invalid_plan", exc.message) from exc
+        t.tables = [decision.table or verified.metric.table]
         yield _step("build", "done", decision.reason)
 
         filters = self._filters_applied(verified, period)
@@ -552,9 +611,38 @@ class Orchestrator:
             yield from self._execute(t, guarded.sql, outcome)
         yield from self._answer(t, outcome)
 
-    def _verify(self, plan: Plan) -> VerifiedPlan:
+    def _replan(self, t: _Turn, plan: Plan, fail: _Fail) -> Generator[Event, None, Plan]:
+        """Un solo reintento: el planificador recibe el plan rechazado y el error exacto."""
+        yield _step("replan", "warning", fail.message)
+        llm = self._llm("planner")
+        try:
+            result = plan_question(
+                llm,
+                self.model,
+                t.question,
+                now=self.now(),
+                history=t.history,
+                last_plan=t.prior_plan,
+                privacy=self.privacy,
+                role=self.role,
+                rejected=(plan, fail.message),
+            )
+        except PlannerError as exc:
+            code = "invalid_plan" if exc.kind == "invalid_plan" else "provider_error"
+            raise _Fail("replan", code, exc.message) from exc
+        t.usage += result.usage
+        new = result.plan
+        if new.intent != "metric" or not new.metric:
+            raise fail  # el reintento no dio un plan de métrica: termina con el error original
+        t.plan = new.model_dump(mode="json")
+        return new
+
+    def _verify(
+        self, plan: Plan, question: str = "", prior_plan: Plan | None = None
+    ) -> VerifiedPlan:
         assert plan.metric is not None
         catalog = Catalog(self.model)
+        self._drop_unrequested_dimensions(catalog, plan, question, prior_plan)
         filters = [PlanFilter(f.field, f.op, f.value) for f in plan.filters]
         try:
             verified = catalog.verify(plan.metric, plan.dimensions, filters, self.role)
@@ -573,6 +661,23 @@ class Orchestrator:
             raise _Ask(ask.question, ask.options, ask.slot, "verify") from exc
         except CatalogError as exc:
             raise _Fail("verify", "invalid_plan", exc.message) from exc
+
+    @staticmethod
+    def _drop_unrequested_dimensions(
+        catalog: Catalog, plan: Plan, question: str, prior_plan: Plan | None
+    ) -> None:
+        """Quita del plan las dimensiones que la pregunta no nombra y lo deja dicho en el plan.
+
+        Las dimensiones que ya traía el último plan (preguntas de seguimiento) se conservan.
+        """
+        assert plan.metric is not None
+        inherited = prior_plan.dimensions if prior_plan is not None else []
+        removed = unrequested_dimensions(catalog, plan.metric, plan.dimensions, question, inherited)
+        if not removed:
+            return
+        plan.dimensions = [d for d in plan.dimensions if d not in removed]
+        note = f"Dimensiones descartadas por no estar en la pregunta: {', '.join(removed)}."
+        plan.reasoning = f"{plan.reasoning} {note}".strip()
 
     def _period(self, t: _Turn, plan: Plan, metric: Metric) -> PeriodRange | None:
         """Resuelve el período con el resolutor determinista; si no se puede, pregunta."""
@@ -733,6 +838,7 @@ class Orchestrator:
             raise _Fail("guard", "unknown_role", str(exc), recoverable=False) from exc
         if record and result.allowed:
             run.sql_final, run.status = result.sql, "ok"
+            t.tables = list(result.tables)
         return result
 
     @staticmethod
@@ -908,6 +1014,10 @@ def _begin_failed(conversation_id: str, started: float) -> Iterator[Event]:
             elapsed_ms=_ms(time.perf_counter() - started),
         )
     )
+
+
+def _totals(usage: Usage) -> Totals:
+    return Totals(usage.input_tokens, usage.output_tokens, usage.cost_usd or 0.0)
 
 
 def _ms(seconds: float) -> int:

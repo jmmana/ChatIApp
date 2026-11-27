@@ -16,9 +16,11 @@ function Logo() {
 }
 
 function Nav() {
+  const { user } = useAuth();
+  const visibleRoutes = appRoutes.filter((route) => !route.adminOnly || user?.is_admin);
   return (
     <nav aria-label="Principal" className="flex flex-col gap-1">
-      {appRoutes.map(({ path, title, icon: Icon }) => (
+      {visibleRoutes.map(({ path, title, icon: Icon }) => (
         <NavLink
           key={path}
           to={path}
@@ -60,7 +62,7 @@ export function Layout() {
         <SessionFooter />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b bg-card px-4 py-3 md:hidden">
+        <header className="flex items-center gap-3 h-16 border-b bg-card px-4 md:hidden">
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Abrir menú">
@@ -76,7 +78,7 @@ export function Layout() {
           </Sheet>
           <Logo />
         </header>
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 md:p-6">
           <Outlet />
         </main>
       </div>

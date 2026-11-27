@@ -67,7 +67,7 @@ Responde `{metrics: [{name, label, description, requires_period, default_period,
 | `GET` | `/api/v1/datasources/{id}/semantic/versions/{n}` | Una versión del historial con su modelo |
 | `POST` | `/api/v1/datasources/{id}/semantic/import` | `multipart`: archivo `.sql` · `.csv` · `.xlsx` · `.yaml` · `.json`. El formato se detecta por la extensión. Devuelve **vista previa** `{model, diff, warnings}`; no guarda. `diff` trae `added` (`{path, kind}`), `changed` (`{path, field, before, after}`), `missing` (`{path, kind}`: no encontradas, no se borran) y `suggestions` (`{path, field, current, suggested}`: descripciones de la fuente que no pisan las escritas a mano). Extensión desconocida: 422 `unsupported_format`; archivo ilegible: 422 `invalid_file`. Solo administradores |
 | `POST` | `/api/v1/datasources/{id}/semantic/introspect` | Lee la base conectada y devuelve vista previa (`schemas`, `tables`, `relationships`, `warnings`); no guarda. Cuerpo opcional: `schemas` (lista), `table_pattern` (comodines `*` y `?`), `sample_values` (hasta 20 valores de columnas de texto de baja cardinalidad; solo con privacidad `samples`, y cada consulta pasa por el guardián). Con más de 500 tablas responde `422 too_many_tables`: hay que filtrar. Solo administración |
-| `POST` | `/api/v1/datasources/{id}/semantic/suggest` | Sugerencias de IA para descripciones, sinónimos y roles vacíos |
+| `POST` | `/api/v1/datasources/{id}/semantic/suggest` | Sugerencias de IA (tarea `suggest` del enrutamiento) para descripciones, sinónimos y roles **vacíos**; no guarda ni modifica nada existente. Cuerpo opcional: `tables` (limita a esas tablas). Procesa lotes de hasta 30 columnas, omite las columnas ocultas y solo envía valores de ejemplo con privacidad `samples`. Devuelve una lista de `{path, field, value, confidence}`: `path` es `tabla` o `tabla.columna`, `field` es `description`, `synonyms` (`value` es una lista) o `role`, y `confidence` va de 0 a 1. Sin proveedor o con la IA caída: 502 `ai_unavailable`. Solo administradores |
 | `GET` | `/api/v1/datasources/{id}/semantic/export?format=yaml` | Exporta el modelo vigente (`format=yaml` o `json`); reimportarlo da un modelo idéntico |
 | `POST` | `/api/v1/datasources/{id}/preview` | Cuerpo `{metric, period?, dimensions?, filters?, granularity?, view_as?}` → `{sql, metric, role, summary_table, reason, period, filters_applied, guard}`, sin IA. Errores de catálogo, de período o de plan: `422` |
 | `POST` | `/api/v1/datasources/{id}/validate-sql` | Cuerpo `{sql, view_as?}` → resultado del guardián `{allowed, sql, tables, violations, role}` (para pruebas; solo administradores, porque revela qué columnas están ocultas) |
@@ -149,6 +149,11 @@ Todos los eventos: [FLUJO_CONVERSACIONAL.md](FLUJO_CONVERSACIONAL.md#eventos-de-
 - Sin `provider_override` se usa el proveedor por defecto (`422 no_provider` si no hay ninguno).
 - `POST /api/v1/chat/{turn_id}/cancel` (el `turn_id` llega en `turn.started`) detiene el turno en curso del usuario y responde `{"turn_id", "status": "cancelled"}`; el stream termina con `error` `{code: "cancelled", recoverable: true}` y no emite `turn.completed`. Un turno inexistente o ya terminado responde `404 turn_not_found`.
 
+`POST /api/v1/chat` (sin streaming), además de lo descrito en [INTEGRACION.md](INTEGRACION.md):
+
+- `status` es `rejected` cuando el error es `sql_rejected` o `user_config` (el guardián o la configuración rechazó el turno) y `error` en cualquier otro fallo.
+- Tiempo máximo del turno: `CHATIAPP_CHAT_TIMEOUT_SECONDS` (por defecto 120). Si se supera responde **504** `turn_timeout` y el turno se cancela.
+
 Conversaciones: cada usuario ve solo las suyas (una ajena responde `404`).
 
 - `GET /api/v1/conversations` → `[{id, title, datasource_id, created_at}]`, las más recientes primero.
@@ -207,5 +212,8 @@ Guía completa con ejemplos de backend, widget y SDKs: [INTEGRACION.md](INTEGRAC
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `POST` | `/api/v1/evals/runs` | Corre un set dorado contra uno o varios proveedores |
-| `GET` | `/api/v1/evals/runs` | Resultados: exactitud, latencia p50/p95, costo por proveedor |
+| `POST` | `/api/v1/evals/runs` | Lanza una corrida del set dorado contra uno o varios proveedores (**202**) |
+| `GET` | `/api/v1/evals/runs` | Corridas, la más reciente primero, con su avance y su informe |
+| `GET` | `/api/v1/evals/runs/{id}` | Una corrida |
+
+Solo administradores. `POST` recibe `{"provider_ids": [...], "max_calls": N}`; `max_calls` es obligatorio si algún proveedor no es `fake` y debe cubrir las llamadas previstas (**422** `max_calls_required`, con `details.planned_calls`). Solo corre una evaluación a la vez (**409** `eval_in_progress`). Cada corrida devuelve `status` (`running | done | error`), `cases_done`, `cases_total`, `error` y, al terminar, `report`: el informe de `app.eval.report` con exactitud (0 a 1), latencia p50/p95, tokens, costo y los casos fallidos con su SQL esperado y obtenido. El estado de las corridas vive en memoria y se pierde al reiniciar; cada proveedor deja además su `EVAL_RUN` en la base. Para asignar un proveedor a una tarea se usa `PUT /api/v1/providers/routing`.

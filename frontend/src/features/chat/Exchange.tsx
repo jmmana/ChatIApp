@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { Clarification } from "./Clarification";
 import { Reasoning } from "./Reasoning";
 import { ResultView } from "./results/ResultView";
@@ -14,6 +15,7 @@ interface ExchangeProps {
   question: string;
   turn: TurnState;
   onOption?: (option: string) => void;
+  onRetry?: () => void;
   format: ResultFormat;
   live?: boolean;
   /** El chat embebido puede ocultar el detalle técnico (sigue en la auditoría). */
@@ -27,6 +29,7 @@ export function Exchange({
   question,
   turn,
   onOption,
+  onRetry,
   format,
   live = false,
   showSql = true,
@@ -60,9 +63,16 @@ export function Exchange({
         />
       )}
       {turn.status === "error" && turn.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {turn.error.message}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p role="alert" className="text-sm text-destructive">
+            {turn.error.message}
+          </p>
+          {live && turn.error.recoverable && onRetry && (
+            <Button variant="outline" size="sm" onClick={onRetry}>
+              Reintentar
+            </Button>
+          )}
+        </div>
       )}
     </article>
   );
