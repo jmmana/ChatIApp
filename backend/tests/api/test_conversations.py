@@ -75,9 +75,7 @@ def test_detalle_trae_los_mensajes_con_sus_eventos(
     assert messages[1]["events"][0]["type"] == "turn.started"
 
 
-def test_una_conversacion_ajena_responde_404(
-    client: TestClient, ids: dict[str, uuid.UUID]
-) -> None:
+def test_una_conversacion_ajena_responde_404(client: TestClient, ids: dict[str, uuid.UUID]) -> None:
     url = f"/api/v1/conversations/{ids['foreign']}"
 
     assert client.get(url).status_code == 404

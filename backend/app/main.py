@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.api import (
     api_keys,
+    audit,
     auth,
     chat,
     conversations,
@@ -19,6 +20,7 @@ from app.api import (
     preview,
     providers,
     semantic,
+    users,
 )
 from app.api.errors import register_error_handlers
 from app.db.session import get_engine
@@ -78,6 +80,12 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     # Administración de keys: solo administradores con JWT de usuario, nunca una API key.
     application.include_router(
         api_keys.router, prefix=API_PREFIX, dependencies=[Depends(require_admin)]
+    )
+    application.include_router(
+        audit.router, prefix=API_PREFIX, dependencies=[Depends(require_admin)]
+    )
+    application.include_router(
+        users.router, prefix=API_PREFIX, dependencies=[Depends(require_admin)]
     )
     application.include_router(datasources.router, prefix=API_PREFIX, dependencies=protected)
     application.include_router(semantic.router, prefix=API_PREFIX, dependencies=protected)

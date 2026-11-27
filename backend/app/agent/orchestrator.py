@@ -8,7 +8,7 @@ período, el guardián y la ejecución son código (ADR 0001).
 `Orchestrator.run` es un generador síncrono de `Event`: el endpoint de chat lo recorre en un hilo
 y reenvía cada evento por SSE. Un fallo en cualquier etapa termina con un evento `error`, nunca
 con una excepción. Al final del turno se guardan el mensaje del asistente con sus eventos, el
-`last_plan` de la conversación y un `QueryRun` si hubo una consulta ejecutada o rechazada.
+`last_plan` de la conversación y un `QueryRun` (el registro de auditoría), con o sin consulta.
 """
 
 import logging
@@ -24,6 +24,17 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agent.clarify import (
+    Pending,
+    apply_reply,
+    assumed_period_note,
+    dimension_question,
+    metric_question,
+    pending_clarification,
+    period_question,
+    should_assume_default,
+    trailing_clarifications,
+)
 from app.agent.events import (
     Answer,
     AnswerDelta,
@@ -41,9 +52,10 @@ from app.agent.events import (
     TurnStarted,
     UsageData,
 )
+from app.agent.free_sql import RepairError, repair_sql
 from app.agent.plan import Plan
 from app.agent.planner import PlannerError, Turn, plan_question
-from app.db.models import Conversation, Datasource, Message, QueryRun
+from app.db.models import Conversation, Datasource, Message, QueryRun, User
 from app.engine.builder import BuilderError, OrderTerm, build_sql
 from app.engine.catalog import (
     AmbiguousMetricError,
@@ -67,15 +79,15 @@ from app.engine.guard import UnknownRoleError as GuardRoleError
 from app.engine.periods import PeriodConfig, PeriodRange, resolve_period
 from app.engine.rls import role_row_filters
 from app.engine.summary import plan_for_summary, route_summary
-from app.llm.gateway import Gateway, GatewayError, Usage
-from app.semantic.context import Privacy, build_context
+from app.llm.gateway import Gateway, GatewayError, ProviderConfig, Usage
+from app.llm.routing import LlmClient, Router, TaskGateway
+from app.security.grants import ViewAs, resolve_access
+from app.semantic.context import Privacy
 from app.semantic.schema import Metric, SemanticModel
 
 logger = logging.getLogger(__name__)
 
-MAX_CLARIFICATIONS = 2
 MAX_ANSWER_ROWS = 50  # filas que, como máximo, se envían a la IA para redactar (privacidad)
-PERIOD_OPTIONS = ["Hoy", "Esta semana", "Este mes", "Mes pasado", "Este año", "Últimos 30 días"]
 _PRIVACY_LEVELS = ("schema", "aggregates", "samples")
 _HISTORY_WINDOW = 12
 
@@ -90,14 +102,6 @@ _LABELS = {
     "execute": "Ejecutando la consulta",
     "answer": "Redactando la respuesta",
 }
-
-_REPAIR_PROMPT = """\
-Eres el reparador de SQL de ChatIApp. El SQL de abajo falló. Corrígelo con el mensaje de error
-exacto y devuelve ÚNICAMENTE el SQL corregido: una sola sentencia SELECT de solo lectura, sin
-explicaciones ni bloques de código. Usa solo tablas y columnas del modelo.
-
-{contexto}
-"""
 
 _ANSWER_PROMPT = """\
 Redactas la respuesta final de ChatIApp, en español, breve y clara (de 1 a 3 frases). Usa solo
@@ -174,13 +178,19 @@ class _Turn:
     history: list[Turn]
     prior_plan: Plan | None
     previous_clarifications: int
+    pending: Pending | None = None
     started: float = field(default_factory=time.perf_counter)
     usage: Usage = field(default_factory=Usage)
     events: list[Event] = field(default_factory=list)
     last_plan: dict[str, Any] | None = None
     run: _Run | None = None
     notes: list[str] = field(default_factory=list)
+    fallbacks: list[str] = field(default_factory=list)  # avisos de respaldo de `_repair`
     text: str = ""  # lo que se guarda como contenido del mensaje del asistente
+    plan: dict[str, Any] | None = None  # plan de la IA tal como llegó (auditoría)
+    sql_candidate: str | None = None  # SQL antes del guardián (auditoría)
+    error_code: str | None = None
+    failed: bool = False
 
 
 # --------------------------------------------------------------------------- orquestador
@@ -196,7 +206,7 @@ class Orchestrator:
     def __init__(
         self,
         session: Session,
-        gateway: Gateway,
+        gateway: Gateway | Router,
         datasource: Datasource,
         model: SemanticModel,
         version: int,
@@ -232,6 +242,46 @@ class Orchestrator:
             week_starts_on=settings.week_starts_on,
             fiscal_year_start_month=settings.fiscal_year_start_month,
             locale=settings.locale or "es-CO",
+        )
+
+    def _llm(self, task: Literal["planner", "sql", "answer"]) -> LlmClient:
+        """Pasarela de la tarea: con un `Router`, la de su cadena de respaldo."""
+        return self.gateway.for_task(task) if isinstance(self.gateway, Router) else self.gateway
+
+    @staticmethod
+    def _notices(llm: LlmClient) -> list[str]:
+        """Avisos de respaldo ocurridos en `llm` (vacío si no es una pasarela con respaldo)."""
+        return llm.take_notices() if isinstance(llm, TaskGateway) else []
+
+    @classmethod
+    def for_user(
+        cls,
+        session: Session,
+        gateway: Gateway | Router,
+        datasource: Datasource,
+        model: SemanticModel,
+        version: int,
+        url: str,
+        user: User,
+        *,
+        view_as: ViewAs | None = None,
+        **kwargs: Any,
+    ) -> "Orchestrator":
+        """Orquestador con el rol y los atributos del usuario autenticado en la fuente.
+
+        Sin permiso lanza `GrantError` (403); `view_as` solo lo acepta un administrador.
+        """
+        access = resolve_access(session, user, datasource, model, view_as)
+        return cls(
+            session,
+            gateway,
+            datasource,
+            model,
+            version,
+            url,
+            role=access.role,
+            context=access.context,
+            **kwargs,
         )
 
     def now(self) -> datetime:
@@ -304,7 +354,8 @@ class Orchestrator:
             assistant=assistant,
             history=history,
             prior_plan=_load_plan(conversation.last_plan),
-            previous_clarifications=_trailing_clarifications(recent),
+            previous_clarifications=trailing_clarifications(recent),
+            pending=pending_clarification(recent),
         )
 
     def _guarded(self, t: _Turn) -> Iterator[Event]:
@@ -320,31 +371,55 @@ class Orchestrator:
                 t.run.status = "error"
             yield from self._fail(t, _Fail("answer", "internal_error", _UNEXPECTED))
 
+    def _audit_provider(self) -> ProviderConfig:
+        """Proveedor a registrar: con `Router`, el principal de la cadena de respuesta."""
+        if isinstance(self.gateway, Router):
+            chain = self.gateway.for_task("answer").chain
+            if chain:
+                return chain[0].gateway.provider
+            return ProviderConfig("none", "none")
+        return self.gateway.provider
+
     def _persist(self, t: _Turn) -> None:
         try:
             t.assistant.content = t.text
             t.assistant.events = [e.to_dict() for e in t.events if e.type != "answer.delta"]
             if t.last_plan is not None:
                 t.conversation.last_plan = t.last_plan
-            if t.run is not None:
-                run, usage = t.run, t.usage
-                self.session.add(
-                    QueryRun(
-                        message_id=t.assistant.id,
-                        provider_id=self.provider_id,
-                        api_key_id=self.api_key_id,
-                        origin=run.origin,
-                        sql_final=run.sql_final,
-                        summary_table=run.summary_table,
-                        filters_applied=dict(run.filters_applied),
-                        row_count=run.row_count,
-                        elapsed_ms=run.elapsed_ms,
-                        tokens_in=usage.input_tokens,
-                        tokens_out=usage.output_tokens,
-                        cost_usd=Decimal(str(usage.cost_usd or 0.0)),
-                        status=run.status,
-                    )
+            # Auditoría: todo turno deja un registro, tenga o no consulta (solo conteos de filas).
+            run, usage, conversation = t.run, t.usage, t.conversation
+            if run is None:
+                intent = (t.plan or {}).get("intent")
+                run = _Run("llm" if intent == "sql" else "catalog", "error" if t.failed else "ok")
+            provider = self._audit_provider()
+            self.session.add(
+                QueryRun(
+                    message_id=t.assistant.id,
+                    provider_id=self.provider_id,
+                    api_key_id=self.api_key_id or conversation.api_key_id,
+                    user_id=conversation.user_id,
+                    external_user_id=conversation.external_user_id,
+                    datasource_id=self.datasource.id,
+                    role=self.role,
+                    question=t.question,
+                    plan=t.plan,
+                    sql_candidate=t.sql_candidate,
+                    provider_kind=provider.kind,
+                    model=provider.model,
+                    semantic_version=self.version,
+                    error_code=t.error_code,
+                    origin=run.origin,
+                    sql_final=run.sql_final,
+                    summary_table=run.summary_table,
+                    filters_applied=dict(run.filters_applied),
+                    row_count=run.row_count,
+                    elapsed_ms=run.elapsed_ms,
+                    tokens_in=usage.input_tokens,
+                    tokens_out=usage.output_tokens,
+                    cost_usd=Decimal(str(usage.cost_usd or 0.0)),
+                    status=run.status,
                 )
+            )
             self.session.commit()
         except Exception:
             logger.exception("No se pudo guardar el turno %s", t.assistant.id)
@@ -355,7 +430,11 @@ class Orchestrator:
     def _flow(self, t: _Turn) -> Iterator[Event]:
         conversation_id = str(t.conversation.id)
         yield Event(TurnStarted(turn_id=str(t.assistant.id), conversation_id=conversation_id))
-        plan = yield from self._understand(t)
+        plan = self._resume(t)
+        if plan is None:
+            plan = yield from self._understand(t)
+        else:
+            yield _step("understand", "done", "Retomando el plan pendiente")
         if plan.reasoning.strip():
             yield Event(Reasoning(text=plan.reasoning.strip()))
         if plan.intent in ("explain", "out_of_scope"):
@@ -368,11 +447,20 @@ class Orchestrator:
         else:
             yield from self._metric(t, plan)
 
+    def _resume(self, t: _Turn) -> Plan | None:
+        """Si el usuario responde una aclaración, completa el plan pendiente sin volver a la IA."""
+        if t.pending is None or t.prior_plan is None:
+            return None
+        return apply_reply(
+            t.prior_plan, t.pending, t.question, self.model, self.period_config, self.now()
+        )
+
     def _understand(self, t: _Turn) -> Generator[Event, None, Plan]:
         yield _step("understand", "running")
+        llm = self._llm("planner")
         try:
             result = plan_question(
-                self.gateway,
+                llm,
                 self.model,
                 t.question,
                 now=self.now(),
@@ -387,6 +475,9 @@ class Orchestrator:
         except ValueError as exc:  # rol que el modelo semántico no define
             raise _Fail("understand", "unknown_role", str(exc), recoverable=False) from exc
         t.usage += result.usage
+        t.plan = result.plan.model_dump(mode="json")
+        for notice in self._notices(llm):
+            yield _step("understand", "warning", notice)
         yield _step("understand", "done", result.plan.intent)
         return result.plan
 
@@ -394,13 +485,14 @@ class Orchestrator:
         """Máximo 2 aclaraciones seguidas: después se usa el `default_period` de la métrica."""
         clarification = plan.clarification
         assert clarification is not None
-        if t.previous_clarifications >= MAX_CLARIFICATIONS and plan.metric:
+        if plan.metric:
             try:
                 metric = Catalog(self.model).find_metric(plan.metric)
             except CatalogError:
                 metric = None
-            if metric is not None and metric.default_period:
-                t.notes.append(f"Asumí «{metric.default_period}»; dime si quieres otro período.")
+            if metric is not None and should_assume_default(t.previous_clarifications, metric):
+                assert metric.default_period is not None
+                t.notes.append(assumed_period_note(metric.default_period))
                 return plan.model_copy(
                     update={
                         "intent": "metric",
@@ -454,6 +546,7 @@ class Orchestrator:
         yield _step("build", "done", decision.reason)
 
         filters = self._filters_applied(verified, period)
+        t.sql_candidate = query.sql
         t.run = _Run("catalog", "rejected", query.sql, decision.table, filters)
         outcome = _Outcome(metric=verified.metric, period=period)
 
@@ -484,17 +577,11 @@ class Orchestrator:
         try:
             return catalog.verify(plan.metric, plan.dimensions, filters, self.role)
         except AmbiguousMetricError as exc:
-            metrics = [catalog.find_metric(name) for name in exc.candidates]
-            lines = [f"- {m.label}: {m.description or m.name}" for m in metrics]
-            question = "¿A cuál de estas métricas te refieres?\n" + "\n".join(lines)
-            raise _Ask(question, [m.label for m in metrics], "metric", "verify") from exc
+            ask = metric_question([catalog.find_metric(name) for name in exc.candidates])
+            raise _Ask(ask.question, ask.options, ask.slot, "verify") from exc
         except DimensionNotAllowedError as exc:
-            allowed = ", ".join(exc.allowed) or "ninguna"
-            question = (
-                f"No puedo desglosar «{exc.metric}» por «{exc.dimension}». "
-                f"Las dimensiones disponibles son: {allowed}. ¿Quieres usar alguna?"
-            )
-            raise _Ask(question, exc.allowed, "dimension", "verify") from exc
+            ask = dimension_question(exc.metric, exc.dimension, exc.allowed)
+            raise _Ask(ask.question, ask.options, ask.slot, "verify") from exc
         except CatalogError as exc:
             raise _Fail("verify", "invalid_plan", exc.message) from exc
 
@@ -505,18 +592,16 @@ class Orchestrator:
             return period
         if not text and not metric.requires_period:
             return None
-        if t.previous_clarifications >= MAX_CLARIFICATIONS and metric.default_period:
+        if should_assume_default(t.previous_clarifications, metric):
+            assert metric.default_period is not None
             period = resolve_period(metric.default_period, self.period_config, self.now())
             if period is not None:
-                t.notes.append(f"Asumí «{metric.default_period}»; dime si quieres otro período.")
+                t.notes.append(assumed_period_note(metric.default_period))
                 if t.last_plan is not None:
                     t.last_plan["period_text"] = metric.default_period
                 return period
-        if text:
-            question = f"No entendí el período «{text}». ¿Cuál de estos prefieres?"
-        else:
-            question = f"¿De qué período quieres ver {metric.label.lower()}?"
-        raise _Ask(question, PERIOD_OPTIONS, "period", "period")
+        ask = period_question(metric, text)
+        raise _Ask(ask.question, ask.options, ask.slot, "period")
 
     def _compare(
         self, t: _Turn, verified: VerifiedPlan, period: PeriodRange, outcome: _Outcome
@@ -585,6 +670,7 @@ class Orchestrator:
         assert plan.sql is not None
         t.last_plan = plan.model_dump(mode="json")
         sql = plan.sql
+        t.sql_candidate = sql
         t.run = _Run("llm", "rejected", sql, None, self._role_filters())
         outcome = _Outcome()
         repaired = False
@@ -609,28 +695,31 @@ class Orchestrator:
             yield _step(stage, "warning", problem)
             yield _step("repair", "running")
             sql = self._repair(t, sql, problem)
+            for notice in t.fallbacks:
+                yield _step("repair", "warning", notice)
+            t.fallbacks = []
             repaired = True
             yield _step("repair", "done")
         yield from self._answer(t, outcome)
 
     def _repair(self, t: _Turn, sql: str, problem: str) -> str:
         """Pide a la IA una corrección con el mensaje exacto del guardián o de la base."""
-        context = build_context(self.model, t.question, privacy=self.privacy, role=self.role)
-        messages = [
-            {"role": "system", "content": _REPAIR_PROMPT.format(contexto=context)},
-            {
-                "role": "user",
-                "content": f"Pregunta: {t.question}\nSQL: {sql}\nError exacto: {problem}",
-            },
-        ]
+        llm = self._llm("sql")
         try:
-            completion = self.gateway.complete(messages)
-        except GatewayError as exc:
-            raise _Fail("repair", "provider_error", exc.message) from exc
-        t.usage += completion.usage
-        fixed = _strip_sql(completion.text)
-        if not fixed:
-            raise _Fail("repair", "invalid_plan", "La IA no devolvió un SQL corregido.")
+            fixed, usage = repair_sql(
+                llm,
+                self.model,
+                t.question,
+                sql,
+                problem,
+                dialect=self.dialect,
+                privacy=self.privacy,
+                role=self.role,
+            )
+        except RepairError as exc:
+            raise _Fail("repair", exc.kind, exc.message) from exc
+        t.fallbacks = self._notices(llm)
+        t.usage += usage
         return fixed
 
     # -- validación y ejecución
@@ -759,8 +848,9 @@ class Orchestrator:
         text = _template(outcome)
         if self._may_send_rows(outcome):
             drafted = ""
+            llm = self._llm("answer")
             try:
-                for chunk in self.gateway.stream(self._answer_messages(t, outcome)):
+                for chunk in llm.stream(self._answer_messages(t, outcome)):
                     if chunk.delta:
                         drafted += chunk.delta
                         yield Event(AnswerDelta(text=chunk.delta))
@@ -768,6 +858,8 @@ class Orchestrator:
                         t.usage += chunk.usage
                 if drafted.strip():
                     text = drafted.strip()
+                for notice in self._notices(llm):
+                    yield _step("answer", "warning", notice)
             except GatewayError as exc:
                 detail = f"{exc.message} Se usó la respuesta de plantilla."
                 yield _step("answer", "warning", detail)
@@ -817,6 +909,7 @@ class Orchestrator:
         yield Event(ClarificationData(question=ask.question, options=ask.options, slot=ask.slot))
 
     def _fail(self, t: _Turn, fail: _Fail) -> Iterator[Event]:
+        t.failed, t.error_code = True, fail.code
         if t.run is not None and t.run.status == "ok" and fail.code != "internal_error":
             t.run.status = "error"
         yield _step(fail.step, "error", fail.message)
@@ -865,19 +958,6 @@ def _load_plan(raw: dict[str, Any] | None) -> Plan | None:
         return None
 
 
-def _trailing_clarifications(messages: Sequence[Message]) -> int:
-    """Aclaraciones seguidas al final de la conversación (mensajes del asistente)."""
-    count = 0
-    for message in reversed(messages):
-        if message.role != "assistant":
-            continue
-        events = message.events or []
-        if not any(isinstance(e, dict) and e.get("type") == "clarification" for e in events):
-            break
-        count += 1
-    return count
-
-
 def _order_terms(plan: Plan, verified: VerifiedPlan) -> list[OrderTerm]:
     if plan.order is None:
         return []
@@ -902,14 +982,6 @@ def _comparison_skipped(
     if not can_execute:
         return "La fuente no ejecuta consultas: no se puede comparar"
     return None
-
-
-def _strip_sql(text: str) -> str:
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1] if "\n" in text else ""
-        text = text.rsplit("```", 1)[0]
-    return text.strip()
 
 
 def _number(value: Any) -> float | None:

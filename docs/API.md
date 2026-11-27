@@ -154,8 +154,26 @@ Conversaciones: cada usuario ve solo las suyas (una ajena responde `404`).
 | `POST` | `/api/v1/auth/login` | Correo + contraseña → JWT |
 | `GET` | `/api/v1/users` · `POST` · `PATCH` · `DELETE` | Usuarios |
 | `PUT` | `/api/v1/users/{id}/grants` | Rol y atributos por fuente de datos |
-| `GET` | `/api/v1/audit` | Auditoría con filtros (usuario, fuente, fecha, estado) |
-| `GET` | `/api/v1/audit/export` | Exporta CSV |
+| `GET` | `/api/v1/audit` | Auditoría (solo administradores), más reciente primero. Filtros: `user_id`, `external_user_id`, `datasource_id`, `api_key_id`, `status` (`ok`, `rejected`, `error`), `date_from`, `date_to` (fechas `AAAA-MM-DD`, ambas inclusivas). Paginada con `page` y `page_size` (máx. 200) → `{items, total, page, page_size}` |
+| `GET` | `/api/v1/audit/export` | Exporta en CSV (UTF-8, hasta 50 000 filas) con los mismos filtros; las celdas que empiezan con `=`, `+`, `-` o `@` se neutralizan |
+
+### Usuarios y permisos por fuente
+
+Todas las rutas de `/api/v1/users` exigen un administrador. `POST` recibe `{email, password, is_admin?}` (contraseña de 8 o más caracteres; 409 si el correo ya existe). `PATCH` cambia `email`, `password` o `is_admin`. No se puede eliminar al propio usuario ni dejar el sistema sin administradores (409).
+
+`PUT /api/v1/users/{id}/grants` **reemplaza** los permisos del usuario:
+
+```json
+{ "grants": [
+  { "datasource_id": "…", "role": "gerente_sucursal", "attributes": { "sucursales": [1, 2] } }
+] }
+```
+
+- **422** `unknown_role`: el rol no existe en el modelo semántico vigente de la fuente.
+- **422** `missing_attributes`: faltan (o están vacíos) atributos que exigen los filtros del rol (`{user.x}`).
+- **404** si la fuente no existe. Las fuentes que no aparecen en la lista quedan sin acceso.
+
+Al consultar una fuente (chat o vista previa), el rol y los atributos salen del permiso del usuario autenticado. Sin permiso: **403** `no_access` (los administradores usan el rol por defecto del modelo). `view_as` solo lo aceptan los administradores; los demás reciben **403** `view_as_forbidden`.
 
 ## Integraciones (M3)
 

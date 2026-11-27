@@ -153,12 +153,12 @@ def _conversation(
         session.add(conversation)
         session.commit()
         return conversation
-    conversation = session.get(Conversation, body.conversation_id)
-    if conversation is None or conversation.user_id != user.id:
+    existing = session.get(Conversation, body.conversation_id)
+    if existing is None or existing.user_id != user.id:
         raise ApiError(404, "conversation_not_found", "La conversación no existe")
-    if conversation.datasource_id != datasource.id:
+    if existing.datasource_id != datasource.id:
         raise ApiError(409, "datasource_mismatch", "La conversación es de otra fuente de datos")
-    return conversation
+    return existing
 
 
 @dataclass
@@ -300,6 +300,8 @@ async def chat_stream(
 def cancel_turn(turn_id: str, user: UserDep) -> CancelOut:
     with _lock:
         turn = _active.get(turn_id)
+        if turn is not None and turn.user_id == user.id:
+            del _active[turn_id]  # cancelado: ya no está en curso, aunque el hilo tarde en cerrar
     if turn is None or turn.user_id != user.id:
         raise ApiError(404, "turn_not_found", "El turno no existe o ya terminó")
     turn.cancel.set()
