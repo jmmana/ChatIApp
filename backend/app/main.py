@@ -18,6 +18,7 @@ from app.api import (
     datasources,
     embed,
     health,
+    metrics,
     preview,
     providers,
     semantic,
@@ -91,6 +92,7 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     )
     application.include_router(datasources.router, prefix=API_PREFIX, dependencies=protected)
     application.include_router(semantic.router, prefix=API_PREFIX, dependencies=protected)
+    application.include_router(metrics.router, prefix=API_PREFIX, dependencies=protected)
     application.include_router(preview.router, prefix=API_PREFIX, dependencies=protected)
     # Cada ruta del chat declara su credencial: `/chat/stream` y `cancel` solo sesión; `POST /chat`
     # sesión o API key con alcance `chat`. No lleva `get_current_user` global.
