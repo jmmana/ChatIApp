@@ -15,6 +15,10 @@ export interface Datasource {
   timeout_seconds: number;
   privacy: Privacy;
   managed_by: "ui" | "config";
+  /** Resultado guardado de la última prueba de conexión; `null` si nunca se probó. */
+  last_test_ok: boolean | null;
+  last_test_at: string | null;
+  last_test_error_kind: ErrorKind | null;
 }
 
 export interface DatasourceInput {

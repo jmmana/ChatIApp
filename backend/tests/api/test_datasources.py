@@ -243,6 +243,52 @@ def test_prueba_con_llave_equivocada_es_unknown(client: TestClient) -> None:
     assert listed[0]["url"] == "***"
 
 
+def test_fuente_nueva_no_tiene_prueba_guardada(client: TestClient) -> None:
+    created = _create(client)
+
+    assert created["last_test_ok"] is None
+    assert created["last_test_at"] is None
+    assert created["last_test_error_kind"] is None
+
+
+def test_prueba_correcta_se_guarda_y_la_lista_la_devuelve(
+    client: TestClient, demo_url: str
+) -> None:
+    created = _create(client, url=demo_url)
+    client.post(f"/api/v1/datasources/{created['id']}/test")
+
+    listed = client.get("/api/v1/datasources").json()[0]
+
+    assert listed["last_test_ok"] is True
+    assert listed["last_test_at"] is not None
+    assert listed["last_test_error_kind"] is None
+
+
+def test_prueba_fallida_guarda_solo_el_tipo_de_error(client: TestClient, tmp_path: Path) -> None:
+    url = f"sqlite:///{tmp_path / 'no' / 'existe' / 'x.db'}"
+    created = _create(client, url=url)
+    client.post(f"/api/v1/datasources/{created['id']}/test")
+
+    listed = client.get("/api/v1/datasources").json()[0]
+
+    assert listed["last_test_ok"] is False
+    assert listed["last_test_error_kind"] == "network"
+    assert str(tmp_path) not in str(listed)
+
+
+def test_nueva_prueba_reemplaza_el_resultado_anterior(client: TestClient, demo_url: str) -> None:
+    created = _create(client, dialect="tsql", url="mssql+controlador_inexistente://u:p@h/db")
+    client.post(f"/api/v1/datasources/{created['id']}/test")
+    assert client.get("/api/v1/datasources").json()[0]["last_test_error_kind"] == "driver_missing"
+
+    client.patch(f"/api/v1/datasources/{created['id']}", json={"dialect": "sqlite", "url": demo_url})
+    client.post(f"/api/v1/datasources/{created['id']}/test")
+
+    listed = client.get("/api/v1/datasources").json()[0]
+    assert listed["last_test_ok"] is True
+    assert listed["last_test_error_kind"] is None
+
+
 def test_clasificacion_de_errores() -> None:
     auth = OperationalError("SELECT 1", {}, Exception('password authentication failed for "u"'))
     network = OperationalError("SELECT 1", {}, Exception("connection refused"))

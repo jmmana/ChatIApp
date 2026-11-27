@@ -1,6 +1,7 @@
 """Endpoints de fuentes de datos (docs/API.md#fuentes-de-datos)."""
 
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from cryptography.fernet import MultiFernet
@@ -34,6 +35,7 @@ Privacy = Literal["schema", "aggregates", "samples"]
 MaxRows = Annotated[int, Field(ge=1, le=100_000)]
 TimeoutSeconds = Annotated[int, Field(ge=1, le=600)]
 Name = Annotated[str, Field(min_length=1, max_length=255)]
+ErrorKind = Literal["auth", "network", "driver_missing", "unknown"]
 
 
 class DatasourceCreate(BaseModel):
@@ -72,10 +74,13 @@ class DatasourceOut(BaseModel):
     timeout_seconds: int
     privacy: str
     managed_by: str
+    last_test_ok: bool | None = None
+    last_test_at: datetime | None = None
+    last_test_error_kind: ErrorKind | None = None
 
 
 class TestError(BaseModel):
-    kind: Literal["auth", "network", "driver_missing", "unknown"]
+    kind: ErrorKind
     message: str
 
 
@@ -134,6 +139,9 @@ def _out(datasource: Datasource, cipher: MultiFernet) -> DatasourceOut:
         timeout_seconds=datasource.timeout_seconds,
         privacy=datasource.privacy,
         managed_by=datasource.managed_by,
+        last_test_ok=datasource.last_test_ok,
+        last_test_at=datasource.last_test_at,
+        last_test_error_kind=datasource.last_test_error_kind,  # type: ignore[arg-type]
     )
 
 
@@ -164,6 +172,14 @@ def _ensure_editable(datasource: Datasource) -> None:
             "managed_by_config",
             "La fuente viene del archivo de configuración: edítala allí",
         )
+
+
+def _save_test(session: Session, datasource: Datasource, ok: bool, error_kind: str | None) -> None:
+    """Guarda el resultado de la prueba: solo el tipo de error, sin URL ni mensaje."""
+    datasource.last_test_ok = ok
+    datasource.last_test_at = datetime.now(UTC)
+    datasource.last_test_error_kind = None if ok else (error_kind or "unknown")
+    session.commit()
 
 
 @router.get("", summary="Lista de fuentes de datos (URL enmascarada)")
@@ -261,10 +277,12 @@ def test_datasource(datasource_id: uuid.UUID, session: SessionDep, cipher: Ciphe
     try:
         url = decrypt(datasource.url_encrypted, cipher)
     except SecretKeyError as exc:
+        _save_test(session, datasource, False, "unknown")
         return TestResult(ok=False, error=TestError(kind="unknown", message=str(exc)))
     dialect: Dialect = datasource.dialect  # type: ignore[assignment]
     result = check_connection(url, dialect, datasource.timeout_seconds)
     failure: ConnectionFailure | None = result.error
+    _save_test(session, datasource, result.ok, failure.kind if failure else None)
     return TestResult(
         ok=result.ok,
         latency_ms=result.latency_ms,

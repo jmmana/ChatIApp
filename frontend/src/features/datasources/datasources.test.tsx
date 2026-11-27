@@ -17,6 +17,9 @@ const ventas: Datasource = {
   timeout_seconds: 20,
   privacy: "aggregates",
   managed_by: "ui",
+  last_test_ok: null,
+  last_test_at: null,
+  last_test_error_kind: null,
 };
 
 const demo: Datasource = {
@@ -34,8 +37,8 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status });
 }
 
-function mockApi(options: { admin?: boolean; test?: unknown } = {}) {
-  const { admin = true, test } = options;
+function mockApi(options: { admin?: boolean; test?: unknown; list?: Datasource[] } = {}) {
+  const { admin = true, test, list = [ventas, demo] } = options;
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.endsWith("/auth/refresh"))
       return json({
@@ -46,7 +49,7 @@ function mockApi(options: { admin?: boolean; test?: unknown } = {}) {
     if (url.endsWith("/test")) return json(test);
     if (init?.method === "POST") return json({ ...ventas, id: "nuevo" }, 201);
     if (init?.method === "PATCH") return json(ventas);
-    return json([ventas, demo]);
+    return json(list);
   });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
@@ -180,6 +183,39 @@ describe("formulario", () => {
     const body = bodyOf(fetchMock, "PATCH");
     expect(body).not.toHaveProperty("url");
     expect(body).toMatchObject({ name: "Ventas", max_rows: 800, privacy: "aggregates" });
+  });
+});
+
+describe("último resultado guardado", () => {
+  it("muestra la prueba correcta y su fecha al cargar, sin volver a probar", async () => {
+    const fetchMock = mockApi({
+      list: [{ ...ventas, last_test_ok: true, last_test_at: "2026-11-27T10:30:00Z" }],
+    });
+    renderPage();
+
+    const row = await screen.findByRole("listitem", { name: "Ventas" });
+    expect(within(row).getByText(/Última prueba: correcta · /)).toHaveTextContent("2026");
+    expect(within(row).queryByText(/sin probar/)).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([url]) => url.endsWith("/test"))).toBe(false);
+  });
+
+  it("muestra el tipo de error guardado, sin mensaje", async () => {
+    mockApi({
+      list: [
+        {
+          ...ventas,
+          last_test_ok: false,
+          last_test_at: "2026-11-27T10:30:00Z",
+          last_test_error_kind: "auth",
+        },
+      ],
+    });
+    renderPage();
+
+    const row = await screen.findByRole("listitem", { name: "Ventas" });
+    expect(
+      within(row).getByText(/Última prueba: con error \(Credenciales rechazadas\)/),
+    ).toBeInTheDocument();
   });
 });
 
