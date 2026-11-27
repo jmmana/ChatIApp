@@ -275,7 +275,33 @@ volumes:
 
 La base de la app es SQLite en `/data`, suficiente para una réplica. Con varias réplicas, apunta `CHATIAPP_DATABASE_URL` a PostgreSQL (`postgresql+psycopg://…`).
 
-Para Kubernetes habrá un chart de Helm (hito M4).
+### Kubernetes con Helm
+
+El chart en [`deploy/helm/chatiapp`](../deploy/helm/chatiapp) despliega la imagen única, publica la API mediante un Service y puede crear un Ingress. Crea antes un Secret en el namespace de destino; no guardes credenciales en `values.yaml` ni en el repositorio. El archivo, protegido fuera del repositorio, contiene una línea por variable, por ejemplo `CHATIAPP_SECRET_KEY`, `ANTHROPIC_API_KEY` y `VENTAS_DB_URL`:
+
+```bash
+kubectl create namespace analytics
+kubectl -n analytics create secret generic chatiapp-secrets \
+  --from-env-file=/ruta/segura/chatiapp.env
+```
+
+La configuración y el modelo semántico de ejemplo se incluyen en el ConfigMap del chart. Para usar los tuyos, pasa ambos archivos como valores de texto (sin credenciales):
+
+```bash
+helm upgrade --install chatiapp ./deploy/helm/chatiapp \
+  --namespace analytics \
+  --set existingSecret=chatiapp-secrets \
+  --set app.publicUrl=https://chat.tuempresa.com \
+  --set ingress.enabled=true \
+  --set ingress.className=nginx \
+  --set 'ingress.hosts[0].host=chat.tuempresa.com' \
+  --set-file configuration.chatiappYaml=/ruta/config/chatiapp.yaml \
+  --set-file configuration.semanticModelYaml=/ruta/config/semantic-model.yaml
+```
+
+El modelo se monta como `/config/ventas/semantic-model.yaml`; en `chatiapp.yaml`, usa `semantic_model: ./ventas/semantic-model.yaml`. El Secret se carga como variables de entorno; para PostgreSQL también debe contener `CHATIAPP_DATABASE_URL` con una URL `postgresql+psycopg://…`. SQLite usa un PVC persistente en `/data` y exige una réplica. Para escalar, configura `database.type=postgresql` y `replicaCount` mayor que uno; el chart no crea una base PostgreSQL, así que apunta a una instancia externa. Las actualizaciones de SQLite usan estrategia `Recreate` para evitar que dos pods abran simultáneamente el mismo volumen.
+
+El Ingress incluye, por defecto, anotaciones de NGINX para desactivar el buffering y permitir tiempos de espera largos para SSE. Adáptalas si usas otro controlador.
 
 ## Versionado de la API
 
