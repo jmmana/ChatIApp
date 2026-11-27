@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { streamTurn } from "./sse";
+import type { StreamTurnOptions } from "./sse";
 import { initialTurnState, turnReducer } from "./turnReducer";
 import type { ChatRequest } from "./types";
 
 /** Ejecuta un turno por SSE; `retry` repite la última petición tras un error recuperable. */
-export function useTurn() {
+export function useTurn(options: Pick<StreamTurnOptions, "baseUrl" | "authorize"> = {}) {
   const [state, dispatch] = useReducer(turnReducer, initialTurnState);
   const controller = useRef<AbortController | null>(null);
   const lastRequest = useRef<ChatRequest | null>(null);
+  // Se leen al enviar: un `getToken` nuevo en cada render no reinicia nada.
+  const streamOptions = useRef(options);
+  useEffect(() => {
+    streamOptions.current = options;
+  });
 
   const cancel = useCallback(() => {
     const active = controller.current;
@@ -33,7 +39,7 @@ export function useTurn() {
     lastRequest.current = request;
     dispatch({ type: "client.start" });
     try {
-      for await (const event of streamTurn(request, { signal: abort.signal })) {
+      for await (const event of streamTurn(request, { ...streamOptions.current, signal: abort.signal })) {
         dispatch(event);
       }
     } catch (error) {

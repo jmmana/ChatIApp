@@ -59,7 +59,7 @@ describe("selectView", () => {
 });
 
 describe("ResultView con tiempo constante", () => {
-  it("muestra el período como contexto y dibuja barras", () => {
+  it("muestra el período como contexto y dibuja barras", async () => {
     render(
       <ResultView
         result={result(
@@ -69,7 +69,7 @@ describe("ResultView con tiempo constante", () => {
       />,
     );
     expect(screen.getByText("periodo: 2026-11-01")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /barras/ })).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: /barras/ })).toBeInTheDocument();
   });
 });
 
@@ -125,7 +125,7 @@ describe("ResultView", () => {
         locale="en-US"
       />,
     );
-    expect(screen.getByRole("img", { name: /barras/ })).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: /barras/ })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Tabla" }));
     const header = screen.getByRole("columnheader", { name: /ventas/ });
     expect(header).toHaveAttribute("aria-sort", "none");

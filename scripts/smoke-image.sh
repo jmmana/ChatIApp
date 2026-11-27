@@ -57,6 +57,9 @@ ASSET="$(curl -s "$URL/" | grep -o '/assets/[^"]*\.js' | head -n 1)"
 [ -n "$ASSET" ] || fail "index.html no referencia ningún /assets/*.js"
 expect "$ASSET" 200
 expect /assets/no-existe.js 404
+expect /embed/v1/chatiapp.js 200
+expect /embed/v1/chatiapp-widget.js 200
+expect /embed/v1/no-existe.js 404
 expect /api/v1/no-existe 404
 expect /api/v1/no-existe 404 POST
 curl -s "$URL/api/v1/no-existe" | grep -q '"detail"' || fail "el 404 de la API no es JSON"

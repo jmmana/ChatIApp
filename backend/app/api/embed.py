@@ -6,11 +6,15 @@ el token que devuelve es lo único que ve el navegador.
 
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, FastAPI
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
+from starlette.responses import Response
+from starlette.types import Scope
 
 from app.api.errors import ApiError
 from app.api.preview import load_model
@@ -79,3 +83,32 @@ def create_session(
         ttl_seconds=body.ttl_seconds,
     )
     return EmbedSessionOut(token=token, expires_at=expires_at)
+
+
+EMBED_ASSETS_ROOT = "/embed/v1"
+
+
+class _EmbedAssets(StaticFiles):
+    """Archivos del widget: públicos y legibles desde cualquier página.
+
+    `chatiapp.js` se carga con `<script src>`, pero importa el módulo del widget con `import()`,
+    y los módulos entre orígenes exigen CORS. Son archivos estáticos sin datos ni credenciales.
+    """
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Cache-Control"] = "public, max-age=300"
+        return response
+
+
+def mount_embed_assets(app: FastAPI, static_dir: Path) -> bool:
+    """Sirve `<static_dir>/embed/v1` en `/embed/v1/` (`chatiapp.js` y sus partes).
+
+    Devuelve si lo montó: sin la carpeta (p. ej. en desarrollo) no hay widget que servir.
+    """
+    directory = static_dir / "embed" / "v1"
+    if not (directory / "chatiapp.js").is_file():
+        return False
+    app.mount(EMBED_ASSETS_ROOT, _EmbedAssets(directory=directory), name="embed-assets")
+    return True

@@ -238,7 +238,26 @@ import { ChatIAppChat } from "@chatiapp/react";
 | `suggested-questions` | lista | Preguntas iniciales propias |
 | Eventos DOM | `chatiapp:answer`, `chatiapp:clarification`, `chatiapp:error` | Reaccionar desde tu app (analítica, navegación) |
 
-El widget vive en un **Shadow DOM**: no hereda ni altera los estilos de tu página y no lee nada de ella.
+**Detalle de cada opción**
+
+- `suggested-questions` acepta una lista JSON (`suggested-questions='["¿Ventas de hoy?"]'`) o textos separados por `|`; desde JavaScript, la propiedad `suggestedQuestions` (arreglo).
+- `theme="auto"` sigue la preferencia del sistema. Variables CSS (se definen en la página, sobre `chatiapp-chat` o un ancestro): `--chatiapp-accent`, `--chatiapp-radius`, `--chatiapp-font`, y además `--chatiapp-background`, `--chatiapp-foreground`, `--chatiapp-card`, `--chatiapp-muted`, `--chatiapp-muted-foreground`, `--chatiapp-border`. El alto lo fija tu CSS sobre `chatiapp-chat` (mínimo 24 rem).
+- `getToken()` devuelve el token de `POST /embed/sessions` (cadena o promesa). El widget lo guarda hasta 30 s antes de que expire y, si el servidor responde 401, vuelve a llamarlo y repite la petición **una vez**; la conversación sigue (mismo `conversation_id`). Si `getToken` falla, emite `chatiapp:error` con `code: "token_error"`.
+- Los eventos son `CustomEvent` que burbujean (`bubbles`, `composed`) desde `<chatiapp-chat>`; su `detail`:
+
+| Evento | `detail` |
+|---|---|
+| `chatiapp:answer` | `{ text, conversationId, sql, columns, rows }` (`sql` es `null` si no hubo consulta) |
+| `chatiapp:clarification` | `{ question, options, conversationId }` |
+| `chatiapp:error` | `{ code, message, recoverable }` |
+
+`show-sql="false"` y `show-reasoning="false"` solo ocultan el detalle en el widget; el servidor lo sigue enviando y auditando.
+
+**Qué se descarga.** `/embed/v1/chatiapp.js` es un cargador de unos 200 bytes que importa `chatiapp-widget.js` desde la misma carpeta (`/embed/v1/`); los gráficos y el formato del SQL son partes que solo se descargan cuando una respuesta las usa. Lo que se descarga al cargar la página pesa menos de 150 KB comprimido (`pnpm run build` en `embed/` lo verifica). Esos archivos son públicos y se sirven con `Access-Control-Allow-Origin: *` (`import()` entre orígenes exige CORS); no contienen datos.
+
+**React.** `@chatiapp/react` (carpeta `embed/react/`) envuelve el mismo elemento: `baseUrl`, `getToken`, `lang`, `theme`, `showSql`, `showReasoning`, `suggestedQuestions`, `onAnswer`, `onClarification`, `onError`, `className` y `style` (las variables `--chatiapp-*` van en `style`). `react` y `react-dom` (≥ 19) son dependencias peer.
+
+El widget vive en un **Shadow DOM**: no hereda ni altera los estilos de tu página y no lee nada de ella. Los textos propios del widget (título, sugerencias, enviar, cancelar) siguen `lang`; los de los bloques compartidos con la interfaz (razonamiento, SQL, resultados) están por ahora solo en español.
 
 ### Qué puede hacer un token de sesión
 

@@ -22,4 +22,11 @@ backend/tests
 frontend/node_modules
 frontend/dist
 frontend/coverage
+
+# Widget
+embed/node_modules
+embed/dist
+embed/react/dist
+embed/test-results
+embed/playwright-report
 **/*.tsbuildinfo
