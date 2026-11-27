@@ -25,7 +25,7 @@ MAX_CLARIFICATIONS = 2
 PERIOD_OPTIONS = ["Hoy", "Esta semana", "Este mes", "Mes pasado", "Este año", "Últimos 30 días"]
 ALL_OPTION = "Todas"
 ENTITY_SLOT_PREFIX = "entity:"  # el slot de una entidad ambigua es «entity:tabla.columna»
-_NO_BREAKDOWN ={"ninguna", "ninguno", "no", "sin desglose", "sin dimension", "ya no"}
+_NO_BREAKDOWN = {"ninguna", "ninguno", "no", "sin desglose", "sin dimension", "ya no"}
 
 
 @dataclass(frozen=True)
