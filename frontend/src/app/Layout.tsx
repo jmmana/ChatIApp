@@ -16,9 +16,11 @@ function Logo() {
 }
 
 function Nav() {
+  const { user } = useAuth();
+  const visibleRoutes = appRoutes.filter((route) => !route.adminOnly || user?.is_admin);
   return (
     <nav aria-label="Principal" className="flex flex-col gap-1">
-      {appRoutes.map(({ path, title, icon: Icon }) => (
+      {visibleRoutes.map(({ path, title, icon: Icon }) => (
         <NavLink
           key={path}
           to={path}
