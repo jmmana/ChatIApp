@@ -1,12 +1,19 @@
+/// <reference types="node" />
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
 import { App } from "@/app/App";
 import { setAccessToken } from "@/features/auth/api";
-import diccionario from "../../../../../examples/ventas/diccionario.csv?raw";
 import type { SemanticModel } from "../types";
 import type { ImportPreview } from "./types";
+
+const diccionario = readFileSync(
+  resolve(process.cwd(), "../examples/ventas/diccionario.csv"),
+  "utf-8",
+);
 
 const DS = "11111111-1111-1111-1111-111111111111";
 const session = {
