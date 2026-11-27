@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
@@ -128,7 +128,8 @@ describe("importar estructura", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Aplicar" }));
 
-    expect(await screen.findByRole("heading", { level: 2, name: "sucursales" })).toBeInTheDocument();
+    const list = await screen.findByRole("list", { name: "Tablas" });
+    expect(within(list).getByRole("button", { name: /sucursales/ })).toBeInTheDocument();
     expect(screen.getByText("v3 · cambios sin publicar")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Publicar" })).toBeEnabled();
   });
@@ -145,7 +146,8 @@ describe("importar estructura", () => {
 
     expect(screen.queryByText("Vista previa · diccionario.csv")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: "Tablas" }));
-    expect(screen.queryByRole("heading", { level: 2, name: "sucursales" })).not.toBeInTheDocument();
+    const list = screen.getByRole("list", { name: "Tablas" });
+    expect(within(list).queryByRole("button", { name: /sucursales/ })).not.toBeInTheDocument();
     expect(screen.getByText("v3 · guardado")).toBeInTheDocument();
   });
 
