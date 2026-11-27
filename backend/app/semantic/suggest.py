@@ -115,7 +115,7 @@ def _find_targets(model: SemanticModel, tables: list[str] | None = None) -> list
 
 
 def _batches(targets: list[_Target]) -> list[list[_Target]]:
-    """Lotes con hasta `BATCH_SIZE` columnas; las tablas viajan con el lote de su primera columna."""
+    """Lotes con hasta `BATCH_SIZE` columnas; las tablas van con el lote de su primera columna."""
     batches: list[list[_Target]] = []
     current: list[_Target] = []
     columns = 0
