@@ -1,4 +1,5 @@
 import copy
+import json
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
@@ -9,8 +10,10 @@ import yaml
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.api.semantic import get_suggest_llm
 from app.db.models import Base, Datasource, User
 from app.db.session import get_session, make_engine
+from app.llm.gateway import Gateway, ProviderConfig
 from app.main import app
 from app.security.auth import get_current_user
 from app.semantic.importers.model_file import parse_model_text
@@ -277,3 +280,65 @@ def test_solo_administradores_importan(client: TestClient, datasource_id: uuid.U
     app.dependency_overrides[get_current_user] = lambda: User(email="u@b.co", is_admin=False)
 
     assert _import(client, datasource_id, "schema.sql", b"").status_code == 403
+
+
+def _fake_llm(*replies: dict[str, Any]) -> Gateway:
+    config = {"responses": [json.dumps(r) for r in replies]}
+    return Gateway(ProviderConfig(kind="fake", model="fake-1", config=config))
+
+
+def _suggest(client: TestClient, datasource_id: uuid.UUID, body: Any = None) -> Any:
+    return client.post(_url(datasource_id, "/suggest"), json=body)
+
+
+def test_sugerir_devuelve_lista_validada_y_no_guarda(
+    client: TestClient, datasource_id: uuid.UUID, model: dict[str, Any]
+) -> None:
+    model["tables"][0]["description"] = ""
+    _put(client, datasource_id, model, 0)
+    table = model["tables"][0]["name"]
+    suggestion = {
+        "path": table,
+        "field": "description",
+        "value": "Facturas de venta.",
+        "confidence": 0.7,
+    }
+    app.dependency_overrides[get_suggest_llm] = lambda: _fake_llm({"suggestions": [suggestion]})
+
+    response = _suggest(client, datasource_id)
+
+    assert response.status_code == 200
+    assert response.json() == [suggestion]
+    assert client.get(_url(datasource_id)).json()["version"] == 1
+
+
+def test_sugerir_sin_modelo_da_404(client: TestClient, datasource_id: uuid.UUID) -> None:
+    app.dependency_overrides[get_suggest_llm] = lambda: _fake_llm({"suggestions": []})
+
+    response = _suggest(client, datasource_id)
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "semantic_model_not_found"
+
+
+def test_sugerir_con_ia_caida_da_502(
+    client: TestClient, datasource_id: uuid.UUID, model: dict[str, Any]
+) -> None:
+    model["tables"][0]["description"] = ""
+    _put(client, datasource_id, model, 0)
+    failing = Gateway(ProviderConfig(kind="fake", model="fake-1", config={"error": "auth"}))
+    app.dependency_overrides[get_suggest_llm] = lambda: failing
+
+    response = _suggest(client, datasource_id)
+
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == "ai_unavailable"
+
+
+def test_solo_administradores_piden_sugerencias(
+    client: TestClient, datasource_id: uuid.UUID
+) -> None:
+    app.dependency_overrides[get_current_user] = lambda: User(email="u@b.co", is_admin=False)
+    app.dependency_overrides[get_suggest_llm] = lambda: _fake_llm({"suggestions": []})
+
+    assert _suggest(client, datasource_id).status_code == 403
