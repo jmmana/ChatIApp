@@ -79,6 +79,7 @@ from app.engine.periods import PeriodConfig, PeriodRange, resolve_period
 from app.engine.rls import role_row_filters
 from app.engine.summary import plan_for_summary, route_summary
 from app.llm.gateway import Gateway, GatewayError, Usage
+from app.llm.routing import LlmClient, Router, TaskGateway
 from app.security.grants import ViewAs, resolve_access
 from app.semantic.context import Privacy, build_context
 from app.semantic.schema import Metric, SemanticModel
@@ -191,6 +192,7 @@ class _Turn:
     last_plan: dict[str, Any] | None = None
     run: _Run | None = None
     notes: list[str] = field(default_factory=list)
+    fallbacks: list[str] = field(default_factory=list)  # avisos de respaldo de `_repair`
     text: str = ""  # lo que se guarda como contenido del mensaje del asistente
 
 
@@ -207,7 +209,7 @@ class Orchestrator:
     def __init__(
         self,
         session: Session,
-        gateway: Gateway,
+        gateway: Gateway | Router,
         datasource: Datasource,
         model: SemanticModel,
         version: int,
@@ -245,11 +247,20 @@ class Orchestrator:
             locale=settings.locale or "es-CO",
         )
 
+    def _llm(self, task: Literal["planner", "sql", "answer"]) -> LlmClient:
+        """Pasarela de la tarea: con un `Router`, la de su cadena de respaldo."""
+        return self.gateway.for_task(task) if isinstance(self.gateway, Router) else self.gateway
+
+    @staticmethod
+    def _notices(llm: LlmClient) -> list[str]:
+        """Avisos de respaldo ocurridos en `llm` (vacío si no es una pasarela con respaldo)."""
+        return llm.take_notices() if isinstance(llm, TaskGateway) else []
+
     @classmethod
     def for_user(
         cls,
         session: Session,
-        gateway: Gateway,
+        gateway: Gateway | Router,
         datasource: Datasource,
         model: SemanticModel,
         version: int,
@@ -425,9 +436,10 @@ class Orchestrator:
 
     def _understand(self, t: _Turn) -> Generator[Event, None, Plan]:
         yield _step("understand", "running")
+        llm = self._llm("planner")
         try:
             result = plan_question(
-                self.gateway,
+                llm,
                 self.model,
                 t.question,
                 now=self.now(),
@@ -442,6 +454,8 @@ class Orchestrator:
         except ValueError as exc:  # rol que el modelo semántico no define
             raise _Fail("understand", "unknown_role", str(exc), recoverable=False) from exc
         t.usage += result.usage
+        for notice in self._notices(llm):
+            yield _step("understand", "warning", notice)
         yield _step("understand", "done", result.plan.intent)
         return result.plan
 
@@ -657,6 +671,9 @@ class Orchestrator:
             yield _step(stage, "warning", problem)
             yield _step("repair", "running")
             sql = self._repair(t, sql, problem)
+            for notice in t.fallbacks:
+                yield _step("repair", "warning", notice)
+            t.fallbacks = []
             repaired = True
             yield _step("repair", "done")
         yield from self._answer(t, outcome)
@@ -671,10 +688,12 @@ class Orchestrator:
                 "content": f"Pregunta: {t.question}\nSQL: {sql}\nError exacto: {problem}",
             },
         ]
+        llm = self._llm("sql")
         try:
-            completion = self.gateway.complete(messages)
+            completion = llm.complete(messages)
         except GatewayError as exc:
             raise _Fail("repair", "provider_error", exc.message) from exc
+        t.fallbacks = self._notices(llm)
         t.usage += completion.usage
         fixed = _strip_sql(completion.text)
         if not fixed:
@@ -807,8 +826,9 @@ class Orchestrator:
         text = _template(outcome)
         if self._may_send_rows(outcome):
             drafted = ""
+            llm = self._llm("answer")
             try:
-                for chunk in self.gateway.stream(self._answer_messages(t, outcome)):
+                for chunk in llm.stream(self._answer_messages(t, outcome)):
                     if chunk.delta:
                         drafted += chunk.delta
                         yield Event(AnswerDelta(text=chunk.delta))
@@ -816,6 +836,8 @@ class Orchestrator:
                         t.usage += chunk.usage
                 if drafted.strip():
                     text = drafted.strip()
+                for notice in self._notices(llm):
+                    yield _step("answer", "warning", notice)
             except GatewayError as exc:
                 detail = f"{exc.message} Se usó la respuesta de plantilla."
                 yield _step("answer", "warning", detail)

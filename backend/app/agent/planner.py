@@ -12,7 +12,8 @@ from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.agent.plan import Plan
-from app.llm.gateway import Gateway, GatewayError, InvalidJsonError, Usage
+from app.llm.gateway import GatewayError, InvalidJsonError, Usage
+from app.llm.routing import LlmClient
 from app.semantic.context import Privacy, build_context
 from app.semantic.schema import SemanticModel
 
@@ -98,7 +99,7 @@ def render_prompt(
 
 
 def plan_question(
-    gateway: Gateway,
+    gateway: LlmClient,
     model: SemanticModel,
     question: str,
     *,
