@@ -13,6 +13,8 @@ from app.api import (
     api_keys,
     audit,
     auth,
+    chat,
+    conversations,
     datasources,
     health,
     preview,
@@ -88,6 +90,8 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     application.include_router(datasources.router, prefix=API_PREFIX, dependencies=protected)
     application.include_router(semantic.router, prefix=API_PREFIX, dependencies=protected)
     application.include_router(preview.router, prefix=API_PREFIX, dependencies=protected)
+    application.include_router(chat.router, prefix=API_PREFIX, dependencies=protected)
+    application.include_router(conversations.router, prefix=API_PREFIX, dependencies=protected)
     register_error_handlers(application)
 
     if static_dir is None and (env_dir := os.environ.get("CHATIAPP_STATIC_DIR")):
