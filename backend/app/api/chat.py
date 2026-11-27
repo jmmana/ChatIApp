@@ -5,9 +5,11 @@ de base de datos, y reenvía sus eventos a una cola que el endpoint vacía hacia
 bucle de eventos no se bloquea con la IA ni con la base de datos del usuario, se puede mandar un
 comentario keep-alive mientras se espera y `cancel` puede cortar el turno sin esperar al hilo.
 
-`/chat/stream` y `/chat/{turn_id}/cancel` son solo de sesión. `POST /chat` (sin streaming)
-acepta además una API key con alcance `chat`; con key, la identidad sale del campo `user` dentro
-del techo de la key y las conversaciones se aíslan por `api_key_id` + `external_user_id`.
+`/chat/stream` y `/chat/{turn_id}/cancel` aceptan la sesión del usuario o un token de sesión del
+chat embebido (docs/INTEGRACION.md); con token, la fuente, el rol y los atributos son los que
+fijó el backend anfitrión. `POST /chat` (sin streaming) acepta además una API key con alcance
+`chat`; con key, la identidad sale del campo `user` dentro del techo de la key y las
+conversaciones se aíslan por `api_key_id` + `external_user_id`.
 """
 
 import asyncio
@@ -34,9 +36,9 @@ from app.api.preview import ViewAs, load_model, resolve_identity
 from app.db.models import ApiKey, Conversation, Datasource, Message, Provider, User
 from app.db.session import get_session
 from app.integrations.api_keys import Principal, require_scope
+from app.integrations.embed_sessions import Caller, get_caller
 from app.integrations.end_user import EndUser, EndUserError, resolve_end_user
 from app.llm.gateway import Gateway, ProviderConfig
-from app.security.auth import get_current_user
 from app.security.crypto import SecretKeyError, decrypt
 from app.security.limits import check_api_key_budget, check_turn
 from app.semantic.schema import SemanticModel
@@ -48,7 +50,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 SessionDep = Annotated[Session, Depends(get_session)]
-UserDep = Annotated[User, Depends(get_current_user)]
+CallerDep = Annotated[Caller, Depends(get_caller)]
 PrincipalDep = Annotated[Principal, Depends(require_scope("chat"))]
 CipherDep = Annotated[MultiFernet, Depends(get_request_cipher)]
 
@@ -94,7 +96,7 @@ class _Cancelled:
 class _Turn:
     """Un turno en curso: lo que el hilo y el endpoint comparten."""
 
-    user_id: uuid.UUID
+    owner: str  # `Caller.owner`: solo su dueño puede cancelarlo
     loop: asyncio.AbstractEventLoop
     queue: asyncio.Queue[Any] = field(default_factory=asyncio.Queue)
     cancel: threading.Event = field(default_factory=threading.Event)
@@ -198,6 +200,7 @@ class _Plan:
     role: str | None
     context: dict[str, Any]
     message: str
+    api_key_id: uuid.UUID | None = None
 
 
 # --------------------------------------------------------------------------- el hilo del turno
@@ -220,6 +223,7 @@ def _run_turn(plan: _Plan, turn: _Turn) -> None:
                 role=plan.role,
                 context=plan.context,
                 provider_id=plan.provider_id,
+                api_key_id=plan.api_key_id,
             )
             events = cast(
                 Generator[Event, None, None], orchestrator.run(conversation, plan.message)
@@ -286,18 +290,48 @@ async def _stream(turn: _Turn) -> AsyncIterator[str]:
 
 @router.post("/stream", summary="Envía un mensaje y recibe el turno por SSE")
 async def chat_stream(
-    body: ChatRequest, session: SessionDep, user: UserDep, cipher: CipherDep
+    body: ChatRequest, session: SessionDep, caller: CallerDep, cipher: CipherDep
 ) -> StreamingResponse:
     # Todo lo que puede fallar con 4xx pasa antes de abrir el stream.
     datasource_id = _uuid_or_config(body.datasource_id, datasource_uuid)
     datasource, model, version = load_model(session, datasource_id)
-    role, context = resolve_identity(session, user, datasource, model, body.view_as)
-    provider = _provider(session, body.provider_override)
+    embed = caller.embed
+    override = body.provider_override
+    if embed is not None:
+        # Token de sesión: la fuente, el rol y los atributos los fijó el backend anfitrión; se
+        # revalidan contra el techo de la key y nada de la petición los cambia.
+        if datasource.id != embed.datasource_id:
+            raise ApiError(403, "datasource_not_allowed", "El token no permite esta fuente.")
+        try:
+            access = resolve_end_user(
+                embed.api_key,
+                datasource,
+                model,
+                EndUser(id=embed.user_id, role=embed.role, attributes=embed.attributes),
+            )
+        except EndUserError as exc:
+            raise ApiError(exc.status_code, exc.code, exc.message) from exc
+        role, context = access.role, access.context
+        check_turn(Principal("embed", embed.scopes, api_key=embed.api_key))
+        check_api_key_budget(session, embed.api_key)
+        override = None  # como con API key: solo el proveedor del administrador
+    else:
+        assert caller.user is not None
+        role, context = resolve_identity(session, caller.user, datasource, model, body.view_as)
+    provider = _provider(session, override)
     try:
         url = decrypt(datasource.url_encrypted, cipher)
     except SecretKeyError as exc:
         raise ApiError(500, "secret_key_invalid", str(exc)) from exc
-    conversation = _conversation(session, datasource, body, user=user, api_key=None)
+    api_key = embed.api_key if embed is not None else None
+    conversation = _conversation(
+        session,
+        datasource,
+        body,
+        user=caller.user,
+        api_key=api_key,
+        owner=embed.user_id if embed is not None else None,
+    )
     engine = session.get_bind()
     assert isinstance(engine, Engine)
     plan = _Plan(
@@ -312,19 +346,20 @@ async def chat_stream(
         role=role,
         context=context,
         message=body.message,
+        api_key_id=api_key.id if api_key is not None else None,
     )
-    turn = _Turn(user_id=user.id, loop=asyncio.get_running_loop())
+    turn = _Turn(owner=caller.owner, loop=asyncio.get_running_loop())
     threading.Thread(target=_run_turn, args=(plan, turn), daemon=True).start()
     return StreamingResponse(_stream(turn), media_type="text/event-stream", headers=SSE_HEADERS)
 
 
 @router.post("/{turn_id}/cancel", summary="Cancela un turno en curso")
-def cancel_turn(turn_id: str, user: UserDep) -> CancelOut:
+def cancel_turn(turn_id: str, caller: CallerDep) -> CancelOut:
     with _lock:
         turn = _active.get(turn_id)
-        if turn is not None and turn.user_id == user.id:
+        if turn is not None and turn.owner == caller.owner:
             del _active[turn_id]  # cancelado: ya no está en curso, aunque el hilo tarde en cerrar
-    if turn is None or turn.user_id != user.id:
+    if turn is None or turn.owner != caller.owner:
         raise ApiError(404, "turn_not_found", "El turno no existe o ya terminó")
     turn.cancel.set()
     turn.post(_Cancelled())
