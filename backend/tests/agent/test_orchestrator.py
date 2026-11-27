@@ -191,6 +191,37 @@ def test_guarda_last_plan_query_run_y_mensajes(
     assert run.message_id == messages[1].id and (run.tokens_in or 0) > 0
 
 
+def test_auditoria_guarda_los_campos_del_turno_sin_filas(
+    session: Session, model: SemanticModel, demo_url: str, query_executor: QueryExecutor
+) -> None:
+    datasource = _datasource(session)
+    conversation = _conversation(session, datasource)
+    conversation.external_user_id = "cliente-77"
+    session.commit()
+    gateway = _gateway(METRIC_PLAN, "Listo.")
+    orchestrator = _orchestrator(session, model, datasource, gateway, demo_url, query_executor)
+
+    events = _turn(orchestrator, conversation, "¿Cuánto vendí este mes?")
+
+    run = session.scalars(select(QueryRun)).one()
+    assert run.question == "¿Cuánto vendí este mes?"
+    assert run.role == GENERAL and run.datasource_id == datasource.id
+    assert run.external_user_id == "cliente-77"
+    assert run.semantic_version == 1 and run.model == "fake-1" and run.provider_kind == "fake"
+    assert run.plan is not None and run.plan["metric"] == "ventas_netas"
+    assert run.sql_candidate is not None and run.sql_final is not None
+    assert run.filters_applied is not None and "role" in run.filters_applied
+    assert run.row_count == 1
+    # Solo el conteo: ningún valor del resultado queda en el registro.
+    stored = json.dumps(
+        [run.plan, run.filters_applied, run.sql_final, run.sql_candidate, run.summary_table],
+        default=str,
+    )
+    for row in _of(events, "result")[0]["rows"]:
+        for value in row:
+            assert str(value) not in stored
+
+
 def test_privacidad_schema_no_envia_filas_y_responde_con_plantilla(
     session: Session, model: SemanticModel, demo_url: str, query_executor: QueryExecutor
 ) -> None:
@@ -223,7 +254,8 @@ def test_aclara_el_periodo_faltante_y_guarda_el_plan_pendiente(
     assert "sql" not in _types(events) and "error" not in _types(events)
     session.refresh(conversation)
     assert conversation.last_plan is not None and conversation.last_plan["metric"] == "ventas_netas"
-    assert session.scalars(select(QueryRun)).all() == []
+    run = session.scalars(select(QueryRun)).one()  # auditoría: también las aclaraciones
+    assert run.status == "ok" and run.sql_final is None and run.question == "¿Cuánto vendí?"
 
 
 def test_tras_dos_aclaraciones_usa_el_periodo_por_defecto(
@@ -330,7 +362,8 @@ def test_plan_invalido_termina_con_error_claro(
     steps = [(e.data.id, e.data.status) for e in events if isinstance(e.data, Step)]
     assert ("understand", "error") in steps
     assert _types(events)[-1] == "turn.completed"
-    assert session.scalars(select(QueryRun)).all() == []
+    run = session.scalars(select(QueryRun)).one()
+    assert run.status == "error" and run.error_code == "invalid_plan" and run.sql_final is None
 
 
 def test_error_del_proveedor_de_ia_no_lanza_excepcion(
@@ -394,7 +427,8 @@ def test_pregunta_sobre_el_modelo_responde_sin_sql(
 
     assert _of(events, "answer")[0]["text"] == "Es el valor medio."
     assert "sql" not in _types(events) and "result" not in _types(events)
-    assert session.scalars(select(QueryRun)).all() == []
+    run = session.scalars(select(QueryRun)).one()
+    assert run.status == "ok" and run.sql_final is None and run.row_count is None
 
 
 def test_filtro_de_rol_se_aplica_al_sql_del_catalogo(
