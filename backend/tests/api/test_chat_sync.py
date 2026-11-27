@@ -12,6 +12,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.agent.events import ErrorData, Event, Step, TurnStarted
 from app.agent.orchestrator import Orchestrator
 from app.api import chat
+from app.integrations.api_keys import Principal, get_principal
+from app.main import app
+from app.security.auth import get_current_user
 
 from .test_chat_stream import (  # noqa: F401 (fixtures de pytest)
     ESTE_MES,
@@ -24,6 +27,16 @@ from .test_chat_stream import (  # noqa: F401 (fixtures de pytest)
     fixed_now,
     user_id,
 )
+
+
+@pytest.fixture(autouse=True)
+def _principal(client: TestClient) -> Iterator[None]:  # noqa: F811
+    """`POST /chat` pide un `Principal`: el usuario administrador que ya fija el fixture."""
+    usuario = app.dependency_overrides[get_current_user]()
+    app.dependency_overrides[get_principal] = lambda: Principal(
+        "user", frozenset({"chat"}), user=usuario
+    )
+    yield
 
 
 def _post(http: TestClient, ds_id: str, message: str, **extra: Any) -> Any:
@@ -47,7 +60,7 @@ def test_cuanto_vendi_y_luego_este_mes(
     assert turno1["clarification"]["slot"] == "period"
     assert turno1["clarification"]["options"]
     assert turno1["reasoning"]
-    assert turno1["sql"] is None
+    assert "sql" not in turno1
     conversation_id = turno1["conversation_id"]
 
     second = _post(
@@ -61,10 +74,10 @@ def test_cuanto_vendi_y_luego_este_mes(
     turno2 = second.json()
     assert turno2["status"] == "answered"
     assert turno2["conversation_id"] == conversation_id
-    assert turno2["sql"]["text"].upper().startswith("SELECT")
+    assert turno2["sql"]["sql"].upper().startswith("SELECT")
     assert {"dialect", "origin", "filters_applied"} <= set(turno2["sql"])
     assert set(turno2["period"]) == {"label", "start", "end_exclusive"}
-    assert set(turno2["result"]) == {"columns", "rows", "truncated"}
+    assert {"columns", "rows", "truncated"} <= set(turno2["result"])
     assert turno2["answer"]
     assert set(turno2["usage"]) == {"tokens_in", "tokens_out", "cost_usd"}
 

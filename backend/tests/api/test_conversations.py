@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.models import Base, Conversation, Datasource, Message, User
 from app.db.session import get_session, make_engine
+from app.integrations.embed_sessions import Caller, get_caller
 from app.main import app
 from app.security.auth import get_current_user
 
@@ -52,7 +53,9 @@ def client(factory: sessionmaker[Session], ids: dict[str, uuid.UUID]) -> Iterato
             yield session
 
     app.dependency_overrides[get_session] = _session
-    app.dependency_overrides[get_current_user] = lambda: User(id=ids["mine"], email="yo@b.co")
+    usuario = User(id=ids["mine"], email="yo@b.co")
+    app.dependency_overrides[get_current_user] = lambda: usuario
+    app.dependency_overrides[get_caller] = lambda: Caller(user=usuario)
     yield TestClient(app)
     app.dependency_overrides.clear()
 

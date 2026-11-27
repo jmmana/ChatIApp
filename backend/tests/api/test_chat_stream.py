@@ -20,6 +20,7 @@ from app.db.models import Base, Datasource, Message, Provider, SemanticModelVers
 from app.db.session import get_session, make_engine
 from app.demo.seed import generar
 from app.engine.guard import guards
+from app.integrations.embed_sessions import Caller, get_caller
 from app.main import app
 from app.security.auth import get_current_user
 from app.security.crypto import encrypt, make_cipher
@@ -82,9 +83,9 @@ def client(factory: sessionmaker[Session], user_id: uuid.UUID) -> Iterator[TestC
     guards.clear()
     app.dependency_overrides[get_session] = _session
     app.dependency_overrides[get_request_cipher] = lambda: CIPHER
-    app.dependency_overrides[get_current_user] = lambda: User(
-        id=user_id, email="a@b.co", is_admin=True
-    )
+    usuario = User(id=user_id, email="a@b.co", is_admin=True)
+    app.dependency_overrides[get_current_user] = lambda: usuario
+    app.dependency_overrides[get_caller] = lambda: Caller(user=usuario)
     yield TestClient(app)
     app.dependency_overrides.clear()
 

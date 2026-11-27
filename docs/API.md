@@ -49,6 +49,14 @@ Detalle y ejemplos: [INTEGRACION.md](INTEGRACION.md).
 
 Ver la lista exige sesión; crear, cambiar, borrar y probar la conexión exigen administrador (403 `forbidden` si no).
 
+## Métricas sugeridas
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/v1/datasources/{id}/metrics` | Métricas que el rol del usuario puede consultar, para sugerir preguntas. Basta con sesión (no exige administrador) |
+
+Responde `{metrics: [{name, label, description, requires_period, default_period, dimensions}]}`. Solo incluye las métricas cuya tabla no está oculta para el rol del usuario (el rol de su permiso; para administradores sin permiso, el rol por defecto del modelo). `dimensions` son nombres para mostrar (primer sinónimo de la columna o su nombre legible), sin las de tablas o columnas ocultas. No trae SQL, expresiones, filtros, tablas ni columnas físicas. Una fuente inexistente, sin modelo o sin permiso para el usuario responde la misma `404 datasource_not_found`.
+
 ## Modelo semántico
 
 | Método | Ruta | Descripción |
@@ -141,9 +149,9 @@ Todos los eventos: [FLUJO_CONVERSACIONAL.md](FLUJO_CONVERSACIONAL.md#eventos-de-
 - Sin `provider_override` se usa el proveedor por defecto (`422 no_provider` si no hay ninguno).
 - `POST /api/v1/chat/{turn_id}/cancel` (el `turn_id` llega en `turn.started`) detiene el turno en curso del usuario y responde `{"turn_id", "status": "cancelled"}`; el stream termina con `error` `{code: "cancelled", recoverable: true}` y no emite `turn.completed`. Un turno inexistente o ya terminado responde `404 turn_not_found`.
 
-`POST /api/v1/chat` (sin streaming):
+`POST /api/v1/chat` (sin streaming), además de lo descrito en [INTEGRACION.md](INTEGRACION.md):
 
-- Acepta el mismo cuerpo que `/chat/stream` y construye la respuesta con los mismos eventos del turno. Devuelve `{conversation_id, status, …}` con `status` en `answered`, `needs_clarification`, `rejected` (error `sql_rejected` o `user_config`) o `error`. Según el caso lleva `reasoning`, `clarification`, `period`, `sql` (`text`, `dialect`, `origin`, `summary_table`, `filters_applied`), `result` (`columns`, `rows`, `truncated`), `answer`, `error` (`code`, `message`, `recoverable`) y `usage`. Una aclaración se responde con otro `POST` en la misma `conversation_id`.
+- `status` es `rejected` cuando el error es `sql_rejected` o `user_config` (el guardián o la configuración rechazó el turno) y `error` en cualquier otro fallo.
 - Tiempo máximo del turno: `CHATIAPP_CHAT_TIMEOUT_SECONDS` (por defecto 120). Si se supera responde **504** `turn_timeout` y el turno se cancela.
 
 Conversaciones: cada usuario ve solo las suyas (una ajena responde `404`).
@@ -191,6 +199,12 @@ Al consultar una fuente (chat o vista previa), el rol y los atributos salen del 
 | `POST` | `/api/v1/embed/sessions` | API key con alcance `embed` | `{datasource, origin, user, ttl_seconds?}` → `{token, expires_at}` para el chat embebido |
 | `GET` | `/embed/v1/chatiapp.js` | Pública | Script del chat embebido (web component) |
 | `GET` | `/api/v1/openapi.json` | Pública | Especificación OpenAPI de la versión `v1` |
+
+**Token de sesión** (`POST /embed/sessions`): `ttl_seconds` por defecto 900, máximo 3600 (422 fuera de rango). `origin` debe estar en los orígenes permitidos de la key (**403** `origin_not_allowed`); la fuente, el rol y los atributos se validan igual que en las llamadas con API key. El token es un JWT con usuario, fuente, rol, atributos, origen, id de la key y alcance `chat`, y solo se acepta en `POST /chat/stream`, `POST /chat/{turn_id}/cancel`, `GET /conversations` y `GET /conversations/{id}`; el resto responde 401. Con token:
+
+- El `Origin` de cada petición debe ser el del token; si falta o es otro, **403** `origin_not_allowed`. CORS solo se concede a los orígenes permitidos de las keys vivas con alcance `embed`.
+- Expirado: **401** `token_expired` (el widget pide otro a tu backend). Key revocada, vencida o sin alcance `embed`: **401** `invalid_api_key`, en la siguiente petición.
+- Otra fuente distinta de la del token: **403** `datasource_not_allowed`. Las conversaciones son las de la key y el usuario del token; las ajenas responden 404.
 
 Guía completa con ejemplos de backend, widget y SDKs: [INTEGRACION.md](INTEGRACION.md).
 
