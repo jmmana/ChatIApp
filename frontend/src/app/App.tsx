@@ -33,7 +33,7 @@ export function App() {
                     key={route.path}
                     path={route.path}
                     element={
-                      <RequireAdmin required={route.adminOnly}>
+                      <RequireAdmin required={route.adminOnly === true}>
                       {route.path === "/modelo-semantico" ? (
                         <SemanticStudio />
                       ) : route.path === "/chat" ? (

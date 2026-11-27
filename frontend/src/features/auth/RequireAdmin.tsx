@@ -3,10 +3,10 @@ import { useAuth } from "./AuthProvider";
 
 /** Oculta la pantalla a quien no es administrador; el servidor impone el permiso de verdad. */
 export function RequireAdmin({
-  required = true,
+  required,
   children,
 }: {
-  required?: boolean;
+  required: boolean;
   children: ReactNode;
 }) {
   const { user } = useAuth();
