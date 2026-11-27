@@ -52,12 +52,18 @@ def _zone(name: str) -> ZoneInfo:
         return ZoneInfo("UTC")
 
 
+def escape_data(text: str) -> str:
+    """Escapa `&`, `<` y `>` para que un dato no pueda abrir ni cerrar etiquetas del prompt."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def _history_text(history: list[Turn]) -> str:
     recent = history[-MAX_HISTORY:]
     if not recent:
         return "(sin historial)"
     return "\n".join(
-        f"- {t.role}: {' '.join(t.content.split())[:_MAX_MESSAGE_CHARS]}" for t in recent
+        f"- {t.role}: {escape_data(' '.join(t.content.split())[:_MAX_MESSAGE_CHARS])}"
+        for t in recent
     )
 
 
@@ -114,7 +120,7 @@ def render_prompt(
         "zona_horaria": tz_name,
         "historial": _history_text(history or []),
         "ultimo_plan": (
-            json.dumps(last_plan.model_dump(), ensure_ascii=False)
+            escape_data(json.dumps(last_plan.model_dump(), ensure_ascii=False))
             if last_plan is not None
             else "(ninguno)"
         ),

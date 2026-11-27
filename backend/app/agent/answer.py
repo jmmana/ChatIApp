@@ -224,6 +224,9 @@ class AnswerWriter:
             {"role": "system", "content": PROMPT_PATH.read_text(encoding="utf-8")},
             {
                 "role": "user",
-                "content": f"Pregunta: {self.question}\n<resultado>\n{body}\n</resultado>",
+                "content": (
+                    f"<pregunta>{escape_data(self.question)}</pregunta>\n"
+                    f"<resultado>\n{body}\n</resultado>"
+                ),
             },
         ]
