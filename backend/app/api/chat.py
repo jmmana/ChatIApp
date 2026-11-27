@@ -39,6 +39,7 @@ from app.integrations.api_keys import Principal, require_scope
 from app.integrations.embed_sessions import Caller, get_caller
 from app.integrations.end_user import EndUser, EndUserError, resolve_end_user
 from app.llm.gateway import Gateway, ProviderConfig
+from app.llm.routing import Candidate, Router, load_router
 from app.security.crypto import SecretKeyError, decrypt
 from app.security.limits import check_api_key_budget, check_turn
 from app.semantic.schema import SemanticModel
@@ -203,9 +204,25 @@ class _Plan:
     context: dict[str, Any]
     message: str
     api_key_id: uuid.UUID | None = None
+    provider_name: str = ""
+    override: bool = False  # el administrador eligió el proveedor: manda sobre el enrutamiento
 
 
 # --------------------------------------------------------------------------- el hilo del turno
+
+
+def _build_llm(session: Session, plan: _Plan) -> Router:
+    """`Router` del turno: tareas y respaldo guardados; con `provider_override`, ese va primero.
+
+    Sin enrutamiento configurado la cadena es solo el proveedor elegido, como antes.
+    """
+    routing = load_router(session)
+    chosen = Candidate(plan.provider_name, Gateway(plan.provider))
+    if plan.override:
+        return Router({}, chosen, routing.fallback)
+    if routing.default is None:
+        routing.default = chosen
+    return routing
 
 
 def _run_turn(plan: _Plan, turn: _Turn) -> None:
@@ -217,7 +234,7 @@ def _run_turn(plan: _Plan, turn: _Turn) -> None:
             assert datasource is not None and conversation is not None
             orchestrator = Orchestrator(
                 session,
-                Gateway(plan.provider),
+                _build_llm(session, plan),
                 datasource,
                 plan.model,
                 plan.version,
@@ -344,6 +361,8 @@ async def chat_stream(
         datasource_id=datasource.id,
         provider_id=provider.id,
         provider=ProviderConfig.from_provider(provider),
+        provider_name=provider.name,
+        override=override is not None,
         model=model,
         version=version,
         url=url,
@@ -451,6 +470,8 @@ async def chat(
         datasource_id=datasource.id,
         provider_id=provider.id,
         provider=ProviderConfig.from_provider(provider),
+        provider_name=provider.name,
+        override=override is not None,
         model=model,
         version=version,
         url=decrypt(datasource.url_encrypted, cipher),
