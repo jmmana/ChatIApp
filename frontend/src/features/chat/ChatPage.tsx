@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { listDatasources } from "@/features/datasources/api";
 import { listProviders } from "@/features/providers/api";
-import { cancelTurnOnServer, getSemanticInfo } from "./api";
 import { Clarification } from "./Clarification";
+import { cancelTurnOnServer, getMetrics, getRoles } from "./api";
 import { Composer } from "./Composer";
 import { Reasoning } from "./Reasoning";
 import { buildSuggestions } from "./suggestions";
@@ -38,14 +38,19 @@ export function ChatPage() {
   const sources = Array.isArray(datasources.data) ? datasources.data : [];
   const models = Array.isArray(providers.data) ? providers.data : [];
   const selectedSource = datasourceId || sources[0]?.id || "";
-  const semantic = useQuery({
-    queryKey: ["chat-semantic", selectedSource],
-    queryFn: () => getSemanticInfo(selectedSource),
+  const metrics = useQuery({
+    queryKey: ["chat-metrics", selectedSource],
+    queryFn: () => getMetrics(selectedSource),
     enabled: selectedSource !== "",
+  });
+  const roles = useQuery({
+    queryKey: ["chat-roles", selectedSource],
+    queryFn: () => getRoles(selectedSource),
+    enabled: selectedSource !== "" && isAdmin,
   });
 
   const busy = state.status === "streaming";
-  const suggestions = buildSuggestions(semantic.data?.metrics ?? []);
+  const suggestions = buildSuggestions(metrics.data ?? []);
 
   const ask = useCallback(
     (message: string) => {
@@ -119,7 +124,7 @@ export function ChatPage() {
             onChange={(event) => setRole(event.target.value)}
           >
             <option value="">Rol: el mío</option>
-            {(semantic.data?.roles ?? []).map((name) => (
+            {(roles.data ?? []).map((name) => (
               <option key={name} value={name}>
                 Rol: {name}
               </option>
