@@ -15,7 +15,7 @@ import logging
 import time
 import uuid
 from collections.abc import Generator, Iterator, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal, cast
@@ -35,6 +35,7 @@ from app.agent.clarify import (
     should_assume_default,
     trailing_clarifications,
 )
+from app.agent.entities import EntityQuestion, resolve_filters
 from app.agent.events import (
     Answer,
     AnswerDelta,
@@ -575,7 +576,14 @@ class Orchestrator:
         catalog = Catalog(self.model)
         filters = [PlanFilter(f.field, f.op, f.value) for f in plan.filters]
         try:
-            return catalog.verify(plan.metric, plan.dimensions, filters, self.role)
+            verified = catalog.verify(plan.metric, plan.dimensions, filters, self.role)
+            if self.datasource.execute and verified.filters:
+                found = resolve_filters(self.model, verified.filters, self._search_values)
+                verified = replace(verified, filters=found)
+            return verified
+        except EntityQuestion as exc:
+            ask = exc.question
+            raise _Ask(ask.question, ask.options, ask.slot, "verify") from exc
         except AmbiguousMetricError as exc:
             ask = metric_question([catalog.find_metric(name) for name in exc.candidates])
             raise _Ask(ask.question, ask.options, ask.slot, "verify") from exc
@@ -751,6 +759,28 @@ class Orchestrator:
         message = "; ".join(v.message for v in guarded.violations) or "El SQL fue rechazado."
         code = "user_config" if guarded.user_config_problem else "sql_rejected"
         return _Fail(step, code, message, recoverable=False)
+
+    def _search_values(self, sql: str) -> list[str]:
+        """Búsqueda de entidades: pasa por el guardián (y el filtro de rol) antes de ejecutarse."""
+        try:
+            guarded = check_sql(
+                sql,
+                self.model,
+                self.datasource,
+                self.version,
+                self.role,
+                cache=self.guard_cache,
+                context=self.context,
+            )
+        except GuardRoleError as exc:
+            raise _Fail("verify", "unknown_role", str(exc), recoverable=False) from exc
+        if not guarded.allowed or guarded.sql is None:
+            raise self._rejection(guarded, "verify")
+        try:
+            result, _ = self._run_query(guarded.sql)
+        except _ExecError as exc:
+            raise _Fail("verify", "execution_error", exc.message) from exc
+        return [str(row[0]) for row in result.rows if row and row[0] is not None]
 
     def _run_query(self, sql: str) -> tuple[QueryResult, int]:
         started = time.perf_counter()
