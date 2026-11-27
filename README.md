@@ -310,8 +310,7 @@ Plan detallado en [docs/ROADMAP.md](docs/ROADMAP.md) y avance en vivo en el [tab
 
 ## Inicio rápido
 
-> [!IMPORTANT]
-> Disponible a partir de **v0.1** (fin del hito M1). Así se verá:
+Con Docker instalado, la demo queda lista en pocos minutos:
 
 ```bash
 docker run -p 8080:8080 -v chatiapp:/data \
@@ -321,6 +320,15 @@ docker run -p 8080:8080 -v chatiapp:/data \
 ```
 
 Todo queda en el volumen `chatiapp` (base SQLite, demo y llave de cifrado). Para PostgreSQL u Ollama, usa los perfiles de [`docker-compose.yml`](docker-compose.yml).
+
+Sin clave de un proveedor de IA, usa Compose con el perfil de Ollama (modelos locales):
+
+```bash
+docker compose --profile local-ai up --build
+docker compose exec ollama ollama pull llama3.1
+```
+
+Entra con el correo y la clave de administrador que definiste y pregunta «¿Cuánto vendí?»; el agente pedirá el período y puedes responder «Este mes».
 
 La demo trae una base de ventas de ejemplo con su modelo semántico, para probar sin conectar nada tuyo.
 
