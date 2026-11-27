@@ -8,6 +8,7 @@ import { ContextTab } from "./ContextTab";
 import { groupIssues, type FieldErrors } from "./errors";
 import { MetricsTab } from "./metrics/MetricsTab";
 import { RelationsTab } from "./RelationsTab";
+import { SecurityTab } from "./security/SecurityTab";
 import { selectClass } from "./styles";
 import { SummaryTab } from "./summary/SummaryTab";
 import { TablesTab } from "./TablesTab";
@@ -126,6 +127,7 @@ function Editor({
           <TabsTrigger value="relaciones">Relaciones</TabsTrigger>
           <TabsTrigger value="metricas">Métricas</TabsTrigger>
           <TabsTrigger value="resumidas">Resumidas</TabsTrigger>
+          <TabsTrigger value="seguridad">Seguridad</TabsTrigger>
           <TabsTrigger value="historial">Historial</TabsTrigger>
         </TabsList>
         <TabsContent value="contexto" className="mt-4">
@@ -148,6 +150,15 @@ function Editor({
         </TabsContent>
         <TabsContent value="resumidas" className="mt-4">
           <SummaryTab model={draft} errors={errors} onChange={setDraft} />
+        </TabsContent>
+        <TabsContent value="seguridad" className="mt-4">
+          <SecurityTab
+            datasourceId={datasource.id}
+            model={draft}
+            errors={errors}
+            dirty={dirty}
+            onChange={setDraft}
+          />
         </TabsContent>
         <TabsContent value="historial" className="mt-4">
           <VersionHistory datasourceId={datasource.id} />

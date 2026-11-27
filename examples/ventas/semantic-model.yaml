@@ -222,7 +222,9 @@ summary_tables:
 # venga del catálogo o de la IA. {user.x} sale del usuario autenticado y se
 # escapa como literal; la IA nunca lo decide.
 security:
-  default_role: gerente_sucursal
+  # Solo lo usan los administradores sin permiso explícito (el resto recibe 403): en la demo ven
+  # todo. Para probar un rol limitado, usa «Ver como» o concede un permiso al usuario.
+  default_role: gerencia_general
   roles:
     - name: gerencia_general
       description: Ve todas las sucursales.

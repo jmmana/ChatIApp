@@ -94,6 +94,23 @@ export interface PreviewResult {
   };
 }
 
+export interface RoleFilter {
+  table: string;
+  condition: string;
+}
+
+export interface SecurityRole {
+  name: string;
+  description?: string | null;
+  filters?: RoleFilter[];
+  hidden_tables?: string[];
+}
+
+export interface SemanticSecurity {
+  default_role?: string | null;
+  roles?: SecurityRole[];
+}
+
 /** Modelo semántico (docs/MODELO_SEMANTICO.md). Los campos que la pantalla no edita se conservan. */
 export interface SemanticModel {
   version: 1;
@@ -104,6 +121,7 @@ export interface SemanticModel {
   relationships?: SemanticRelationship[];
   metrics?: SemanticMetric[];
   summary_tables?: SummaryTable[];
+  security?: SemanticSecurity;
   [other: string]: unknown;
 }
 

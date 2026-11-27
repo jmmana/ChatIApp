@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +11,13 @@ interface ClarificationProps {
 /** Opciones de aclaración: un solo tab entra al grupo y las flechas mueven el foco. */
 export function Clarification({ question, options, onSelect }: ClarificationProps) {
   const [active, setActive] = useState(0);
+  const group = useRef<HTMLDivElement>(null);
+
+  // El campo de pregunta se deshabilita durante el turno y pierde el foco: al aparecer las opciones
+  // se lleva el foco a la primera, para poder elegir sin ratón.
+  useEffect(() => {
+    group.current?.querySelector("button")?.focus();
+  }, []);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const buttons = Array.from(event.currentTarget.querySelectorAll("button"));
@@ -45,6 +52,7 @@ export function Clarification({ question, options, onSelect }: ClarificationProp
 
   return (
     <div
+      ref={group}
       role="group"
       aria-label={question || "Aclaración"}
       onKeyDown={onKeyDown}
