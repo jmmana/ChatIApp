@@ -85,7 +85,12 @@ export interface PreviewResult {
   role: string | null;
   summary_table: string | null;
   reason: string;
-  period: { text: string; label: string; start: string; end_exclusive: string } | null;
+  period: {
+    text: string;
+    label: string;
+    start: string;
+    end_exclusive: string;
+  } | null;
   filters_applied: { source: string; text: string }[];
   guard: {
     allowed: boolean;

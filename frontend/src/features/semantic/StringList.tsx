@@ -14,7 +14,14 @@ interface Props {
 }
 
 /** Lista de textos libres, uno por fila (para condiciones SQL, que pueden llevar comas). */
-export function StringList({ label, values, addLabel, placeholder, onChange, renderError }: Props) {
+export function StringList({
+  label,
+  values,
+  addLabel,
+  placeholder,
+  onChange,
+  renderError,
+}: Props) {
   return (
     <div className="flex flex-col gap-2">
       <ul aria-label={label} className="flex flex-col gap-2">
@@ -27,7 +34,9 @@ export function StringList({ label, values, addLabel, placeholder, onChange, ren
                 placeholder={placeholder}
                 className="font-mono"
                 onChange={(event) =>
-                  onChange(values.map((v, j) => (j === i ? event.target.value : v)))
+                  onChange(
+                    values.map((v, j) => (j === i ? event.target.value : v)),
+                  )
                 }
               />
               <Button
@@ -45,7 +54,12 @@ export function StringList({ label, values, addLabel, placeholder, onChange, ren
         ))}
       </ul>
       <div>
-        <Button type="button" variant="outline" size="sm" onClick={() => onChange([...values, ""])}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onChange([...values, ""])}
+        >
           <Plus aria-hidden /> {addLabel}
         </Button>
       </div>

@@ -25,7 +25,9 @@ function RefSelect({
   onChange: (value: string) => void;
 }) {
   const tables = model.tables ?? [];
-  const known = tables.some((t) => (t.columns ?? []).some((c) => `${t.name}.${c.name}` === value));
+  const known = tables.some((t) =>
+    (t.columns ?? []).some((c) => `${t.name}.${c.name}` === value),
+  );
   return (
     <select
       aria-label={label}
@@ -59,15 +61,21 @@ export function RelationsTab({ model, errors, onChange }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        Cada relación une una columna con otra (por ejemplo, <code>facturas.cliente_id</code> con{" "}
-        <code>clientes.id</code>) para que ChatIApp sepa cómo cruzar las tablas.
+        Cada relación une una columna con otra (por ejemplo,{" "}
+        <code>facturas.cliente_id</code> con <code>clientes.id</code>) para que
+        ChatIApp sepa cómo cruzar las tablas.
       </p>
       {relationships.length === 0 && (
-        <p className="text-sm text-muted-foreground">Todavía no hay relaciones.</p>
+        <p className="text-sm text-muted-foreground">
+          Todavía no hay relaciones.
+        </p>
       )}
       <ul aria-label="Relaciones" className="flex flex-col gap-3">
         {relationships.map((relation, i) => (
-          <li key={i} className="grid items-start gap-2 md:grid-cols-[1fr_1fr_auto]">
+          <li
+            key={i}
+            className="grid items-start gap-2 md:grid-cols-[1fr_1fr_auto]"
+          >
             <div className="flex flex-col gap-1">
               <RefSelect
                 label={`Desde, relación ${i + 1}`}
@@ -75,7 +83,9 @@ export function RelationsTab({ model, errors, onChange }: Props) {
                 model={model}
                 describedById={describedBy(errors, `relationships[${i}].from`)}
                 onChange={(from) =>
-                  update(relationships.map((r, j) => (j === i ? { ...r, from } : r)))
+                  update(
+                    relationships.map((r, j) => (j === i ? { ...r, from } : r)),
+                  )
                 }
               />
               <FieldError errors={errors} path={`relationships[${i}].from`} />
@@ -86,7 +96,11 @@ export function RelationsTab({ model, errors, onChange }: Props) {
                 value={relation.to}
                 model={model}
                 describedById={describedBy(errors, `relationships[${i}].to`)}
-                onChange={(to) => update(relationships.map((r, j) => (j === i ? { ...r, to } : r)))}
+                onChange={(to) =>
+                  update(
+                    relationships.map((r, j) => (j === i ? { ...r, to } : r)),
+                  )
+                }
               />
               <FieldError errors={errors} path={`relationships[${i}].to`} />
             </div>
