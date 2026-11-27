@@ -26,13 +26,20 @@ fi
 
 alembic upgrade head
 
-# Base de demostración «Ventas», solo la primera vez.
-DEMO_DB="$DATA_DIR/demo/ventas.db"
-if [ "${CHATIAPP_DEMO:-true}" = "true" ] && [ ! -f "$DEMO_DB" ]; then
-    mkdir -p "$DATA_DIR/demo"
-    python -m app.demo.seed --out "$DEMO_DB.tmp" > /dev/null
-    mv "$DEMO_DB.tmp" "$DEMO_DB"
-    echo "chatiapp: base de demostración creada en $DEMO_DB" >&2
-fi
+# Base de demostración «Ventas» y su fuente, solo la primera vez.
+# CHATIAPP_DEMO=0 (o false, no, off) la desactiva.
+case "$(printf '%s' "${CHATIAPP_DEMO:-true}" | tr 'A-Z' 'a-z')" in
+    0|false|no|off) ;;
+    *)
+        DEMO_DB="$DATA_DIR/demo/ventas.db"
+        if [ ! -f "$DEMO_DB" ]; then
+            mkdir -p "$DATA_DIR/demo"
+            python -m app.demo.seed --out "$DEMO_DB.tmp" > /dev/null
+            mv "$DEMO_DB.tmp" "$DEMO_DB"
+            echo "chatiapp: base de demostración creada en $DEMO_DB" >&2
+        fi
+        python -m app.demo.bootstrap >&2
+        ;;
+esac
 
 exec "$@"
