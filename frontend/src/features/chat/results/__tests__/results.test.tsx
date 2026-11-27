@@ -5,7 +5,7 @@ import type { ResultData } from "../../types";
 import { toCsv } from "../csv";
 import { formatNumber, variation } from "../format";
 import { ResultView } from "../ResultView";
-import { selectView } from "../shape";
+import { detectShape, selectView } from "../shape";
 import { sortRows } from "../sort";
 
 function result(columns: string[], rows: unknown[][], truncated = false): ResultData {
@@ -26,6 +26,21 @@ describe("selectView", () => {
     expect(selectView(r)).toBe("line");
   });
 
+  it("tiempo constante + categoría + medida → barras", () => {
+    const r = result(
+      ["periodo", "sucursal", "ventas"],
+      [["2026-11-01", "Norte", 1], ["2026-11-01", "Sur", 2]],
+    );
+    expect(selectView(r)).toBe("bar");
+    expect(detectShape(r).constants).toEqual([{ index: 0, value: "2026-11-01" }]);
+  });
+
+  it("tiempo con varios valores + medida → línea", () => {
+    const r = result(["mes", "ventas"], [["2026-01-01", 1], ["2026-02-01", 2], ["2026-03-01", 3]]);
+    expect(selectView(r)).toBe("line");
+    expect(detectShape(r).timeAxis).toBe(true);
+  });
+
   it("categoría + medida → barras", () => {
     const r = result(["sucursal", "ventas"], [["Norte", 1], ["Sur", 2]]);
     expect(selectView(r)).toBe("bar");
@@ -40,6 +55,21 @@ describe("selectView", () => {
 
   it("una fila con varias columnas sin comparación → tabla", () => {
     expect(selectView(result(["a", "b"], [[1, 2]]))).toBe("table");
+  });
+});
+
+describe("ResultView con tiempo constante", () => {
+  it("muestra el período como contexto y dibuja barras", () => {
+    render(
+      <ResultView
+        result={result(
+          ["periodo", "sucursal", "ventas"],
+          [["2026-11-01", "Norte", 1], ["2026-11-01", "Sur", 2]],
+        )}
+      />,
+    );
+    expect(screen.getByText("periodo: 2026-11-01")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /barras/ })).toBeInTheDocument();
   });
 });
 
