@@ -42,7 +42,7 @@ export function ChatPage() {
   const { user } = useAuth();
   const isAdmin = user?.is_admin ?? false;
   const queryClient = useQueryClient();
-  const { state, send, cancel, reset } = useTurn();
+  const { state, send, cancel, retry, reset } = useTurn();
   const [history, setHistory] = useState<Message[]>([]);
   const [question, setQuestion] = useState<string | null>(null);
   /** Conversación abierta desde la barra lateral (los turnos nuevos usan `state.conversationId`). */
@@ -284,7 +284,14 @@ export function ChatPage() {
               />
             ))}
             {question !== null && (
-              <Exchange question={question} turn={state} onOption={ask} format={format} live />
+              <Exchange
+                question={question}
+                turn={state}
+                onOption={ask}
+                onRetry={retry}
+                format={format}
+                live
+              />
             )}
           </div>
         )}
@@ -300,11 +307,12 @@ interface ExchangeProps {
   question: string;
   turn: TurnState;
   onOption?: (option: string) => void;
+  onRetry?: () => void;
   format: ResultFormat;
   live?: boolean;
 }
 
-function Exchange({ question, turn, onOption, format, live = false }: ExchangeProps) {
+function Exchange({ question, turn, onOption, onRetry, format, live = false }: ExchangeProps) {
   const text = turn.answer || turn.clarification?.question || "";
   return (
     <article className="flex flex-col gap-3">
@@ -330,9 +338,16 @@ function Exchange({ question, turn, onOption, format, live = false }: ExchangePr
         />
       )}
       {turn.status === "error" && turn.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {turn.error.message}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p role="alert" className="text-sm text-destructive">
+            {turn.error.message}
+          </p>
+          {live && turn.error.recoverable && onRetry && (
+            <Button variant="outline" size="sm" onClick={onRetry}>
+              Reintentar
+            </Button>
+          )}
+        </div>
       )}
     </article>
   );
