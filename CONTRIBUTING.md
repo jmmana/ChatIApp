@@ -56,6 +56,10 @@ Las épicas agrupan tareas como *sub-issues* y las dependencias se registran com
 
 Si tu propuesta cambia una decisión registrada en [`docs/adr/`](docs/adr/), escribe un ADR nuevo que la reemplace y explica por qué. Las decisiones aceptadas no se editan.
 
+## Cambios en la API
+
+La API publicada bajo `/api/v1` tiene su especificación en `docs/openapi/v1.json`, que debe mantenerse sincronizada con `/api/v1/openapi.json`. Antes de v1.0.0, anuncia cada cambio del contrato en `CHANGELOG.md`. Desde v1.0.0, los cambios incompatibles deben introducirse en `/api/v2`; anuncia las retiradas con las cabeceras `Deprecation` y `Sunset` con al menos seis meses de aviso. Para implementarlas en FastAPI, marca la operación `deprecated=True` y añade `Depends(deprecation_headers(...))`. CI compara la especificación del PR con `main`; para anunciar un cambio incompatible, añade la etiqueta `api:cambio-incompatible` y una entrada en el changelog.
+
 ## Conducta
 
 Se espera trato respetuoso y constructivo. Critica ideas, no personas.
