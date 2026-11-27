@@ -294,7 +294,7 @@ Your backend states on whose behalf each question is asked (`id`, `role`, `attri
 
 ## Project status
 
-ChatIApp is in **open design**: documentation and backlog are complete and development proceeds by milestones. Every task is an issue with a goal, verifiable acceptance criteria, files and size.
+ChatIApp is in **active development, ahead of v0.1.0**. The main flow works end to end and was tested in a real container: start-up with the "Ventas (demo)" data, sign-in, AI provider (including local Ollama), streaming chat ("How much did I sell this month?"), semantic model with roles, audit and metrics. Still to do: polish quality with small models and publish the image to GHCR. Every task is an issue with a goal, verifiable acceptance criteria, files and size.
 
 | Milestone | Delivers | Epics |
 |---|---|---|
@@ -308,7 +308,18 @@ Detailed plan in [docs/ROADMAP.md](docs/ROADMAP.md) and live progress on the [pr
 
 ## Quick start
 
-With Docker installed, the demo is ready in a few minutes:
+With Docker installed, the demo is ready in a few minutes. Today the verified path is building the image from the repository:
+
+```bash
+git clone https://github.com/jmmana/ChatIApp && cd ChatIApp
+cp .env.example .env
+echo "CHATIAPP_ADMIN_EMAIL=you@example.com" >> .env
+echo "CHATIAPP_ADMIN_PASSWORD=a-long-password" >> .env
+docker compose up --build
+# open http://localhost:8080
+```
+
+Once the first release is out, the prebuilt image will be enough (**not on GHCR yet**: it ships with v0.1.0):
 
 ```bash
 docker run -p 8080:8080 -v chatiapp:/data \
