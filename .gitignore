@@ -37,3 +37,6 @@ data/
 .idea/
 .vscode/
 *.swp
+
+# Informes de evaluación
+eval-reports/

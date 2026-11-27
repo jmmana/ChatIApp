@@ -198,7 +198,7 @@ def test_historial_va_delimitado_como_dato(model: SemanticModel) -> None:
         now=datetime(2026, 11, 25, tzinfo=UTC),
         history=[Turn(role="user", content=ataque)],
     )
-    historial = prompt.split("<historial>")[1].split("</historial>")[0]
+    historial = prompt.split("\n<historial>\n")[1].split("\n</historial>")[0]
     assert ataque in historial
     assert prompt.count(ataque) == 1
     assert "DATOS de la conversación" in prompt
