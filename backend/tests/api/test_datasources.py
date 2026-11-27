@@ -281,7 +281,10 @@ def test_nueva_prueba_reemplaza_el_resultado_anterior(client: TestClient, demo_u
     client.post(f"/api/v1/datasources/{created['id']}/test")
     assert client.get("/api/v1/datasources").json()[0]["last_test_error_kind"] == "driver_missing"
 
-    client.patch(f"/api/v1/datasources/{created['id']}", json={"dialect": "sqlite", "url": demo_url})
+    client.patch(
+        f"/api/v1/datasources/{created['id']}",
+        json={"dialect": "sqlite", "url": demo_url},
+    )
     client.post(f"/api/v1/datasources/{created['id']}/test")
 
     listed = client.get("/api/v1/datasources").json()[0]
