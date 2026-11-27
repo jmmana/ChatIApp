@@ -1,7 +1,7 @@
 """Aclaraciones del agente (docs/FLUJO_CONVERSACIONAL.md#cuándo-pregunta).
 
 Preguntar en vez de adivinar cuando falta un dato: período faltante o no reconocido, métrica
-ambigua y dimensión no permitida (la entidad ambigua es otra tarea). Este módulo es código puro,
+ambigua y dimensión no permitida (la entidad ambigua se resuelve en `entities.py`). Este módulo es código puro,
 sin IA ni red: redacta las preguntas, aplica el tope de aclaraciones seguidas y retoma el plan
 pendiente (`conversation.last_plan`) con la respuesta del usuario, sea un botón o texto escrito.
 
@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from app.agent.plan import Plan
+from app.agent.plan import Plan, PlanFilter
 from app.db.models import Message
 from app.engine.catalog import Catalog, CatalogError, normalize
 from app.engine.periods import PeriodConfig, resolve_period
@@ -22,7 +22,9 @@ from app.semantic.schema import Metric, SemanticModel
 
 MAX_CLARIFICATIONS = 2
 PERIOD_OPTIONS = ["Hoy", "Esta semana", "Este mes", "Mes pasado", "Este año", "Últimos 30 días"]
-_NO_BREAKDOWN = {"ninguna", "ninguno", "no", "sin desglose", "sin dimension", "ya no"}
+ALL_OPTION = "Todas"
+ENTITY_SLOT_PREFIX = "entity:"  # el slot de una entidad ambigua es «entity:tabla.columna»
+_NO_BREAKDOWN ={"ninguna", "ninguno", "no", "sin desglose", "sin dimension", "ya no"}
 
 
 @dataclass(frozen=True)
@@ -167,4 +169,31 @@ def apply_reply(
             return None
         dimensions = kept if picked in kept else [*kept, picked]
         return plan.model_copy(update={"dimensions": dimensions})
+    if pending.slot and pending.slot.startswith(ENTITY_SLOT_PREFIX):
+        return _apply_entity_reply(plan, pending, pending.slot[len(ENTITY_SLOT_PREFIX) :], text)
     return None
+
+
+def _apply_entity_reply(plan: Plan, pending: Pending, field: str, text: str) -> Plan | None:
+    """Reemplaza el filtro de `field` por el valor elegido, o por todos los de la lista."""
+    values = [o for o in pending.options if o != ALL_OPTION]
+    if ALL_OPTION in pending.options and normalize(text).strip(" .!") == normalize(ALL_OPTION):
+        chosen = values
+    else:
+        picked = _match_option(text, values)
+        if picked is None:
+            return None
+        chosen = [picked]
+    column = field.rpartition(".")[2]
+    replaced = False
+    filters: list[PlanFilter] = []
+    for item in plan.filters:
+        if not replaced and item.field in (field, column):
+            if len(chosen) == 1:
+                item = PlanFilter(field=item.field, op="=", value=chosen[0])
+            else:
+                many: list[str | int | float] = list(chosen)
+                item = PlanFilter(field=item.field, op="in", value=many)
+            replaced = True
+        filters.append(item)
+    return plan.model_copy(update={"filters": filters}) if replaced else None
