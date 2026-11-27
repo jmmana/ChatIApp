@@ -20,6 +20,12 @@ export function useTurn() {
     });
   }, []);
 
+  /** Vuelve al estado inicial (conversación nueva o recién abierta), abortando lo que corra. */
+  const reset = useCallback(() => {
+    controller.current?.abort();
+    dispatch({ type: "client.reset" });
+  }, []);
+
   const send = useCallback(async (request: ChatRequest) => {
     controller.current?.abort();
     const abort = new AbortController();
@@ -43,5 +49,5 @@ export function useTurn() {
 
   useEffect(() => () => controller.current?.abort(), []);
 
-  return { state, send, cancel, retry };
+  return { state, send, cancel, retry, reset };
 }
