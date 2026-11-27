@@ -13,7 +13,7 @@ import threading
 import uuid
 from collections.abc import AsyncIterator, Callable, Generator
 from dataclasses import dataclass, field
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Literal, cast
 
 from cryptography.fernet import MultiFernet
 from fastapi import APIRouter, Depends
@@ -34,6 +34,7 @@ from app.llm.gateway import Gateway, ProviderConfig
 from app.security.auth import get_current_user
 from app.security.crypto import SecretKeyError, decrypt
 from app.semantic.schema import SemanticModel
+from app.settings.env import get_settings
 from app.settings.registry import datasource_uuid, provider_uuid
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ SSE_HEADERS = {
     "X-Accel-Buffering": "no",  # que un proxy delante no acumule los eventos
     "Connection": "keep-alive",
 }
+REJECTION_CODES = {"sql_rejected", "user_config"}
 CANCELLED = ErrorData(code="cancelled", message="El turno fue cancelado.", recoverable=True)
 
 
@@ -72,6 +74,23 @@ class ChatRequest(BaseModel):
     view_as: ViewAs | None = None
     # Solo lo usan las API keys (aún no soportadas aquí): con otras credenciales se ignora.
     user: EndUser | None = None
+
+
+class ChatTurnOut(BaseModel):
+    """Turno completo de `POST /api/v1/chat` (docs/INTEGRACION.md#sin-streaming)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    conversation_id: str
+    status: Literal["answered", "needs_clarification", "rejected", "error"]
+    reasoning: str | None = None
+    clarification: dict[str, Any] | None = None
+    period: dict[str, Any] | None = None
+    sql: dict[str, Any] | None = None
+    result: dict[str, Any] | None = None
+    answer: str | None = None
+    error: dict[str, Any] | None = None
+    usage: dict[str, Any] | None = None
 
 
 class CancelOut(BaseModel):
@@ -262,11 +281,11 @@ async def _stream(turn: _Turn) -> AsyncIterator[str]:
 # --------------------------------------------------------------------------- rutas
 
 
-@router.post("/stream", summary="Envía un mensaje y recibe el turno por SSE")
-async def chat_stream(
-    body: ChatRequest, session: SessionDep, user: UserDep, cipher: CipherDep
-) -> StreamingResponse:
-    # Todo lo que puede fallar con 4xx pasa antes de abrir el stream.
+def _start_turn(
+    body: ChatRequest, session: Session, user: User, cipher: MultiFernet
+) -> tuple[_Turn, uuid.UUID]:
+    """Valida el cuerpo y lanza el hilo del turno; devuelve el turno y su conversación."""
+    # Todo lo que puede fallar con 4xx pasa antes de empezar a responder.
     datasource_id = _uuid_or_config(body.datasource_id, datasource_uuid)
     datasource, model, version = load_model(session, datasource_id)
     role, context = resolve_identity(session, user, datasource, model, body.view_as)
@@ -293,7 +312,72 @@ async def chat_stream(
     )
     turn = _Turn(user_id=user.id, loop=asyncio.get_running_loop())
     threading.Thread(target=_run_turn, args=(plan, turn), daemon=True).start()
+    return turn, conversation.id
+
+
+def _build_turn(conversation_id: uuid.UUID, events: list[Event]) -> ChatTurnOut:
+    """Arma la respuesta JSON a partir de los mismos eventos que emite el stream."""
+    out = ChatTurnOut(conversation_id=str(conversation_id), status="answered")
+    for event in events:
+        data = event.payload()
+        match event.type:
+            case "reasoning":
+                out.reasoning = data["text"]
+            case "clarification":
+                out.status = "needs_clarification"
+                out.clarification = data
+            case "sql":
+                out.period = data.pop("period", None)
+                out.sql = {"text": data.pop("sql"), **data}
+            case "result":
+                out.result = {key: data[key] for key in ("columns", "rows", "truncated")}
+            case "answer":
+                out.answer = data["text"]
+            case "error":
+                out.status = "rejected" if data["code"] in REJECTION_CODES else "error"
+                out.error = data
+            case "turn.completed":
+                out.usage = data["usage"]
+            case _:
+                pass
+    return out
+
+
+async def _collect(turn: _Turn) -> list[Event]:
+    events: list[Event] = []
+    while True:
+        item = await turn.queue.get()
+        if isinstance(item, _Done):
+            return events
+        if isinstance(item, _Cancelled):
+            events.append(Event(CANCELLED))
+            return events
+        events.append(item)
+
+
+@router.post("/stream", summary="Envía un mensaje y recibe el turno por SSE")
+async def chat_stream(
+    body: ChatRequest, session: SessionDep, user: UserDep, cipher: CipherDep
+) -> StreamingResponse:
+    turn, _ = _start_turn(body, session, user, cipher)
     return StreamingResponse(_stream(turn), media_type="text/event-stream", headers=SSE_HEADERS)
+
+
+@router.post("", summary="Envía un mensaje y recibe el turno completo en un JSON")
+async def chat(
+    body: ChatRequest, session: SessionDep, user: UserDep, cipher: CipherDep
+) -> ChatTurnOut:
+    turn, conversation_id = _start_turn(body, session, user, cipher)
+    seconds = get_settings().chat_timeout_seconds
+    try:
+        events = await asyncio.wait_for(_collect(turn), seconds)
+    except TimeoutError:
+        raise ApiError(
+            504, "turn_timeout", f"El turno superó el tiempo máximo de {seconds:g} s"
+        ) from None
+    finally:
+        turn.cancel.set()  # terminó o venció el plazo: que el hilo no siga
+    return _build_turn(conversation_id, events)
 
 
 @router.post("/{turn_id}/cancel", summary="Cancela un turno en curso")

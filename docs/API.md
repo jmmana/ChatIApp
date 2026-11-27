@@ -141,6 +141,11 @@ Todos los eventos: [FLUJO_CONVERSACIONAL.md](FLUJO_CONVERSACIONAL.md#eventos-de-
 - Sin `provider_override` se usa el proveedor por defecto (`422 no_provider` si no hay ninguno).
 - `POST /api/v1/chat/{turn_id}/cancel` (el `turn_id` llega en `turn.started`) detiene el turno en curso del usuario y responde `{"turn_id", "status": "cancelled"}`; el stream termina con `error` `{code: "cancelled", recoverable: true}` y no emite `turn.completed`. Un turno inexistente o ya terminado responde `404 turn_not_found`.
 
+`POST /api/v1/chat` (sin streaming):
+
+- Acepta el mismo cuerpo que `/chat/stream` y construye la respuesta con los mismos eventos del turno. Devuelve `{conversation_id, status, …}` con `status` en `answered`, `needs_clarification`, `rejected` (error `sql_rejected` o `user_config`) o `error`. Según el caso lleva `reasoning`, `clarification`, `period`, `sql` (`text`, `dialect`, `origin`, `summary_table`, `filters_applied`), `result` (`columns`, `rows`, `truncated`), `answer`, `error` (`code`, `message`, `recoverable`) y `usage`. Una aclaración se responde con otro `POST` en la misma `conversation_id`.
+- Tiempo máximo del turno: `CHATIAPP_CHAT_TIMEOUT_SECONDS` (por defecto 120). Si se supera responde **504** `turn_timeout` y el turno se cancela.
+
 Conversaciones: cada usuario ve solo las suyas (una ajena responde `404`).
 
 - `GET /api/v1/conversations` → `[{id, title, datasource_id, created_at}]`, las más recientes primero.
