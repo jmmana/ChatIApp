@@ -75,6 +75,20 @@ Una API key identifica a **tu aplicación**, no a la persona que pregunta. Como 
 - Esa confianza tiene **techo**: el rol debe estar en los roles permitidos de la key (o se usa su rol fijo), y deben venir los atributos que exigen los filtros del rol. Si no, la petición se rechaza.
 - El `id` del usuario queda en la auditoría junto con la key.
 
+Validación (siempre antes de ejecutar nada):
+
+| Situación | Respuesta |
+|---|---|
+| Falta `user` | **422** `end_user_required` |
+| La key no incluye la fuente | **403** `datasource_not_allowed` |
+| La key tiene un único rol permitido (**rol fijo**) | Se usa ese y se ignora el enviado |
+| Falta `user.role` y la key tiene varios roles | **422** `role_required` |
+| El rol no está en los roles permitidos de la key (una lista vacía no permite ninguno) | **403** `role_not_allowed` |
+| Falta un atributo de los filtros del rol | **422** `missing_attributes` |
+| Un atributo tiene otro tipo (`IN ({user.x})` exige una lista; el resto, un valor simple) | **422** `invalid_attributes` |
+
+Las conversaciones quedan ligadas a la key y al `user.id`: otra key u otro usuario final recibe **404** al pedirlas. Solo se pasan al filtro los atributos que el rol usa.
+
 ## API sin interfaz
 
 ### Con streaming (SSE)

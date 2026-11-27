@@ -121,7 +121,7 @@ Implementados en `backend/app/security/limits.py`.
 
 ## Auditoría
 
-Cada turno guarda: usuario, rol, fuente, pregunta, plan, SQL candidato, SQL final, filtros aplicados, tabla resumida, filas devueltas (conteo, no contenido), proveedor, modelo, tokens, costo, duración y resultado (`ok`, `rejected`, `error`). Se consulta y exporta desde la interfaz de administración.
+Cada turno guarda: usuario, rol, fuente, pregunta, plan, SQL candidato, SQL final, filtros aplicados, tabla resumida, filas devueltas (conteo, no contenido), proveedor, modelo, tokens, costo, duración y resultado (`ok`, `rejected`, `error`), más la **versión del modelo semántico** usada. Si la llamada vino de una API key o de un token de sesión, también la key y el `external_user_id` del usuario final; la auditoría se filtra por key. Todo turno deja registro, incluso los que solo aclaran, explican o fallan antes de generar SQL. Nunca se guardan filas de resultados ni secretos. Se consulta y exporta desde la interfaz de administración.
 
 ## Lo que ChatIApp no garantiza
 

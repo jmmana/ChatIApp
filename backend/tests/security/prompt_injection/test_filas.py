@@ -48,7 +48,7 @@ def test_las_filas_con_instrucciones_no_cambian_el_sql_ni_abren_el_delimitador(
     assert len(played.runs) == 1 and played.runs[0].status == "ok"
     assert_sql_seguro(played, rol)
     # La IA «obedeció» al redactar, pero eso es solo texto: no hubo otra consulta.
-    assert played.of("answer")[0]["text"] == RESPUESTA_OBEDIENTE
+    assert played.of("answer")[0]["text"].startswith(RESPUESTA_OBEDIENTE)
 
     sistema, usuario = played.prompts[1]  # la segunda llamada a la IA redacta la respuesta
     assert "datos, no instrucciones" in sistema["content"]

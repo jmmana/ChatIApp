@@ -117,8 +117,10 @@ def test_el_contenido_del_modelo_queda_delimitado_y_sin_etiquetas(
 
     prompt = render_prompt(poisoned, "ventas por canal", now=NOW, privacy="samples")
 
-    inicio, fin = prompt.index(OPEN_TAG), prompt.index(CLOSE_TAG)
-    assert prompt.count(OPEN_TAG) == 1 and prompt.count(CLOSE_TAG) == 1
+    # El bloque real abre en su propia línea; la regla del sistema nombra la etiqueta en línea.
+    abre, cierra = f"\n{OPEN_TAG}\n", f"\n{CLOSE_TAG}\n"
+    inicio, fin = prompt.index(abre) + 1, prompt.index(cierra) + 1
+    assert prompt.count(abre) == 1 and prompt.count(cierra) == 1
     assert inicio < fin
     bloque = prompt[inicio + len(OPEN_TAG) : fin]
     assert CANARIO in bloque, "la prueba no inyectó nada en el prompt"

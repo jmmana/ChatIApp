@@ -154,7 +154,10 @@ def assert_sql_seguro(played: Played, role: str = GENERAL) -> None:
         if run.status == "rejected":
             assert not emitted and not played.of("result"), run.sql_final
             continue
-        sql = (run.sql_final or "").strip()
+        if not run.sql_final:  # aclaración o fallo antes de generar SQL: no se ejecutó nada
+            assert not emitted and not played.of("result"), run.status
+            continue
+        sql = run.sql_final.strip()
         low = sql.lower()
         assert low.startswith(("select", "with")), sql
         assert ";" not in low.rstrip(";"), sql

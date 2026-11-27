@@ -14,21 +14,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.errors import ApiError
-from app.db.models import Datasource, Grant, SemanticModelVersion, User
+from app.db.models import Datasource, SemanticModelVersion, User
 from app.db.session import get_session
 from app.engine.builder import BuilderError, build_sql
 from app.engine.catalog import Catalog, CatalogError, PlanFilter
 from app.engine.dialects import Dialect, Granularity
 from app.engine.guard import GuardResult, UnknownRoleError, check_sql
 from app.engine.periods import PeriodConfig, resolve_period
-from app.engine.rls import (
-    AttributeValue,
-    ViewAsNotAllowedError,
-    build_user_context,
-    role_row_filters,
-)
+from app.engine.rls import AttributeValue, role_row_filters
 from app.engine.summary import plan_for_summary, route_summary
 from app.security.auth import get_current_user, require_admin
+from app.security.grants import GrantError, resolve_access
+from app.security.grants import ViewAs as GrantViewAs
 from app.semantic.schema import SemanticModel, parse_semantic_model
 
 router = APIRouter(prefix="/datasources", tags=["vista previa"])
@@ -122,7 +119,7 @@ def _guard_out(result: GuardResult) -> GuardOut:
     )
 
 
-def _load(session: Session, datasource_id: uuid.UUID) -> tuple[Datasource, SemanticModel, int]:
+def load_model(session: Session, datasource_id: uuid.UUID) -> tuple[Datasource, SemanticModel, int]:
     datasource = session.get(Datasource, datasource_id)
     if datasource is None:
         raise ApiError(404, "datasource_not_found", "La fuente de datos no existe")
@@ -137,7 +134,7 @@ def _load(session: Session, datasource_id: uuid.UUID) -> tuple[Datasource, Seman
     return datasource, parse_semantic_model(version.model), version.version
 
 
-def _identity(
+def resolve_identity(
     session: Session,
     user: User,
     datasource: Datasource,
@@ -145,24 +142,17 @@ def _identity(
     view_as: ViewAs | None,
 ) -> tuple[str | None, dict[str, Any]]:
     """Rol y contexto `{"user": {...}}`: de `view_as` (solo administradores) o del permiso."""
-    grant = session.scalars(
-        select(Grant).where(Grant.user_id == user.id, Grant.datasource_id == datasource.id)
-    ).first()
-    if grant is None and not user.is_admin:
-        raise ApiError(403, "no_access", "No tienes acceso a esta fuente de datos")
-    role = grant.role if grant else None
-    attributes: dict[str, AttributeValue] = dict(grant.attributes) if grant else {}
     try:
-        context = build_user_context(
-            attributes,
-            view_as=view_as.attributes if view_as else None,
-            is_admin=user.is_admin,
+        access = resolve_access(
+            session,
+            user,
+            datasource,
+            model,
+            GrantViewAs(view_as.role, view_as.attributes) if view_as else None,
         )
-    except ViewAsNotAllowedError as exc:
-        raise ApiError(403, "view_as_forbidden", str(exc)) from exc
-    if view_as is not None:
-        role = view_as.role
-    return role or model.security.default_role, context
+    except GrantError as exc:
+        raise ApiError(exc.status_code, exc.code, exc.message) from exc
+    return access.role, access.context
 
 
 def _period_config(model: SemanticModel) -> PeriodConfig:
@@ -179,8 +169,8 @@ def _period_config(model: SemanticModel) -> PeriodConfig:
 def preview(
     datasource_id: uuid.UUID, body: PreviewRequest, session: SessionDep, user: UserDep
 ) -> PreviewOut:
-    datasource, model, version = _load(session, datasource_id)
-    role, context = _identity(session, user, datasource, model, body.view_as)
+    datasource, model, version = load_model(session, datasource_id)
+    role, context = resolve_identity(session, user, datasource, model, body.view_as)
 
     period = None
     if body.period is not None:
@@ -256,8 +246,8 @@ def preview(
 def validate_sql(
     datasource_id: uuid.UUID, body: ValidateSqlRequest, session: SessionDep, user: UserDep
 ) -> ValidateSqlOut:
-    datasource, model, version = _load(session, datasource_id)
-    role, context = _identity(session, user, datasource, model, body.view_as)
+    datasource, model, version = load_model(session, datasource_id)
+    role, context = resolve_identity(session, user, datasource, model, body.view_as)
     try:
         result = check_sql(body.sql, model, datasource, version, role, context=context)
     except UnknownRoleError as exc:

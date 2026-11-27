@@ -239,7 +239,7 @@ def test_un_plan_con_campos_de_permisos_es_invalido(harness: Harness) -> None:
     )
 
     assert played.of("error")[0]["code"] == "invalid_plan"
-    assert played.runs == [] and "sql" not in played.types
+    assert not any(r.sql_final for r in played.runs) and "sql" not in played.types
 
 
 def test_pedir_otro_rol_en_la_pregunta_no_cambia_el_rol_del_turno(harness: Harness) -> None:
@@ -262,6 +262,6 @@ def test_la_pregunta_solo_viaja_en_el_mensaje_del_usuario(harness: Harness) -> N
 
     played = harness.play(pregunta, _plan(), "Listo.")
 
-    sistema, usuario = played.prompts[0]
+    sistema, usuario = played.prompts[0][0], played.prompts[0][-1]
     assert sistema["role"] == "system" and "CANARIO-PREGUNTA" not in sistema["content"]
     assert usuario == {"role": "user", "content": pregunta}

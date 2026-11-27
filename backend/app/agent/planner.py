@@ -11,8 +11,9 @@ from pathlib import Path
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from app.agent.plan import Plan
-from app.llm.gateway import Gateway, GatewayError, InvalidJsonError, Usage
+from app.agent.plan import Plan, PlanFilter
+from app.llm.gateway import GatewayError, InvalidJsonError, Usage
+from app.llm.routing import LlmClient
 from app.semantic.context import Privacy, build_context
 from app.semantic.schema import SemanticModel
 
@@ -66,6 +67,36 @@ def _history_text(history: list[Turn]) -> str:
     )
 
 
+def _filter_key(f: PlanFilter) -> str:
+    return f"{f.field} {f.op} {f.value}"
+
+
+def explain_followup(prev: Plan, new: Plan) -> Plan:
+    """Agrega al razonamiento qué se mantuvo y qué cambió respecto del plan anterior.
+
+    Solo aplica entre planes de métrica que comparten algo (métrica, período, dimensiones o
+    filtros); si no comparten nada es una pregunta nueva y no se toca.
+    """
+    if prev.intent != "metric" or new.intent != "metric":
+        return new
+    old_filters = [_filter_key(f) for f in prev.filters]
+    new_filters = [_filter_key(f) for f in new.filters]
+    fields: list[tuple[str, object, object]] = [
+        ("métrica", prev.metric, new.metric),
+        ("período", prev.period_text, new.period_text),
+        ("dimensiones", prev.dimensions, new.dimensions),
+        ("filtros", old_filters, new_filters),
+    ]
+    kept = [name for name, a, b in fields if a == b and a not in (None, [])]
+    changed = [name for name, a, b in fields if a != b]
+    if prev.compare_previous != new.compare_previous:
+        changed.append("comparación con el período anterior")
+    if not kept or not changed:
+        return new
+    note = f"Se mantuvo: {', '.join(kept)}. Cambió: {', '.join(changed)}."
+    return new.model_copy(update={"reasoning": f"{new.reasoning.strip()} {note}".strip()})
+
+
 def render_prompt(
     model: SemanticModel,
     question: str,
@@ -104,7 +135,7 @@ def render_prompt(
 
 
 def plan_question(
-    gateway: Gateway,
+    gateway: LlmClient,
     model: SemanticModel,
     question: str,
     *,
@@ -137,4 +168,5 @@ def plan_question(
         raise PlannerError("invalid_plan", message) from exc
     except GatewayError as exc:
         raise PlannerError("gateway", exc.message) from exc
-    return PlanResult(result.data, result.usage)
+    plan = explain_followup(last_plan, result.data) if last_plan is not None else result.data
+    return PlanResult(plan, result.usage)
