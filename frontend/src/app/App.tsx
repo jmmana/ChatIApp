@@ -9,6 +9,7 @@ import { RequireAuth } from "@/features/auth/RequireAuth";
 import { SemanticStudio } from "@/features/semantic/SemanticStudio";
 import { ChatPage } from "@/features/chat/ChatPage";
 import { DatasourcesPage } from "@/features/datasources/DatasourcesPage";
+import { EvaluationPage } from "@/features/evals/EvaluationPage";
 import { IntegrationsPage } from "@/features/integrations/IntegrationsPage";
 import { ProvidersPage } from "@/features/providers/ProvidersPage";
 import { EmptyState } from "./EmptyState";
@@ -44,6 +45,8 @@ export function App() {
                         <DatasourcesPage />
                       ) : route.path === "/proveedores-ia" ? (
                         <ProvidersPage />
+                      ) : route.path === "/evaluacion" ? (
+                        <EvaluationPage />
                       ) : route.path === "/usuarios" ? (
                         <UsersPage />
                       ) : (
