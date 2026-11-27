@@ -84,6 +84,7 @@ from app.engine.periods import PeriodConfig, PeriodRange, resolve_period
 from app.engine.rls import role_row_filters
 from app.engine.summary import plan_for_summary, route_summary
 from app.llm.gateway import Gateway, ProviderConfig, Usage
+from app.llm.privacy import PrivacyGateway, PrivacyLog, parse_level
 from app.llm.routing import LlmClient, Router, TaskGateway
 from app.observability import LogScope, Totals, TurnObserver, metrics
 from app.security.grants import ViewAs, resolve_access
@@ -92,7 +93,6 @@ from app.semantic.schema import Metric, SemanticModel
 
 logger = logging.getLogger(__name__)
 
-_PRIVACY_LEVELS = ("schema", "aggregates", "samples")
 _HISTORY_WINDOW = 12
 
 _LABELS = {
@@ -223,8 +223,8 @@ class Orchestrator:
         self.guard_cache = guard_cache
         self._now = now
         self.dialect = cast(Dialect, datasource.dialect)
-        level = datasource.privacy if datasource.privacy in _PRIVACY_LEVELS else "schema"
-        self.privacy = cast(Privacy, level)
+        self.privacy: Privacy = parse_level(datasource.privacy)
+        self.privacy_log = PrivacyLog()
         settings = model.settings
         self.period_config = PeriodConfig(
             timezone=settings.timezone,
@@ -235,12 +235,13 @@ class Orchestrator:
 
     def _llm(self, task: Literal["planner", "sql", "answer"]) -> LlmClient:
         """Pasarela de la tarea: con un `Router`, la de su cadena de respaldo."""
-        return self.gateway.for_task(task) if isinstance(self.gateway, Router) else self.gateway
+        inner = self.gateway.for_task(task) if isinstance(self.gateway, Router) else self.gateway
+        return PrivacyGateway(inner, task, self.privacy, self.privacy_log)
 
     @staticmethod
     def _notices(llm: LlmClient) -> list[str]:
         """Avisos de respaldo ocurridos en `llm` (vacío si no es una pasarela con respaldo)."""
-        return llm.take_notices() if isinstance(llm, TaskGateway) else []
+        return llm.take_notices() if isinstance(llm, TaskGateway | PrivacyGateway) else []
 
     @classmethod
     def for_user(
