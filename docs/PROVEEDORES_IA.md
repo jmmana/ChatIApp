@@ -93,7 +93,7 @@ ai:
     fallback: [deepseek, local]
 ```
 
-**Respaldo (fallback):** si el proveedor de una tarea falla por autenticación, cuota, tiempo de espera o error 5xx, se intenta el siguiente de `fallback` y queda registrado en el razonamiento («Claude no respondió; usé DeepSeek»). Un plan **inválido** no dispara el respaldo: se reintenta con el mismo proveedor y el error.
+**Respaldo (fallback):** si el proveedor de una tarea falla por autenticación, cuota, tiempo de espera o error 5xx, se intenta el siguiente de `fallback` y queda registrado en el razonamiento («Claude no respondió; usé DeepSeek»). Un plan **inválido** no dispara el respaldo: se reintenta con el mismo proveedor y el error. Tampoco `model_not_found`: es un error de configuración. Sin asignación, la tarea usa el proveedor predeterminado. El orquestador emite un `step` con `status: warning` por cada respaldo. La asignación se guarda con `PUT /api/v1/providers/routing` o se declara en `chatiapp.yaml`; la implementación está en `backend/app/llm/routing.py`.
 
 ## Probar conexión
 
