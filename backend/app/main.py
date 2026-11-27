@@ -18,6 +18,7 @@ from app.api import (
     conversations,
     datasources,
     embed,
+    evals,
     health,
     metrics,
     preview,
@@ -114,6 +115,10 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     )
     application.include_router(
         users.router, prefix=API_PREFIX, dependencies=[Depends(require_admin)]
+    )
+    # Una corrida con proveedores reales cuesta dinero: solo administradores.
+    application.include_router(
+        evals.router, prefix=API_PREFIX, dependencies=[Depends(require_admin)]
     )
     application.include_router(datasources.router, prefix=API_PREFIX, dependencies=protected)
     application.include_router(semantic.router, prefix=API_PREFIX, dependencies=protected)
