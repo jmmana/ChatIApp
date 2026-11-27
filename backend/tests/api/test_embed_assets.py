@@ -50,8 +50,11 @@ def test_archivo_inexistente_es_404_y_no_cae_en_index(client: TestClient) -> Non
     assert INDEX not in response.text
 
 
-def test_no_sale_de_la_carpeta_del_widget(client: TestClient) -> None:
-    assert client.get("/embed/v1/../../index.html").text != INDEX
+def test_no_sale_de_la_carpeta_del_widget(client: TestClient, static_dir: Path) -> None:
+    (static_dir / "embed" / "secreto.txt").write_text("secreto")
+    # El cliente de pruebas normaliza `..`; las formas codificadas llegan tal cual al servidor.
+    for path in ("/embed/v1/%2e%2e/secreto.txt", "/embed/v1/..%2fsecreto.txt"):
+        assert "secreto" not in client.get(path).text, path
 
 
 def test_sin_widget_compilado_no_hay_ruta(tmp_path: Path) -> None:
