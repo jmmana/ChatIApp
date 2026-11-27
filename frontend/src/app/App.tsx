@@ -6,6 +6,7 @@ import { UsersPage } from "@/features/admin/users/UsersPage";
 import { AuthProvider } from "@/features/auth/AuthProvider";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { RequireAuth } from "@/features/auth/RequireAuth";
+import { SemanticStudio } from "@/features/semantic/SemanticStudio";
 import { ChatPage } from "@/features/chat/ChatPage";
 import { DatasourcesPage } from "@/features/datasources/DatasourcesPage";
 import { IntegrationsPage } from "@/features/integrations/IntegrationsPage";
@@ -31,7 +32,9 @@ export function App() {
                     key={route.path}
                     path={route.path}
                     element={
-                      route.path === "/chat" ? (
+                      route.path === "/modelo-semantico" ? (
+                        <SemanticStudio />
+                      ) : route.path === "/chat" ? (
                         <ChatPage />
                       ) : route.path === "/integraciones" ? (
                         <IntegrationsPage />
