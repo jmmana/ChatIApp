@@ -134,6 +134,9 @@
   --tw-tracking: initial;
   --tw-space-y-reverse: 0;
   --tw-space-x-reverse: 0;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
+  --tw-translate-z: 0;
 }
 
 @layer base {
