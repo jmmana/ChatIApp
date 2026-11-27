@@ -5,10 +5,12 @@ import { AuditPage } from "@/features/admin/audit/AuditPage";
 import { UsersPage } from "@/features/admin/users/UsersPage";
 import { AuthProvider } from "@/features/auth/AuthProvider";
 import { LoginPage } from "@/features/auth/LoginPage";
+import { RequireAdmin } from "@/features/auth/RequireAdmin";
 import { RequireAuth } from "@/features/auth/RequireAuth";
 import { SemanticStudio } from "@/features/semantic/SemanticStudio";
 import { ChatPage } from "@/features/chat/ChatPage";
 import { DatasourcesPage } from "@/features/datasources/DatasourcesPage";
+import { EvaluationPage } from "@/features/evals/EvaluationPage";
 import { IntegrationsPage } from "@/features/integrations/IntegrationsPage";
 import { ProvidersPage } from "@/features/providers/ProvidersPage";
 import { EmptyState } from "./EmptyState";
@@ -32,7 +34,8 @@ export function App() {
                     key={route.path}
                     path={route.path}
                     element={
-                      route.path === "/modelo-semantico" ? (
+                      <RequireAdmin required={route.adminOnly === true}>
+                      {route.path === "/modelo-semantico" ? (
                         <SemanticStudio />
                       ) : route.path === "/chat" ? (
                         <ChatPage />
@@ -44,11 +47,14 @@ export function App() {
                         <DatasourcesPage />
                       ) : route.path === "/proveedores-ia" ? (
                         <ProvidersPage />
+                      ) : route.path === "/evaluacion" ? (
+                        <EvaluationPage />
                       ) : route.path === "/usuarios" ? (
                         <UsersPage />
                       ) : (
                         <EmptyState route={route} />
-                      )
+                      )}
+                      </RequireAdmin>
                     }
                   />
                 ))}

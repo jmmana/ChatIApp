@@ -1,9 +1,18 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { UIEvent } from "react";
+import { MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { listDatasources } from "@/features/datasources/api";
+import { PRIVACY_LEVELS, privacyLabel } from "@/features/datasources/catalog";
 import { listProviders } from "@/features/providers/api";
 import { Clarification } from "./Clarification";
 import { cancelTurnOnServer, getConversation, getFormatSettings, getMetrics, getRoles } from "./api";
@@ -43,12 +52,15 @@ export function ChatPage() {
   const [datasourceId, setDatasourceId] = useState("");
   const [providerId, setProviderId] = useState("");
   const [role, setRole] = useState("");
+  /** Menú de conversaciones en pantallas estrechas, donde la barra lateral no cabe. */
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const datasources = useQuery({ queryKey: ["datasources"], queryFn: listDatasources });
   const providers = useQuery({ queryKey: ["providers"], queryFn: listProviders });
   const sources = Array.isArray(datasources.data) ? datasources.data : [];
   const models = Array.isArray(providers.data) ? providers.data : [];
   const selectedSource = datasourceId || sources[0]?.id || "";
+  const currentSource = sources.find((source) => source.id === selectedSource);
   const metrics = useQuery({
     queryKey: ["chat-metrics", selectedSource],
     queryFn: () => getMetrics(selectedSource),
@@ -153,7 +165,7 @@ export function ChatPage() {
   const empty = question === null && history.length === 0;
 
   return (
-    <div className="-m-6 flex h-screen min-h-0">
+    <div className="-m-4 flex h-[calc(100dvh-4rem)] min-h-0 md:-m-6 md:h-dvh">
       <Sidebar
         activeId={state.conversationId ?? openedId}
         onSelect={(id) => void openConversation(id)}
@@ -165,6 +177,34 @@ export function ChatPage() {
       <div className="flex min-w-0 flex-1 flex-col">
       <h1 className="sr-only">Chat</h1>
       <header className="flex flex-wrap items-center gap-3 border-b px-4 py-2">
+        <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm" className="lg:hidden">
+              <MessageSquare aria-hidden /> Conversaciones
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 pt-12">
+            <SheetTitle className="sr-only">Conversaciones</SheetTitle>
+            <SheetDescription className="sr-only">
+              Abre, renombra o elimina una conversación
+            </SheetDescription>
+            <Sidebar
+              variant="sheet"
+              activeId={state.conversationId ?? openedId}
+              onSelect={(id) => {
+                setHistoryOpen(false);
+                void openConversation(id);
+              }}
+              onNew={() => {
+                setHistoryOpen(false);
+                newConversation();
+              }}
+              onDeleted={(id) => {
+                if ((state.conversationId ?? openedId) === id) newConversation();
+              }}
+            />
+          </SheetContent>
+        </Sheet>
         <select
           aria-label="Fuente de datos"
           className={selectClass}
@@ -177,6 +217,15 @@ export function ChatPage() {
             </option>
           ))}
         </select>
+        {currentSource?.privacy && (
+          <span
+            data-testid="privacy-level"
+            title={PRIVACY_LEVELS.find((p) => p.value === currentSource.privacy)?.help}
+            className="rounded-md border bg-muted px-2 py-1 text-xs text-muted-foreground"
+          >
+            Privacidad: {privacyLabel(currentSource.privacy)}
+          </span>
+        )}
         <select
           aria-label="Modelo de IA"
           className={selectClass}
@@ -213,7 +262,7 @@ export function ChatPage() {
         </p>
       )}
 
-      <div ref={scroller}onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div ref={scroller} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto p-4">
         {empty ? (
           <section className="mx-auto flex max-w-xl flex-col items-center gap-4 py-16 text-center">
             <h2 className="text-2xl font-semibold tracking-tight">¿Qué quieres saber?</h2>

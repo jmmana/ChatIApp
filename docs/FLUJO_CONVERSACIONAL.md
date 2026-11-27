@@ -36,12 +36,16 @@ stateDiagram-v2
 
 - **Entender** es la única llamada obligatoria a la IA. Devuelve un plan; no devuelve SQL salvo en la ruta libre.
 - **Verificar** es código: comprueba que la métrica existe, que las dimensiones y filtros están permitidos, que el período se puede resolver y que las entidades nombradas existen.
+- **Verificar** también descarta las dimensiones del plan que el texto de la pregunta no nombra (por nombre o sinónimo de la columna, o de su tabla si no es la de la métrica): «¿Cuánto vendí?» devuelve una sola cifra aunque la IA haya agregado «sucursal». Las dimensiones que ya traía el último plan se conservan en las preguntas de seguimiento, y las descartadas quedan anotadas en `reasoning` del plan guardado.
+- **Responder** nunca presenta una sola fila de varias como si fuera el total: si la IA cita una cifra que solo aparece en la primera fila, se usa la plantilla local.
 - **Construir** no usa IA: el SQL de una métrica del catálogo es siempre el mismo para la misma pregunta.
 - **Reparar** solo existe para SQL de la IA, una vez, con el mensaje de error exacto del guardián o de la base.
 
 ## El plan
 
 La salida de **Entender** es un JSON que se valida con Pydantic. Si no es JSON válido o no cumple el esquema, se reintenta una vez con el error; si vuelve a fallar, el turno termina con un error claro.
+
+**Reintento del plan.** Si la **Verificación** rechaza el plan con un `invalid_plan` que el modelo puede corregir (filtro sobre una columna de fecha, dimensión o métrica inexistente, valor fuera del catálogo), el orquestador emite un `step` `replan` en estado `warning` («Corrigiendo el plan») y pide **un solo reintento** al planificador. Le envía el plan rechazado y el mensaje exacto del error dentro de `<plan_rechazado>` y `<error>`, escapados como datos igual que en **Reparar**, y cuenta ese uso en los tokens del turno. Si el segundo plan también falla (o no es un plan de métrica), el turno termina con el mismo `invalid_plan` recuperable; no hay tercer intento y no se omite ninguna verificación ni el guardián.
 
 ```json
 {

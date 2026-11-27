@@ -6,8 +6,13 @@ import { ApiError } from "@/lib/api";
 import { getSemantic, issuesFrom, listDatasources, publishSemantic } from "./api";
 import { ContextTab } from "./ContextTab";
 import { groupIssues, type FieldErrors } from "./errors";
+import { ImportTab } from "./import/ImportTab";
+import { MetricsTab } from "./metrics/MetricsTab";
 import { RelationsTab } from "./RelationsTab";
+import { SecurityTab } from "./security/SecurityTab";
 import { selectClass } from "./styles";
+import { SummaryTab } from "./summary/SummaryTab";
+import { SuggestPanel } from "./suggest/SuggestPanel";
 import { TablesTab } from "./TablesTab";
 import type { Datasource, SemanticModel, SemanticVersion } from "./types";
 import { VersionHistory } from "./VersionHistory";
@@ -33,6 +38,7 @@ function Editor({
   const [conflict, setConflict] = useState<number | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [reloading, setReloading] = useState(false);
+  const [tab, setTab] = useState("tablas");
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(baseline);
   const errorCount = Object.values(errors).reduce((sum, list) => sum + list.length, 0);
@@ -48,7 +54,9 @@ function Editor({
       setBaseline(published.model);
       setDraft(published.model);
       setBaseVersion(published.version);
-      void queryClient.invalidateQueries({ queryKey: ["semantic-versions", datasource.id] });
+      void queryClient.invalidateQueries({
+        queryKey: ["semantic-versions", datasource.id],
+      });
     },
     onError: (error) => {
       if (error instanceof ApiError && error.status === 422) {
@@ -60,6 +68,13 @@ function Editor({
       }
     },
   });
+
+  /** El modelo fusionado pasa a ser el borrador: queda sin publicar hasta pulsar «Publicar». */
+  function applyImport(model: SemanticModel) {
+    setDraft(model);
+    setErrors({});
+    setTab("tablas");
+  }
 
   async function reload() {
     setReloading(true);
@@ -89,6 +104,10 @@ function Editor({
         </Button>
       </div>
 
+      {baseVersion > 0 && (
+        <SuggestPanel datasourceId={datasource.id} model={draft} onChange={setDraft} />
+      )}
+
       {conflict !== null && (
         <div
           role="alert"
@@ -105,8 +124,8 @@ function Editor({
       )}
       {errorCount > 0 && (
         <p role="alert" className="rounded-md border border-destructive p-3 text-sm">
-          El modelo no se publicó: corrige {errorCount === 1 ? "el error" : `los ${errorCount} errores`}{" "}
-          marcados junto a cada campo.
+          El modelo no se publicó: corrige{" "}
+          {errorCount === 1 ? "el error" : `los ${errorCount} errores`} marcados junto a cada campo.
         </p>
       )}
       {failure && (
@@ -115,13 +134,20 @@ function Editor({
         </p>
       )}
 
-      <Tabs defaultValue="tablas">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="contexto">Contexto</TabsTrigger>
           <TabsTrigger value="tablas">Tablas</TabsTrigger>
           <TabsTrigger value="relaciones">Relaciones</TabsTrigger>
+          <TabsTrigger value="importar">Importar</TabsTrigger>
+          <TabsTrigger value="metricas">Métricas</TabsTrigger>
+          <TabsTrigger value="resumidas">Resumidas</TabsTrigger>
+          <TabsTrigger value="seguridad">Seguridad</TabsTrigger>
           <TabsTrigger value="historial">Historial</TabsTrigger>
         </TabsList>
+        <TabsContent value="importar" className="mt-4">
+          <ImportTab datasource={datasource} onApply={applyImport} />
+        </TabsContent>
         <TabsContent value="contexto" className="mt-4">
           <ContextTab model={draft} errors={errors} onChange={setDraft} />
         </TabsContent>
@@ -130,6 +156,27 @@ function Editor({
         </TabsContent>
         <TabsContent value="relaciones" className="mt-4">
           <RelationsTab model={draft} errors={errors} onChange={setDraft} />
+        </TabsContent>
+        <TabsContent value="metricas" className="mt-4">
+          <MetricsTab
+            model={draft}
+            errors={errors}
+            datasourceId={datasource.id}
+            dialect={datasource.dialect}
+            onChange={setDraft}
+          />
+        </TabsContent>
+        <TabsContent value="resumidas" className="mt-4">
+          <SummaryTab model={draft} errors={errors} onChange={setDraft} />
+        </TabsContent>
+        <TabsContent value="seguridad" className="mt-4">
+          <SecurityTab
+            datasourceId={datasource.id}
+            model={draft}
+            errors={errors}
+            dirty={dirty}
+            onChange={setDraft}
+          />
         </TabsContent>
         <TabsContent value="historial" className="mt-4">
           <VersionHistory datasourceId={datasource.id} />
@@ -163,7 +210,9 @@ function Loaded({ datasource }: { datasource: Datasource }) {
 
   async function reload() {
     await queryClient.refetchQueries({ queryKey: ["semantic", datasource.id] });
-    await queryClient.invalidateQueries({ queryKey: ["semantic-versions", datasource.id] });
+    await queryClient.invalidateQueries({
+      queryKey: ["semantic-versions", datasource.id],
+    });
     setGeneration((value) => value + 1);
   }
 
@@ -178,7 +227,10 @@ function Loaded({ datasource }: { datasource: Datasource }) {
 }
 
 export function SemanticStudio() {
-  const datasources = useQuery({ queryKey: ["datasources"], queryFn: listDatasources });
+  const datasources = useQuery({
+    queryKey: ["datasources"],
+    queryFn: listDatasources,
+  });
   const [chosen, setChosen] = useState<string | null>(null);
   const list = datasources.data ?? [];
   const datasource = list.find((item) => item.id === chosen) ?? list[0];

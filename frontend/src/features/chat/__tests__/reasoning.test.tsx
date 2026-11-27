@@ -86,7 +86,7 @@ describe("Clarification", () => {
   it("las flechas mueven el foco entre opciones y dan la vuelta", async () => {
     render(<Clarification {...clarification} onSelect={() => {}} />);
     const [hoy, mes, anio] = screen.getAllByRole("button");
-    await userEvent.tab();
+    // Al aparecer, el foco pasa solo a la primera opción.
     expect(hoy).toHaveFocus();
     await userEvent.keyboard("{ArrowRight}");
     expect(mes).toHaveFocus();
