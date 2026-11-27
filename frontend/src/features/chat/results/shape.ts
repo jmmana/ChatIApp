@@ -13,6 +13,10 @@ export interface ResultShape {
   measureIndexes: number[];
   /** Con comparación: índice de la columna actual y de la del período anterior. */
   comparison: { current: number; previous: number } | null;
+  /** El eje del gráfico es una serie de tiempo (dos o más fechas distintas). */
+  timeAxis: boolean;
+  /** Columnas de tiempo con un único valor: se muestran como contexto, no como eje. */
+  constants: { index: number; value: string }[];
 }
 
 /** Máximo de categorías para que un gráfico de barras siga siendo legible. */
@@ -45,6 +49,10 @@ export function isTimeColumn(result: ResultData, index: number): boolean {
   return values.length > 0 && values.every((v) => typeof v === "string" && DATE_RE.test(v));
 }
 
+function distinctCount(result: ResultData, index: number): number {
+  return new Set(column(result, index).map(String)).size;
+}
+
 export function detectShape(result: ResultData): ResultShape {
   const base: ResultShape = {
     auto: "table",
@@ -52,6 +60,8 @@ export function detectShape(result: ResultData): ResultShape {
     labelIndex: -1,
     measureIndexes: [],
     comparison: null,
+    timeAxis: false,
+    constants: [],
   };
   const count = result.columns.length;
   if (count === 0 || result.rows.length === 0) return base;
@@ -80,12 +90,21 @@ export function detectShape(result: ResultData): ResultShape {
   }
 
   const measureIndexes = numeric.flatMap((is, i) => (is ? [i] : []));
-  const labelIndex = numeric.findIndex((is) => !is);
+  // Una columna de tiempo con un único valor es una constante, no un eje.
+  const constants = result.columns.flatMap((_, i) =>
+    !numeric[i] && isTimeColumn(result, i) && distinctCount(result, i) === 1
+      ? [{ index: i, value: String(column(result, i)[0]) }]
+      : [],
+  );
+  const isConstant = (i: number) => constants.some((c) => c.index === i);
+  const labelIndex = numeric.findIndex((is, i) => !is && !isConstant(i));
   if (measureIndexes.length === 0 || labelIndex === -1) return base;
 
   if (isTimeColumn(result, labelIndex)) {
     return {
       ...base,
+      constants,
+      timeAxis: true,
       auto: "line",
       available: ["line", "bar", "table"],
       labelIndex,
@@ -96,6 +115,7 @@ export function detectShape(result: ResultData): ResultShape {
   if (labels.every((v) => typeof v === "string") && result.rows.length <= MAX_BAR_CATEGORIES) {
     return {
       ...base,
+      constants,
       auto: "bar",
       available: ["bar", "line", "table"],
       labelIndex,
