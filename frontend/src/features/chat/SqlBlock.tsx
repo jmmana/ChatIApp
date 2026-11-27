@@ -1,8 +1,7 @@
 import { Check, ChevronRight, Copy } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatSql } from "./formatSql";
 import type { SqlData } from "./types";
 
 const DIALECT_LABELS: Record<string, string> = {
@@ -63,7 +62,20 @@ interface SqlBlockProps {
 export function SqlBlock({ sql, streaming = false }: SqlBlockProps) {
   const [toggled, setToggled] = useState<boolean | null>(null);
   const [copied, setCopied] = useState(false);
-  const formatted = useMemo(() => formatSql(sql.sql, sql.dialect), [sql.sql, sql.dialect]);
+  // El formateador pesa bastante: se descarga aparte y mientras tanto se muestra el SQL tal cual.
+  const [formattedFor, setFormattedFor] = useState<{ source: string; text: string } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void import("./formatSql").then(({ formatSql }) => {
+      if (!cancelled) {
+        setFormattedFor({ source: sql.sql, text: formatSql(sql.sql, sql.dialect) });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sql.sql, sql.dialect]);
+  const formatted = formattedFor?.source === sql.sql ? formattedFor.text : sql.sql;
   const open = toggled ?? streaming;
   const dialect = DIALECT_LABELS[sql.dialect.toLowerCase()] ?? sql.dialect;
 

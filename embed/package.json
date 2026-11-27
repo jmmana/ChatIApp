@@ -6,7 +6,7 @@
   "packageManager": "pnpm@12.18.0",
   "scripts": {
     "dev": "vite build --watch",
-    "build": "tsc -b && vite build && vite build --config vite.react.config.ts && node scripts/check-size.mjs",
+    "build": "tsc -b && vite build && vite build --config vite.loader.config.ts && vite build --config vite.react.config.ts && node scripts/check-size.mjs",
     "lint": "eslint .",
     "test": "vitest run",
     "test:e2e": "playwright test"

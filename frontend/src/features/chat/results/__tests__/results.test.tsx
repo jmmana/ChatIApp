@@ -95,7 +95,7 @@ describe("ResultView", () => {
         locale="en-US"
       />,
     );
-    expect(screen.getByRole("img", { name: /barras/ })).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: /barras/ })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Tabla" }));
     const header = screen.getByRole("columnheader", { name: /ventas/ });
     expect(header).toHaveAttribute("aria-sort", "none");
