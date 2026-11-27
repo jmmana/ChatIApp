@@ -33,7 +33,9 @@ export function ChatPage() {
 
   const datasources = useQuery({ queryKey: ["datasources"], queryFn: listDatasources });
   const providers = useQuery({ queryKey: ["providers"], queryFn: listProviders });
-  const selectedSource = datasourceId || datasources.data?.[0]?.id || "";
+  const sources = Array.isArray(datasources.data) ? datasources.data : [];
+  const models = Array.isArray(providers.data) ? providers.data : [];
+  const selectedSource = datasourceId || sources[0]?.id || "";
   const semantic = useQuery({
     queryKey: ["chat-semantic", selectedSource],
     queryFn: () => getSemanticInfo(selectedSource),
@@ -88,7 +90,7 @@ export function ChatPage() {
           value={selectedSource}
           onChange={(event) => setDatasourceId(event.target.value)}
         >
-          {(datasources.data ?? []).map((source) => (
+          {sources.map((source) => (
             <option key={source.id} value={source.id}>
               {source.name}
             </option>
@@ -101,7 +103,7 @@ export function ChatPage() {
           onChange={(event) => setProviderId(event.target.value)}
         >
           <option value="">Modelo por defecto</option>
-          {(providers.data ?? []).map((provider) => (
+          {models.map((provider) => (
             <option key={provider.id} value={provider.id}>
               {provider.model}
             </option>
