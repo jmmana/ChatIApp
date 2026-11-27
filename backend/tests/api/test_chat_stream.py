@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 import json
 import threading
@@ -183,6 +184,75 @@ def test_cuanto_vendi_y_luego_este_mes_con_el_stream_completo(
     assistant = detail["messages"][3]
     assert [e["type"] for e in assistant["events"]][0] == "turn.started"
     assert "result" in [e["type"] for e in assistant["events"]]
+
+
+def test_el_primer_evento_llega_en_menos_de_500_ms_aunque_el_turno_siga(
+    client: TestClient,
+    factory: sessionmaker[Session],
+    datasource_id: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _provider(factory, "aclara", SIN_PERIODO, default=True)
+
+    def lento(self: Orchestrator, conversation: Any, question: str) -> Iterator[Event]:
+        yield Event(TurnStarted(turn_id=str(uuid.uuid4()), conversation_id=str(conversation.id)))
+        time.sleep(1.0)  # el resto del turno tarda: solo se mide hasta el primer evento
+        yield Event(Step(id="understand", label="Entendiendo", status="done"))
+
+    monkeypatch.setattr(Orchestrator, "run", lento)
+    body = json.dumps(
+        {"datasource_id": datasource_id, "message": "hola", "view_as": GENERAL}
+    ).encode()
+
+    # `TestClient` acumula la respuesta entera: se llama a la app ASGI y se cronometra el primer
+    # fragmento del cuerpo, que es lo que vería un cliente en streaming.
+    async def primer_fragmento() -> tuple[float, bytes]:
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/api/v1/chat/stream",
+            "raw_path": b"/api/v1/chat/stream",
+            "query_string": b"",
+            "root_path": "",
+            "headers": [
+                (b"host", b"testserver"),
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode()),
+            ],
+            "client": ("testclient", 50000),
+            "server": ("testserver", 80),
+        }
+        sent = False
+        arrived: asyncio.Future[tuple[float, bytes]] = asyncio.get_running_loop().create_future()
+        started = time.perf_counter()
+
+        async def receive() -> dict[str, Any]:
+            nonlocal sent
+            if not sent:
+                sent = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            await asyncio.sleep(3600)  # sin desconexión mientras dura el turno
+            return {"type": "http.disconnect"}
+
+        async def send(message: dict[str, Any]) -> None:
+            if message["type"] == "http.response.body" and message.get("body"):
+                if not arrived.done():
+                    arrived.set_result((time.perf_counter() - started, message["body"]))
+
+        task = asyncio.create_task(app(scope, receive, send))
+        try:
+            return await asyncio.wait_for(arrived, timeout=5)
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    elapsed, first = asyncio.run(primer_fragmento())
+
+    assert first.decode().startswith("event: turn.started")
+    assert elapsed < 0.5
 
 
 def test_fuente_inexistente_responde_404_sin_abrir_el_stream(
