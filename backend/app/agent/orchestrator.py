@@ -24,6 +24,17 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agent.clarify import (
+    Pending,
+    apply_reply,
+    assumed_period_note,
+    dimension_question,
+    metric_question,
+    pending_clarification,
+    period_question,
+    should_assume_default,
+    trailing_clarifications,
+)
 from app.agent.events import (
     Answer,
     AnswerDelta,
@@ -74,9 +85,7 @@ from app.semantic.schema import Metric, SemanticModel
 
 logger = logging.getLogger(__name__)
 
-MAX_CLARIFICATIONS = 2
 MAX_ANSWER_ROWS = 50  # filas que, como máximo, se envían a la IA para redactar (privacidad)
-PERIOD_OPTIONS = ["Hoy", "Esta semana", "Este mes", "Mes pasado", "Este año", "Últimos 30 días"]
 _PRIVACY_LEVELS = ("schema", "aggregates", "samples")
 _HISTORY_WINDOW = 12
 
@@ -175,6 +184,7 @@ class _Turn:
     history: list[Turn]
     prior_plan: Plan | None
     previous_clarifications: int
+    pending: Pending | None = None
     started: float = field(default_factory=time.perf_counter)
     usage: Usage = field(default_factory=Usage)
     events: list[Event] = field(default_factory=list)
@@ -336,7 +346,8 @@ class Orchestrator:
             assistant=assistant,
             history=history,
             prior_plan=_load_plan(conversation.last_plan),
-            previous_clarifications=_trailing_clarifications(recent),
+            previous_clarifications=trailing_clarifications(recent),
+            pending=pending_clarification(recent),
         )
 
     def _guarded(self, t: _Turn) -> Iterator[Event]:
@@ -387,7 +398,11 @@ class Orchestrator:
     def _flow(self, t: _Turn) -> Iterator[Event]:
         conversation_id = str(t.conversation.id)
         yield Event(TurnStarted(turn_id=str(t.assistant.id), conversation_id=conversation_id))
-        plan = yield from self._understand(t)
+        plan = self._resume(t)
+        if plan is None:
+            plan = yield from self._understand(t)
+        else:
+            yield _step("understand", "done", "Retomando el plan pendiente")
         if plan.reasoning.strip():
             yield Event(Reasoning(text=plan.reasoning.strip()))
         if plan.intent in ("explain", "out_of_scope"):
@@ -399,6 +414,14 @@ class Orchestrator:
             yield from self._free_sql(t, plan)
         else:
             yield from self._metric(t, plan)
+
+    def _resume(self, t: _Turn) -> Plan | None:
+        """Si el usuario responde una aclaración, completa el plan pendiente sin volver a la IA."""
+        if t.pending is None or t.prior_plan is None:
+            return None
+        return apply_reply(
+            t.prior_plan, t.pending, t.question, self.model, self.period_config, self.now()
+        )
 
     def _understand(self, t: _Turn) -> Generator[Event, None, Plan]:
         yield _step("understand", "running")
@@ -426,13 +449,14 @@ class Orchestrator:
         """Máximo 2 aclaraciones seguidas: después se usa el `default_period` de la métrica."""
         clarification = plan.clarification
         assert clarification is not None
-        if t.previous_clarifications >= MAX_CLARIFICATIONS and plan.metric:
+        if plan.metric:
             try:
                 metric = Catalog(self.model).find_metric(plan.metric)
             except CatalogError:
                 metric = None
-            if metric is not None and metric.default_period:
-                t.notes.append(f"Asumí «{metric.default_period}»; dime si quieres otro período.")
+            if metric is not None and should_assume_default(t.previous_clarifications, metric):
+                assert metric.default_period is not None
+                t.notes.append(assumed_period_note(metric.default_period))
                 return plan.model_copy(
                     update={
                         "intent": "metric",
@@ -516,17 +540,11 @@ class Orchestrator:
         try:
             return catalog.verify(plan.metric, plan.dimensions, filters, self.role)
         except AmbiguousMetricError as exc:
-            metrics = [catalog.find_metric(name) for name in exc.candidates]
-            lines = [f"- {m.label}: {m.description or m.name}" for m in metrics]
-            question = "¿A cuál de estas métricas te refieres?\n" + "\n".join(lines)
-            raise _Ask(question, [m.label for m in metrics], "metric", "verify") from exc
+            ask = metric_question([catalog.find_metric(name) for name in exc.candidates])
+            raise _Ask(ask.question, ask.options, ask.slot, "verify") from exc
         except DimensionNotAllowedError as exc:
-            allowed = ", ".join(exc.allowed) or "ninguna"
-            question = (
-                f"No puedo desglosar «{exc.metric}» por «{exc.dimension}». "
-                f"Las dimensiones disponibles son: {allowed}. ¿Quieres usar alguna?"
-            )
-            raise _Ask(question, exc.allowed, "dimension", "verify") from exc
+            ask = dimension_question(exc.metric, exc.dimension, exc.allowed)
+            raise _Ask(ask.question, ask.options, ask.slot, "verify") from exc
         except CatalogError as exc:
             raise _Fail("verify", "invalid_plan", exc.message) from exc
 
@@ -537,18 +555,16 @@ class Orchestrator:
             return period
         if not text and not metric.requires_period:
             return None
-        if t.previous_clarifications >= MAX_CLARIFICATIONS and metric.default_period:
+        if should_assume_default(t.previous_clarifications, metric):
+            assert metric.default_period is not None
             period = resolve_period(metric.default_period, self.period_config, self.now())
             if period is not None:
-                t.notes.append(f"Asumí «{metric.default_period}»; dime si quieres otro período.")
+                t.notes.append(assumed_period_note(metric.default_period))
                 if t.last_plan is not None:
                     t.last_plan["period_text"] = metric.default_period
                 return period
-        if text:
-            question = f"No entendí el período «{text}». ¿Cuál de estos prefieres?"
-        else:
-            question = f"¿De qué período quieres ver {metric.label.lower()}?"
-        raise _Ask(question, PERIOD_OPTIONS, "period", "period")
+        ask = period_question(metric, text)
+        raise _Ask(ask.question, ask.options, ask.slot, "period")
 
     def _compare(
         self, t: _Turn, verified: VerifiedPlan, period: PeriodRange, outcome: _Outcome
@@ -895,19 +911,6 @@ def _load_plan(raw: dict[str, Any] | None) -> Plan | None:
         return Plan.model_validate(raw)
     except ValidationError:
         return None
-
-
-def _trailing_clarifications(messages: Sequence[Message]) -> int:
-    """Aclaraciones seguidas al final de la conversación (mensajes del asistente)."""
-    count = 0
-    for message in reversed(messages):
-        if message.role != "assistant":
-            continue
-        events = message.events or []
-        if not any(isinstance(e, dict) and e.get("type") == "clarification" for e in events):
-            break
-        count += 1
-    return count
 
 
 def _order_terms(plan: Plan, verified: VerifiedPlan) -> list[OrderTerm]:
