@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Self
 
-from pydantic import SecretStr, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     secret_key: SecretStr | None = None
     secret_key_previous: SecretStr | None = None
     config: Path | None = None
+    chat_timeout_seconds: float = Field(default=120, gt=0, le=600)
     env: Literal["development", "test", "production"] = "development"
     # Observabilidad (docs/OBSERVABILIDAD.md). Sin endpoint OTLP no se exportan trazas.
     log_level: str = "INFO"
