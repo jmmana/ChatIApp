@@ -1,5 +1,9 @@
+/// <reference types="node" />
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import css from "../index.css?raw";
+
+// Vitest se ejecuta desde `frontend/`.
+const css = readFileSync("src/index.css", "utf8");
 
 type Tokens = Record<string, string>;
 
