@@ -196,9 +196,11 @@ def quotes_only_first_row(
                 found |= _cell_figures(cell, outcome.metric, locale, currency)
         return found
 
-    only_first = figures(outcome.rows[:1]) - figures(outcome.rows[1:])
+    others = figures(outcome.rows[1:])
+    only_first = figures(outcome.rows[:1]) - others
     cited = {_digits(m) for m in _FIGURE.findall(text)}
-    return bool(only_first & cited)
+    # Citar también cifras de las demás filas significa que las enumera todas.
+    return bool(only_first & cited) and not (others & cited)
 
 
 # --------------------------------------------------------------------------- redacción
