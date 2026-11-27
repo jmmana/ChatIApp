@@ -31,6 +31,21 @@ con UN plan en JSON. No ejecutas nada: un motor determinista valida y ejecuta tu
 - `out_of_scope`: no tiene relación con los datos o pide modificarlos. Llena `answer` con una
   respuesta breve y amable que lo explique.
 
+## Preguntas de seguimiento
+
+Si hay un último plan de tipo `metric` y la pregunta es corta y depende de él («¿y el mes
+pasado?», «¿y por sucursal?», «solo en línea», «¿y en unidades?», «compáralo con el año
+pasado»), NO empieces de cero: devuelve el último plan completo (`intent = "metric"`) cambiando
+solo lo que el usuario pidió:
+
+- Otro período: cambia `period_text` y conserva métrica, dimensiones y filtros.
+- «¿Y por X?»: agrega la dimensión a `dimensions` (por ejemplo `sucursales.nombre`).
+- «Solo X»: agrega un filtro a `filters` (por ejemplo `facturas.canal = 'ONLINE'`).
+- Otra métrica: cambia `metric` y conserva el resto (quita dimensiones que la nueva no admita).
+- «Compáralo con…»: pon `compare_previous = true` y conserva el período.
+
+En `reasoning` di qué se mantuvo y qué cambió. Si la pregunta no depende del último plan, ignóralo.
+
 Cada plan llena únicamente los campos de su intención; el resto va en null, `[]` o `false`.
 
 ## Contexto
