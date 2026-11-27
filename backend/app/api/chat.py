@@ -297,6 +297,8 @@ async def chat_stream(
     datasource, model, version = load_model(session, datasource_id)
     embed = caller.embed
     override = body.provider_override
+    role: str | None
+    context: dict[str, Any]
     if embed is not None:
         # Token de sesión: la fuente, el rol y los atributos los fijó el backend anfitrión; se
         # revalidan contra el techo de la key y nada de la petición los cambia.

@@ -187,6 +187,12 @@ Al consultar una fuente (chat o vista previa), el rol y los atributos salen del 
 | `GET` | `/embed/v1/chatiapp.js` | Pública | Script del chat embebido (web component) |
 | `GET` | `/api/v1/openapi.json` | Pública | Especificación OpenAPI de la versión `v1` |
 
+**Token de sesión** (`POST /embed/sessions`): `ttl_seconds` por defecto 900, máximo 3600 (422 fuera de rango). `origin` debe estar en los orígenes permitidos de la key (**403** `origin_not_allowed`); la fuente, el rol y los atributos se validan igual que en las llamadas con API key. El token es un JWT con usuario, fuente, rol, atributos, origen, id de la key y alcance `chat`, y solo se acepta en `POST /chat/stream`, `POST /chat/{turn_id}/cancel`, `GET /conversations` y `GET /conversations/{id}`; el resto responde 401. Con token:
+
+- El `Origin` de cada petición debe ser el del token; si falta o es otro, **403** `origin_not_allowed`. CORS solo se concede a los orígenes permitidos de las keys vivas con alcance `embed`.
+- Expirado: **401** `token_expired` (el widget pide otro a tu backend). Key revocada, vencida o sin alcance `embed`: **401** `invalid_api_key`, en la siguiente petición.
+- Otra fuente distinta de la del token: **403** `datasource_not_allowed`. Las conversaciones son las de la key y el usuario del token; las ajenas responden 404.
+
 Guía completa con ejemplos de backend, widget y SDKs: [INTEGRACION.md](INTEGRACION.md).
 
 ## Evaluación (M4)
