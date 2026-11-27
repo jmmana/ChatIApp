@@ -97,3 +97,13 @@ Otras opciones: `--model` (modelo semántico, por defecto `examples/ventas/seman
 - **Exactitud**: se ejecuta `expect.sql` sobre la demo y se comparan las **filas** con las del evento `result` del turno (tolerancia numérica de 0,005; sin orden salvo `ordered: true`). Con `expect_clarification` el caso pasa si el agente pregunta por ese `slot` sin ejecutar nada; con `expect_out_of_scope`, si no ejecuta ninguna consulta ni pregunta (un rechazo del guardián cuenta; un fallo del proveedor, no). Con `answers`, tras cada aclaración se envía la siguiente respuesta y se evalúa el último turno.
 - **Informe**: `<set>.md` y `<set>.json` en `--out`. Trae, por proveedor, la exactitud global (fracción de 0 a 1 en el JSON) y por etiqueta, las aclaraciones correctas e innecesarias, la latencia p50 y p95 (por caso, sin contar las preguntas de `previous`), los tokens y el costo (con todos los turnos), y los casos fallidos con su SQL y el esperado.
 - **Historial**: guarda un `EVAL_RUN` por proveedor (`accuracy`, `p50_latency_ms`, `cost_usd` y el informe completo en `details`). Las conversaciones de la evaluación van a una base temporal: la base de la app solo recibe los `EVAL_RUN`.
+
+## Evaluación offline en CI
+
+El proveedor grabado ejecuta todos los casos sin conexión ni credenciales:
+
+```bash
+uv run python -m app.eval.recorded
+```
+
+`evals/recorded/ventas.yaml` enumera cada caso y su tipo de plan. Los planes SQL usan el SQL de referencia del propio caso; los casos de aclaración y fuera de alcance reproducen esos resultados esperados. Las preguntas previas de seguimientos usan una consulta fija. Esto comprueba el flujo del agente, el guardián, la ejecución y la comparación de resultados con entradas deterministas; no evalúa la interpretación de lenguaje natural de un modelo. El comando exige que la grabación cubra exactamente los casos del set, falla si el flujo queda desalineado o incompleto y devuelve error si la exactitud es menor al 100 %. Si `GITHUB_STEP_SUMMARY` está definido, añade allí el reporte Markdown.
