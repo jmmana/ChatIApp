@@ -128,7 +128,7 @@ Para integraciones simples, `POST /api/v1/chat` devuelve el turno completo en un
   "conversation_id": "7d0c…",
   "status": "answered",
   "period": { "start": "2026-11-01", "end_exclusive": "2026-12-01", "label": "Noviembre 2026 (al día 25)" },
-  "sql": { "text": "SELECT SUM(total_ventas) AS ventas_netas FROM ventas_diarias WHERE …", "dialect": "postgres", "origin": "catalog", "summary_table": "ventas_diarias", "filters_applied": ["ventas_diarias: sucursal_id IN (1, 2)"] },
+  "sql": { "sql": "SELECT SUM(total_ventas) AS ventas_netas FROM ventas_diarias WHERE …", "dialect": "postgres", "origin": "catalog", "summary_table": "ventas_diarias", "filters_applied": ["ventas_diarias: sucursal_id IN (1, 2)"] },
   "result": { "columns": ["ventas_netas"], "rows": [["482315000.00"]], "truncated": false },
   "answer": "Este mes llevas $482,3 M en ventas netas.",
   "usage": { "tokens_in": 1830, "tokens_out": 142, "cost_usd": 0.0031 }
@@ -150,7 +150,7 @@ user = EndUser(id="u-123", role="gerente_sucursal", attributes={"sucursales": [1
 turn = client.chat("¿Cuánto vendí?", datasource="ventas", user=user)
 if turn.needs_clarification:
     turn = client.chat("Este mes", conversation_id=turn.conversation_id, user=user)
-print(turn.answer, turn.sql.text)
+print(turn.answer, turn.sql.sql)
 ```
 
 ```ts
