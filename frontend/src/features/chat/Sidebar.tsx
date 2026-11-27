@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { deleteConversation, listConversations, renameConversation } from "./api";
 import type { ConversationSummary } from "./api";
 import { groupConversations } from "./grouping";
+import { CONVERSATIONS_KEY } from "./queryKeys";
 
 interface Props {
   activeId: string | null;
@@ -24,8 +25,6 @@ interface Props {
   /** Se llama tras borrar, para que el chat deje de mostrar la conversación eliminada. */
   onDeleted: (id: string) => void;
 }
-
-export const CONVERSATIONS_KEY = ["conversations"];
 
 export function Sidebar({ activeId, onSelect, onNew, onDeleted }: Props) {
   const client = useQueryClient();
