@@ -5,7 +5,8 @@ corrección con el mensaje exacto del error (docs/FLUJO_CONVERSACIONAL.md#estado
 La validación y la ejecución siguen siendo del guardián y del ejecutor, no de la IA.
 """
 
-from app.llm.gateway import Gateway, GatewayError, Usage
+from app.llm.gateway import GatewayError, Usage
+from app.llm.routing import LlmClient
 from app.semantic.context import Privacy, build_context
 from app.semantic.schema import SemanticModel
 
@@ -37,7 +38,7 @@ def strip_sql(text: str) -> str:
 
 
 def repair_sql(
-    gateway: Gateway,
+    gateway: LlmClient,
     model: SemanticModel,
     question: str,
     sql: str,

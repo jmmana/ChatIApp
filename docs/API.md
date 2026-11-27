@@ -146,6 +146,24 @@ Todos los eventos: [FLUJO_CONVERSACIONAL.md](FLUJO_CONVERSACIONAL.md#eventos-de-
 | `GET` | `/api/v1/audit` | Auditoría con filtros (usuario, fuente, fecha, estado) |
 | `GET` | `/api/v1/audit/export` | Exporta CSV |
 
+### Usuarios y permisos por fuente
+
+Todas las rutas de `/api/v1/users` exigen un administrador. `POST` recibe `{email, password, is_admin?}` (contraseña de 8 o más caracteres; 409 si el correo ya existe). `PATCH` cambia `email`, `password` o `is_admin`. No se puede eliminar al propio usuario ni dejar el sistema sin administradores (409).
+
+`PUT /api/v1/users/{id}/grants` **reemplaza** los permisos del usuario:
+
+```json
+{ "grants": [
+  { "datasource_id": "…", "role": "gerente_sucursal", "attributes": { "sucursales": [1, 2] } }
+] }
+```
+
+- **422** `unknown_role`: el rol no existe en el modelo semántico vigente de la fuente.
+- **422** `missing_attributes`: faltan (o están vacíos) atributos que exigen los filtros del rol (`{user.x}`).
+- **404** si la fuente no existe. Las fuentes que no aparecen en la lista quedan sin acceso.
+
+Al consultar una fuente (chat o vista previa), el rol y los atributos salen del permiso del usuario autenticado. Sin permiso: **403** `no_access` (los administradores usan el rol por defecto del modelo). `view_as` solo lo aceptan los administradores; los demás reciben **403** `view_as_forbidden`.
+
 ## Integraciones (M3)
 
 | Método | Ruta | Credencial | Descripción |

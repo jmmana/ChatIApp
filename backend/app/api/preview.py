@@ -14,21 +14,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.errors import ApiError
-from app.db.models import Datasource, Grant, SemanticModelVersion, User
+from app.db.models import Datasource, SemanticModelVersion, User
 from app.db.session import get_session
 from app.engine.builder import BuilderError, build_sql
 from app.engine.catalog import Catalog, CatalogError, PlanFilter
 from app.engine.dialects import Dialect, Granularity
 from app.engine.guard import GuardResult, UnknownRoleError, check_sql
 from app.engine.periods import PeriodConfig, resolve_period
-from app.engine.rls import (
-    AttributeValue,
-    ViewAsNotAllowedError,
-    build_user_context,
-    role_row_filters,
-)
+from app.engine.rls import AttributeValue, role_row_filters
 from app.engine.summary import plan_for_summary, route_summary
 from app.security.auth import get_current_user, require_admin
+from app.security.grants import GrantError, resolve_access
+from app.security.grants import ViewAs as GrantViewAs
 from app.semantic.schema import SemanticModel, parse_semantic_model
 
 router = APIRouter(prefix="/datasources", tags=["vista previa"])
@@ -145,24 +142,17 @@ def _identity(
     view_as: ViewAs | None,
 ) -> tuple[str | None, dict[str, Any]]:
     """Rol y contexto `{"user": {...}}`: de `view_as` (solo administradores) o del permiso."""
-    grant = session.scalars(
-        select(Grant).where(Grant.user_id == user.id, Grant.datasource_id == datasource.id)
-    ).first()
-    if grant is None and not user.is_admin:
-        raise ApiError(403, "no_access", "No tienes acceso a esta fuente de datos")
-    role = grant.role if grant else None
-    attributes: dict[str, AttributeValue] = dict(grant.attributes) if grant else {}
     try:
-        context = build_user_context(
-            attributes,
-            view_as=view_as.attributes if view_as else None,
-            is_admin=user.is_admin,
+        access = resolve_access(
+            session,
+            user,
+            datasource,
+            model,
+            GrantViewAs(view_as.role, view_as.attributes) if view_as else None,
         )
-    except ViewAsNotAllowedError as exc:
-        raise ApiError(403, "view_as_forbidden", str(exc)) from exc
-    if view_as is not None:
-        role = view_as.role
-    return role or model.security.default_role, context
+    except GrantError as exc:
+        raise ApiError(exc.status_code, exc.code, exc.message) from exc
+    return access.role, access.context
 
 
 def _period_config(model: SemanticModel) -> PeriodConfig:
