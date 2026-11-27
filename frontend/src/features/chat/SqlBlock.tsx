@@ -1,21 +1,9 @@
 import { Check, ChevronRight, Copy } from "lucide-react";
 import { useMemo, useState } from "react";
-import { format } from "sql-formatter";
-import type { SqlLanguage } from "sql-formatter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatSql } from "./formatSql";
 import type { SqlData } from "./types";
-
-const LANGUAGES: Record<string, SqlLanguage> = {
-  sqlite: "sqlite",
-  postgres: "postgresql",
-  postgresql: "postgresql",
-  mysql: "mysql",
-  mariadb: "mariadb",
-  mssql: "transactsql",
-  sqlserver: "transactsql",
-  tsql: "transactsql",
-};
 
 const DIALECT_LABELS: Record<string, string> = {
   sqlite: "SQLite",
@@ -38,15 +26,6 @@ const KEYWORDS = new Set(
 
 const TOKEN =
   /(--[^\n]*|\/\*[\s\S]*?\*\/)|('(?:[^']|'')*')|(\b\d+(?:\.\d+)?\b)|(\b[A-Za-z_][A-Za-z0-9_]*\b)/g;
-
-/** Da formato al SQL según el dialecto; si no se puede, devuelve el texto original. */
-export function formatSql(sql: string, dialect: string): string {
-  try {
-    return format(sql, { language: LANGUAGES[dialect.toLowerCase()] ?? "sql", keywordCase: "upper" });
-  } catch {
-    return sql;
-  }
-}
 
 function highlight(sql: string) {
   const nodes: React.ReactNode[] = [];
