@@ -40,7 +40,10 @@ export function TablesTab({ model, errors, onChange }: Props) {
   const totalMissing = tables.reduce((sum, t) => sum + missingDescriptions(t), 0);
 
   function patchTable(patch: Partial<SemanticTable>) {
-    onChange({ ...model, tables: tables.map((t, i) => (i === index ? { ...t, ...patch } : t)) });
+    onChange({
+      ...model,
+      tables: tables.map((t, i) => (i === index ? { ...t, ...patch } : t)),
+    });
   }
 
   function patchColumn(columnIndex: number, patch: Partial<SemanticColumn>) {
@@ -52,7 +55,9 @@ export function TablesTab({ model, errors, onChange }: Props) {
   function addColumn() {
     const name = newColumn.trim();
     if (!name) return;
-    patchTable({ columns: [...(table.columns ?? []), { name, role: "other" }] });
+    patchTable({
+      columns: [...(table.columns ?? []), { name, role: "other" }],
+    });
     setNewColumn("");
   }
 
@@ -144,7 +149,9 @@ export function TablesTab({ model, errors, onChange }: Props) {
                         value={column.description ?? ""}
                         aria-describedby={describedBy(errors, `${at}.description`)}
                         onChange={(event) =>
-                          patchColumn(columnIndex, { description: event.target.value || null })
+                          patchColumn(columnIndex, {
+                            description: event.target.value || null,
+                          })
                         }
                       />
                       <FieldError errors={errors} path={`${at}.description`} />
@@ -156,7 +163,9 @@ export function TablesTab({ model, errors, onChange }: Props) {
                         value={column.role ?? "other"}
                         aria-describedby={describedBy(errors, `${at}.role`)}
                         onChange={(event) =>
-                          patchColumn(columnIndex, { role: event.target.value as ColumnRole })
+                          patchColumn(columnIndex, {
+                            role: event.target.value as ColumnRole,
+                          })
                         }
                       >
                         {Object.entries(ROLE_LABELS).map(([value, label]) => (

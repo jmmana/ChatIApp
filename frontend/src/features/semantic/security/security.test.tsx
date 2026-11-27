@@ -24,8 +24,23 @@ function demoModel(): SemanticModel {
       { name: "facturas", columns: [{ name: "sucursal_id", role: "dimension" }] },
       { name: "ventas_diarias", columns: [{ name: "sucursal_id", role: "dimension" }] },
     ],
-    metrics: [{ name: "ventas_netas", label: "Ventas netas", table: "facturas" }],
-    summary_tables: [{ table: "ventas_diarias", metrics: { ventas_netas: "SUM(total)" } }],
+    metrics: [
+      {
+        name: "ventas_netas",
+        label: "Ventas netas",
+        table: "facturas",
+        expression: "SUM(total)",
+        time_column: "fecha",
+      },
+    ],
+    summary_tables: [
+      {
+        table: "ventas_diarias",
+        grain: "day",
+        time_column: "fecha",
+        metrics: { ventas_netas: "SUM(total)" },
+      },
+    ],
     security: {
       default_role: "gerente_sucursal",
       roles: [
