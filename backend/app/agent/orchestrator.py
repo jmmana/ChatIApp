@@ -38,6 +38,7 @@ from app.agent.clarify import (
     should_assume_default,
     trailing_clarifications,
 )
+from app.agent.dimensions import unrequested_dimensions
 from app.agent.entities import EntityQuestion, resolve_filters
 from app.agent.events import (
     Answer,
@@ -537,7 +538,7 @@ class Orchestrator:
         assert plan.metric is not None
         yield _step("verify", "running")
         try:
-            verified = self._verify(plan)
+            verified = self._verify(plan, t.question, t.prior_plan)
         except _Ask:
             t.last_plan = plan.model_dump(mode="json")  # queda pendiente para la respuesta
             raise
@@ -598,9 +599,12 @@ class Orchestrator:
             yield from self._execute(t, guarded.sql, outcome)
         yield from self._answer(t, outcome)
 
-    def _verify(self, plan: Plan) -> VerifiedPlan:
+    def _verify(
+        self, plan: Plan, question: str = "", prior_plan: Plan | None = None
+    ) -> VerifiedPlan:
         assert plan.metric is not None
         catalog = Catalog(self.model)
+        self._drop_unrequested_dimensions(catalog, plan, question, prior_plan)
         filters = [PlanFilter(f.field, f.op, f.value) for f in plan.filters]
         try:
             verified = catalog.verify(plan.metric, plan.dimensions, filters, self.role)
@@ -619,6 +623,23 @@ class Orchestrator:
             raise _Ask(ask.question, ask.options, ask.slot, "verify") from exc
         except CatalogError as exc:
             raise _Fail("verify", "invalid_plan", exc.message) from exc
+
+    @staticmethod
+    def _drop_unrequested_dimensions(
+        catalog: Catalog, plan: Plan, question: str, prior_plan: Plan | None
+    ) -> None:
+        """Quita del plan las dimensiones que la pregunta no nombra y lo deja dicho en el plan.
+
+        Las dimensiones que ya traía el último plan (preguntas de seguimiento) se conservan.
+        """
+        assert plan.metric is not None
+        inherited = prior_plan.dimensions if prior_plan is not None else []
+        removed = unrequested_dimensions(catalog, plan.metric, plan.dimensions, question, inherited)
+        if not removed:
+            return
+        plan.dimensions = [d for d in plan.dimensions if d not in removed]
+        note = f"Dimensiones descartadas por no estar en la pregunta: {', '.join(removed)}."
+        plan.reasoning = f"{plan.reasoning} {note}".strip()
 
     def _period(self, t: _Turn, plan: Plan, metric: Metric) -> PeriodRange | None:
         """Resuelve el período con el resolutor determinista; si no se puede, pregunta."""
