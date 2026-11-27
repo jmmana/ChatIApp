@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     secret_key: SecretStr | None = None
     secret_key_previous: SecretStr | None = None
     config: Path | None = None
-    chat_timeout_seconds: float = Field(default=120, gt=0)
+    chat_timeout_seconds: float = Field(default=120, gt=0, le=600)
     env: Literal["development", "test", "production"] = "development"
 
     @model_validator(mode="after")

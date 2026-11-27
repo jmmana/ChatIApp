@@ -189,3 +189,20 @@ def test_arranque_con_archivo_invalido_falla(tmp_path: Path) -> None:
 
     with pytest.raises(ConfigError, match="version"):
         load_and_register(settings)
+
+
+def test_chat_timeout_por_encima_del_maximo_se_rechaza_al_arrancar(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CHATIAPP_CHAT_TIMEOUT_SECONDS", "601")
+
+    with pytest.raises(
+        ValidationError, match=r"(?s)chat_timeout_seconds.*less than or equal to 600"
+    ):
+        Settings()
+
+
+def test_chat_timeout_en_el_maximo_es_valido(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHATIAPP_CHAT_TIMEOUT_SECONDS", "600")
+
+    assert Settings().chat_timeout_seconds == 600

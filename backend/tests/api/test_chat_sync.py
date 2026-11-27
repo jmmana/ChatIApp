@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.agent.events import ErrorData, Event, Step, TurnStarted
 from app.agent.orchestrator import Orchestrator
 from app.api import chat
-from app.integrations.api_keys import Principal, get_principal
+from app.integrations.api_keys import Principal, create_api_key, get_principal
 from app.main import app
 from app.security.auth import get_current_user
 
@@ -135,6 +135,51 @@ def test_pasado_el_tiempo_maximo_responde_504_y_cancela_el_turno(
     monkeypatch.setattr(Orchestrator, "run", run)
 
     response = _post(client, datasource_id, "¿Cuánto vendí?")
+
+    assert response.status_code == 504
+    assert response.json()["error"]["code"] == "turn_timeout"
+    assert stopped.wait(2), "el hilo del turno debe cortarse"
+
+
+def test_pasado_el_tiempo_maximo_con_api_key_responde_504(
+    client: TestClient,  # noqa: F811
+    factory: sessionmaker[Session],  # noqa: F811
+    datasource_id: str,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _provider(factory, "aclara", SIN_PERIODO, default=True)
+    monkeypatch.setattr(chat, "get_settings", lambda: SimpleNamespace(chat_timeout_seconds=0.2))
+    app.dependency_overrides.pop(get_principal, None)  # autenticación real con Bearer
+    with factory() as session:
+        _, secret = create_api_key(
+            session,
+            name="app",
+            scopes=["chat"],
+            datasources=[datasource_id],
+            allowed_roles=["gerencia_general"],
+        )
+    stopped = threading.Event()
+
+    def run(self: Orchestrator, conversation: Any, message: str) -> Iterator[Event]:
+        try:
+            yield Event(TurnStarted(turn_id=str(uuid.uuid4()), conversation_id="c"))
+            while True:
+                time.sleep(0.05)
+                yield Event(Step(id="understand", label="Pensando", status="running"))
+        finally:
+            stopped.set()
+
+    monkeypatch.setattr(Orchestrator, "run", run)
+
+    response = client.post(
+        "/api/v1/chat",
+        json={
+            "datasource_id": datasource_id,
+            "message": "¿Cuánto vendí?",
+            "user": {"id": "u-1", **GENERAL},
+        },
+        headers={"Authorization": f"Bearer {secret}"},
+    )
 
     assert response.status_code == 504
     assert response.json()["error"]["code"] == "turn_timeout"
