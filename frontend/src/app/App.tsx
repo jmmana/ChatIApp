@@ -8,6 +8,7 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { RequireAuth } from "@/features/auth/RequireAuth";
 import { DatasourcesPage } from "@/features/datasources/DatasourcesPage";
 import { IntegrationsPage } from "@/features/integrations/IntegrationsPage";
+import { ProvidersPage } from "@/features/providers/ProvidersPage";
 import { EmptyState } from "./EmptyState";
 import { Layout } from "./Layout";
 import { appRoutes } from "./routes";
@@ -35,6 +36,8 @@ export function App() {
                         <AuditPage />
                       ) : route.path === "/fuentes-de-datos" ? (
                         <DatasourcesPage />
+                      ) : route.path === "/proveedores-ia" ? (
+                        <ProvidersPage />
                       ) : route.path === "/usuarios" ? (
                         <UsersPage />
                       ) : (
