@@ -15,7 +15,7 @@
   --popover: #ffffff;
   --popover-foreground: #0f172a;
   --muted: #f1f5f9; /* slate-100 */
-  --muted-foreground: #64748b; /* slate-500 */
+  --muted-foreground: #475569; /* slate-600: contraste AA también sobre muted y accent */
   --secondary: #e2e8f0; /* slate-200 */
   --secondary-foreground: #0f172a;
   --border: #e2e8f0;
@@ -47,7 +47,7 @@
     --secondary-foreground: #f1f5f9;
     --border: #1e293b;
     --input: #334155; /* slate-700 */
-    --primary: #6366f1;
+    --primary: #4f46e5; /* con texto blanco llega a AA (6,3:1) */
     --primary-foreground: #ffffff;
     --accent: #1e1b4b; /* índigo-950 */
     --accent-foreground: #c7d2fe;
@@ -55,6 +55,7 @@
     --brand-to: #22d3ee;
     --ring: #818cf8;
     --destructive: #ef4444;
+    --destructive-foreground: #020617; /* el blanco sobre #ef4444 no alcanza AA */
   }
 }
 
@@ -102,5 +103,17 @@
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
+  }
+}
+
+/* Respeta prefers-reduced-motion: sin transiciones ni animaciones. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

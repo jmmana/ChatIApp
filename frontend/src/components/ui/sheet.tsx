@@ -33,7 +33,7 @@ function SheetContent({ side, className, children, ...props }: SheetContentProps
       <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-slate-950/60" />
       <SheetPrimitive.Content className={cn(sheetVariants({ side }), className)} {...props}>
         {children}
-        <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100">
+        <SheetPrimitive.Close className="absolute right-3 top-3 rounded-sm p-1.5 opacity-70 hover:opacity-100">
           <X className="size-4" />
           <span className="sr-only">Cerrar</span>
         </SheetPrimitive.Close>
