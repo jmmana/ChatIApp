@@ -15,7 +15,9 @@ export function Clarification({ question, options, onSelect }: ClarificationProp
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const buttons = Array.from(event.currentTarget.querySelectorAll("button"));
     if (buttons.length === 0) return;
-    const current = buttons.findIndex((el) => el === document.activeElement);
+    // En un Shadow DOM `document.activeElement` es el anfitrión: se pregunta a la raíz propia.
+    const focused = (event.currentTarget.getRootNode() as Document | ShadowRoot).activeElement;
+    const current = buttons.findIndex((el) => el === focused);
     const from = current === -1 ? active : current;
     let next: number;
     switch (event.key) {
