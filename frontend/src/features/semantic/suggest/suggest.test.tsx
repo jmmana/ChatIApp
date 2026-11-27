@@ -47,7 +47,7 @@ function setup(suggest: () => Response) {
     if (url.endsWith("/datasources")) return json([{ id: DS, name: "Ventas", dialect: "sqlite" }]);
     if (url.endsWith("/semantic/suggest")) return suggest();
     if (url.endsWith("/semantic/versions")) return json([]);
-    if (url.endsWith("/semantic") && !init?.method) {
+    if (url.endsWith("/semantic") && init?.method === "GET") {
       return json({ version: 3, created_by: "u1", created_at: "2026-11-20", model: baseModel() });
     }
     return json({ error: { code: "not_found", message: "no" } }, 404);
