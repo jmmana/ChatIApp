@@ -7,6 +7,7 @@ import { listDatasources } from "@/features/datasources/api";
 import { listProviders } from "@/features/providers/api";
 import { cancelTurnOnServer, getSemanticInfo } from "./api";
 import { Composer } from "./Composer";
+import { SqlBlock } from "./SqlBlock";
 import { buildSuggestions } from "./suggestions";
 import type { TurnState } from "./turnReducer";
 import { useTurn } from "./useTurn";
@@ -182,6 +183,7 @@ function Exchange({ question, turn, onOption, live = false }: ExchangeProps) {
           {turn.steps.at(-1)?.label ?? "Pensando…"}
         </p>
       )}
+      {turn.sql && <SqlBlock sql={turn.sql} streaming={turn.status === "streaming"} />}
       {text && <p className="whitespace-pre-wrap">{text}</p>}
       {live && turn.status === "clarifying" && turn.clarification && (
         <div className="flex flex-wrap gap-2">
