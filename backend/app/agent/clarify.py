@@ -1,9 +1,10 @@
 """Aclaraciones del agente (docs/FLUJO_CONVERSACIONAL.md#cuándo-pregunta).
 
 Preguntar en vez de adivinar cuando falta un dato: período faltante o no reconocido, métrica
-ambigua y dimensión no permitida (la entidad ambigua se resuelve en `entities.py`). Este módulo es código puro,
-sin IA ni red: redacta las preguntas, aplica el tope de aclaraciones seguidas y retoma el plan
-pendiente (`conversation.last_plan`) con la respuesta del usuario, sea un botón o texto escrito.
+ambigua y dimensión no permitida (la entidad ambigua se resuelve en `entities.py`). Este módulo
+es código puro, sin IA ni red: redacta las preguntas, aplica el tope de aclaraciones seguidas y
+retoma el plan pendiente (`conversation.last_plan`) con la respuesta del usuario, sea un botón o
+texto escrito.
 
 La comprobación de `requires_period` vive aquí; el catálogo solo verifica métrica, dimensiones
 y filtros.
