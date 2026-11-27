@@ -55,7 +55,7 @@ class PrivacyViolation(GatewayError):
         super().__init__(
             "provider_error",
             f"La tarea «{task}» intentó enviar al proveedor de IA datos no permitidos "
-            f"con la privacidad «{level}»: {names}."
+            f"con la privacidad «{level}»: {names}.",
         )
         self.task = task
         self.level = level
