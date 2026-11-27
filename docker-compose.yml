@@ -5,6 +5,10 @@
 #   docker compose --profile postgres up --build    → + PostgreSQL como base de la app
 #                                                     (define CHATIAPP_DATABASE_URL y
 #                                                      CHATIAPP_DB_PASSWORD en .env)
+#   docker compose --profile observability up       → + colector OpenTelemetry y Jaeger
+#                                                     (http://localhost:16686). Define en .env
+#                                                      CHATIAPP_OTEL_ENDPOINT=http://otel-collector:4318
+#                                                     para que la app exporte las trazas.
 name: chatiapp
 
 services:
@@ -40,6 +44,25 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
+
+  otel-collector:
+    profiles: ["observability"]
+    image: otel/opentelemetry-collector:0.114.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      - jaeger
+    restart: unless-stopped
+
+  jaeger:
+    profiles: ["observability"]
+    image: jaegertracing/all-in-one:1.64.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "${CHATIAPP_JAEGER_PORT:-16686}:16686"
     restart: unless-stopped
 
   ollama:
