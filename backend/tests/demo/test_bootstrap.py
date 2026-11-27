@@ -93,9 +93,7 @@ def test_crea_la_fuente_con_el_modelo_version_1(
     assert actual["version"] == 1
 
 
-def test_correrlo_dos_veces_no_duplica_nada(
-    factory: sessionmaker[Session], demo_db: Path
-) -> None:
+def test_correrlo_dos_veces_no_duplica_nada(factory: sessionmaker[Session], demo_db: Path) -> None:
     assert _arrancar(factory, demo_db) is True
     assert _arrancar(factory, demo_db) is False
 
