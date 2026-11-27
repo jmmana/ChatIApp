@@ -94,6 +94,8 @@ WHERE fecha >= '20261101'
 
 Con un modelo **local** (Ollama, vLLM) nada sale de tu red, en cualquier nivel.
 
+El nivel de la fuente es el **máximo** que fija el administrador. Un interceptor en la pasarela (`backend/app/llm/privacy.py`) revisa cada llamada a la IA —`planner`, `sql`, `answer` y `suggest`— antes de que salga: clasifica lo que lleva (`schema`, `result_rows`, `sample_values`), registra las categorías y el contenido exacto enviado, y si alguna excede el nivel rechaza la llamada (`PrivacyViolation`) sin que el proveedor reciba nada. La barra superior del chat muestra el nivel de la fuente activa.
+
 ## Límites de uso y presupuesto
 
 Implementados en `backend/app/security/limits.py`.

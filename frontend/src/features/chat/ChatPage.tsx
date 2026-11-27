@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { listDatasources } from "@/features/datasources/api";
+import { PRIVACY_LEVELS, privacyLabel } from "@/features/datasources/catalog";
 import { listProviders } from "@/features/providers/api";
 import { Clarification } from "./Clarification";
 import { cancelTurnOnServer, getConversation, getFormatSettings, getMetrics, getRoles } from "./api";
@@ -59,6 +60,7 @@ export function ChatPage() {
   const sources = Array.isArray(datasources.data) ? datasources.data : [];
   const models = Array.isArray(providers.data) ? providers.data : [];
   const selectedSource = datasourceId || sources[0]?.id || "";
+  const currentSource = sources.find((source) => source.id === selectedSource);
   const metrics = useQuery({
     queryKey: ["chat-metrics", selectedSource],
     queryFn: () => getMetrics(selectedSource),
@@ -215,6 +217,15 @@ export function ChatPage() {
             </option>
           ))}
         </select>
+        {currentSource?.privacy && (
+          <span
+            data-testid="privacy-level"
+            title={PRIVACY_LEVELS.find((p) => p.value === currentSource.privacy)?.help}
+            className="rounded-md border bg-muted px-2 py-1 text-xs text-muted-foreground"
+          >
+            Privacidad: {privacyLabel(currentSource.privacy)}
+          </span>
+        )}
         <select
           aria-label="Modelo de IA"
           className={selectClass}

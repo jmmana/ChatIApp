@@ -4,7 +4,7 @@ import uuid
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import PurePath
-from typing import Annotated, Any, Literal, cast
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Response, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
@@ -14,10 +14,10 @@ from app.api.errors import ApiError
 from app.db.models import Datasource, SemanticModelVersion, User
 from app.db.session import get_session
 from app.llm.gateway import GatewayError
+from app.llm.privacy import PrivacyGateway, parse_level
 from app.llm.routing import LlmClient, load_router
 from app.security.auth import require_admin
 from app.semantic import store
-from app.semantic.context import Privacy
 from app.semantic.importers.ddl import import_ddl
 from app.semantic.importers.dictionary import (
     DictionaryError,
@@ -179,14 +179,11 @@ def suggest_semantic(
     if datasource is None:
         raise ApiError(404, "datasource_not_found", "La fuente de datos no existe")
     model = store.load_model(_current_or_404(session, datasource_id))
-    privacy: Privacy = (
-        cast(Privacy, datasource.privacy)
-        if datasource.privacy in ("schema", "aggregates", "samples")
-        else "schema"
-    )
+    privacy = parse_level(datasource.privacy)
     tables = body.tables if body is not None else None
     try:
-        return suggest(model, llm, privacy=privacy, tables=tables)
+        guarded = PrivacyGateway(llm, "suggest", privacy)
+        return suggest(model, guarded, privacy=privacy, tables=tables)
     except GatewayError as exc:
         raise ApiError(
             502, "ai_unavailable", f"La IA no pudo generar sugerencias: {exc.message}"
