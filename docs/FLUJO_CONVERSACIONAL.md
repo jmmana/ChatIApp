@@ -36,6 +36,8 @@ stateDiagram-v2
 
 - **Entender** es la única llamada obligatoria a la IA. Devuelve un plan; no devuelve SQL salvo en la ruta libre.
 - **Verificar** es código: comprueba que la métrica existe, que las dimensiones y filtros están permitidos, que el período se puede resolver y que las entidades nombradas existen.
+- **Verificar** también descarta las dimensiones del plan que el texto de la pregunta no nombra (por nombre o sinónimo de la columna, o de su tabla si no es la de la métrica): «¿Cuánto vendí?» devuelve una sola cifra aunque la IA haya agregado «sucursal». Las dimensiones que ya traía el último plan se conservan en las preguntas de seguimiento, y las descartadas quedan anotadas en `reasoning` del plan guardado.
+- **Responder** nunca presenta una sola fila de varias como si fuera el total: si la IA cita una cifra que solo aparece en la primera fila, se usa la plantilla local.
 - **Construir** no usa IA: el SQL de una métrica del catálogo es siempre el mismo para la misma pregunta.
 - **Reparar** solo existe para SQL de la IA, una vez, con el mensaje de error exacto del guardián o de la base.
 
