@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
 from app.eval import report
 from app.eval.golden import Caso, SetDorado, cargar, validar
@@ -39,7 +39,16 @@ class CasoGrabado(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
-    plan: Literal["sql", "aclaracion", "fuera_de_alcance"]
+    plan: Literal["sql", "aclaracion", "fuera_de_alcance", "respuesta_aclaracion"]
+    slot: Literal["period", "metric", "entity", "dimension"] | None = None
+
+    @model_validator(mode="after")
+    def validar_slot(self) -> CasoGrabado:
+        if (self.plan == "respuesta_aclaracion") != (self.slot is not None):
+            raise ValueError(
+                "«respuesta_aclaracion» requiere slot y los demás planes no lo admiten"
+            )
+        return self
 
 
 class ConfigGrabada(BaseModel):
@@ -97,13 +106,33 @@ def _entradas(conjunto: SetDorado, config: ConfigGrabada) -> list[EntradaGrabada
                 caso.id,
                 "question",
                 caso.question,
-                _plan(caso, grabados[caso.id], config),
+                _plan(caso, grabados[caso.id].plan, config, grabados[caso.id].slot),
             )
         )
+        if grabados[caso.id].plan == "respuesta_aclaracion":
+            assert caso.answers and caso.expect is not None
+            for indice, respuesta in enumerate(caso.answers):
+                plan = (
+                    {"intent": "sql", "sql": caso.expect.sql}
+                    if indice == len(caso.answers) - 1
+                    else _aclaracion_plan(grabados[caso.id].slot)
+                )
+                entradas.append(
+                    EntradaGrabada(
+                        caso.id,
+                        f"answer-{indice}",
+                        respuesta,
+                        plan,
+                    )
+                )
     return entradas
 
 
-def _plan(caso: Caso, tipo: str, config: ConfigGrabada) -> dict[str, Any]:
+def _plan(
+    caso: Caso, tipo: str, config: ConfigGrabada, slot: str | None = None
+) -> dict[str, Any]:
+    if caso.answers and tipo != "respuesta_aclaracion":
+        raise ValueError(f"{caso.id}: sus respuestas requieren un plan `respuesta_aclaracion`")
     if tipo == "sql" and caso.expect is not None:
         return {"intent": "sql", "sql": caso.expect.sql}
     if tipo == "aclaracion" and caso.expect_clarification is not None:
@@ -114,9 +143,21 @@ def _plan(caso: Caso, tipo: str, config: ConfigGrabada) -> dict[str, Any]:
                 "slot": caso.expect_clarification.slot,
             },
         }
+    if tipo == "respuesta_aclaracion" and caso.answers and caso.expect is not None:
+        return _aclaracion_plan(slot)
     if tipo == "fuera_de_alcance" and caso.expect_out_of_scope:
         return {"intent": "out_of_scope", "answer": config.answer}
     raise ValueError(f"{caso.id}: el tipo de plan grabado «{tipo}» no coincide con su expectativa")
+
+
+def _aclaracion_plan(slot: str | None) -> dict[str, Any]:
+    return {
+        "intent": "clarify",
+        "clarification": {
+            "question": "Indica un dato para continuar.",
+            "slot": slot,
+        },
+    }
 
 
 class ProveedorGrabado(Gateway):
@@ -182,7 +223,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         config = cargar_planes(args.plans)
         entradas = _entradas(conjunto, config)
         model = cargar_modelo(args.model)
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, yaml.YAMLError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 

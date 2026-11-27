@@ -11,15 +11,15 @@ casos:
   - {id: acl-es-metrica-ambigua, plan: aclaracion}
   - {id: acl-es-entidad-ambigua, plan: aclaracion}
   - {id: acl-es-dimension-no-permitida, plan: aclaracion}
-  - {id: acl-es-resp-periodo-mes, plan: sql}
-  - {id: acl-es-resp-periodo-30, plan: sql}
-  - {id: acl-es-resp-periodo-facturas, plan: sql}
-  - {id: acl-es-resp-metrica, plan: sql}
-  - {id: acl-es-resp-bogota-juntas, plan: sql}
-  - {id: acl-es-resp-bogota-una, plan: sql}
+  - {id: acl-es-resp-periodo-mes, plan: respuesta_aclaracion, slot: period}
+  - {id: acl-es-resp-periodo-30, plan: respuesta_aclaracion, slot: period}
+  - {id: acl-es-resp-periodo-facturas, plan: respuesta_aclaracion, slot: period}
+  - {id: acl-es-resp-metrica, plan: respuesta_aclaracion, slot: metric}
+  - {id: acl-es-resp-bogota-juntas, plan: respuesta_aclaracion, slot: entity}
+  - {id: acl-es-resp-bogota-una, plan: respuesta_aclaracion, slot: entity}
   - {id: acl-en-no-period, plan: aclaracion}
   - {id: acl-en-ambiguous-city, plan: aclaracion}
-  - {id: acl-en-answer-period, plan: sql}
+  - {id: acl-en-answer-period, plan: respuesta_aclaracion, slot: period}
   - {id: dim-es-sucursal, plan: sql}
   - {id: dim-es-ciudad, plan: sql}
   - {id: dim-es-region, plan: sql}

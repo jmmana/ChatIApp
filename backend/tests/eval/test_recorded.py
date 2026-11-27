@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import yaml
 
 from app.agent.plan import Plan
 from app.eval import recorded
@@ -17,8 +18,28 @@ def test_fixture_grabado_cubre_cada_caso_y_turno_del_set() -> None:
 
     entradas = recorded._entradas(conjunto, config)
 
-    assert len(entradas) == sum(1 + len(caso.previous) for caso in conjunto.casos)
+    assert len(entradas) == sum(
+        1 + len(caso.previous) + int(bool(caso.answers)) for caso in conjunto.casos
+    )
     assert len({registro.id for registro in config.casos}) == len(conjunto.casos)
+
+
+def test_preguntas_con_respuesta_reproducen_aclaracion_y_respuesta() -> None:
+    conjunto = cargar()
+    config = recorded.cargar_planes()
+    caso = next(caso for caso in conjunto.casos if caso.id == "acl-es-resp-periodo-mes")
+
+    entradas = recorded._entradas(conjunto, config)
+    pregunta, respuesta = [
+        entrada for entrada in entradas if entrada.caso == caso.id
+    ]
+
+    assert caso.expect is not None
+    assert pregunta.pregunta == caso.question
+    assert pregunta.plan["intent"] == "clarify"
+    assert pregunta.plan["clarification"]["slot"] == "period"
+    assert respuesta.pregunta == caso.answers[0]
+    assert respuesta.plan == {"intent": "sql", "sql": caso.expect.sql}
 
 
 def test_proveedor_grabado_valida_pregunta_y_reproduce_plan() -> None:
@@ -75,3 +96,15 @@ def test_evaluacion_falla_bajo_100_y_publica_el_resumen(
 
     assert recorded.main([]) == 1
     assert "0.0 %" in resumen.read_text(encoding="utf-8")
+
+
+def test_yaml_invalido_del_modelo_devuelve_error_sin_traceback(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def cargar_modelo_invalido(_path: Path):
+        raise yaml.YAMLError("modelo mal formado")
+
+    monkeypatch.setattr(recorded, "cargar_modelo", cargar_modelo_invalido)
+
+    assert recorded.main([]) == 2
+    assert "modelo mal formado" in capsys.readouterr().err
