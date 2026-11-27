@@ -5,6 +5,7 @@ del campo `user` dentro del techo de la key (`integrations/end_user.py`); con se
 del usuario en la fuente. Las conversaciones quedan ligadas a su dueño y no se comparten.
 """
 
+import contextlib
 import uuid
 from typing import Annotated, Any
 
@@ -51,10 +52,8 @@ class ChatRequest(BaseModel):
 
 def _find_datasource(session: Session, ref: str) -> Datasource:
     candidates: list[uuid.UUID] = [datasource_uuid(ref)]
-    try:
+    with contextlib.suppress(ValueError):
         candidates.insert(0, uuid.UUID(ref))
-    except ValueError:
-        pass
     for candidate in candidates:
         datasource = session.get(Datasource, candidate)
         if datasource is not None:
