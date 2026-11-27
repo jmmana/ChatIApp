@@ -212,5 +212,8 @@ Guía completa con ejemplos de backend, widget y SDKs: [INTEGRACION.md](INTEGRAC
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `POST` | `/api/v1/evals/runs` | Corre un set dorado contra uno o varios proveedores |
-| `GET` | `/api/v1/evals/runs` | Resultados: exactitud, latencia p50/p95, costo por proveedor |
+| `POST` | `/api/v1/evals/runs` | Lanza una corrida del set dorado contra uno o varios proveedores (**202**) |
+| `GET` | `/api/v1/evals/runs` | Corridas, la más reciente primero, con su avance y su informe |
+| `GET` | `/api/v1/evals/runs/{id}` | Una corrida |
+
+Solo administradores. `POST` recibe `{"provider_ids": [...], "max_calls": N}`; `max_calls` es obligatorio si algún proveedor no es `fake` y debe cubrir las llamadas previstas (**422** `max_calls_required`, con `details.planned_calls`). Solo corre una evaluación a la vez (**409** `eval_in_progress`). Cada corrida devuelve `status` (`running | done | error`), `cases_done`, `cases_total`, `error` y, al terminar, `report`: el informe de `app.eval.report` con exactitud (0 a 1), latencia p50/p95, tokens, costo y los casos fallidos con su SQL esperado y obtenido. El estado de las corridas vive en memoria y se pierde al reiniciar; cada proveedor deja además su `EVAL_RUN` en la base. Para asignar un proveedor a una tarea se usa `PUT /api/v1/providers/routing`.

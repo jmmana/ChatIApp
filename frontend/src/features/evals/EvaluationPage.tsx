@@ -216,13 +216,21 @@ export function EvaluationPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [maxCalls, setMaxCalls] = useState(String(DEFAULT_MAX_CALLS));
 
-  const providersQuery = useQuery({ queryKey: ["providers"], queryFn: listProviders });
+  const isAdmin = user?.is_admin ?? false;
+  const providersQuery = useQuery({
+    queryKey: ["providers"],
+    queryFn: listProviders,
+    enabled: isAdmin,
+  });
   const providers = providersQuery.data ?? [];
   const hasReal = providers.some((p) => selected.includes(p.id) && p.kind !== "fake");
   const runsQuery = useQuery({
     queryKey: ["evals", "runs"],
     queryFn: listRuns,
-    refetchInterval: (query) => (query.state.data?.some((r) => r.status === "running") ? 2000 : false),
+    enabled: isAdmin,
+    // Mientras hay una corrida en curso se consulta el avance cada pocos segundos.
+    refetchInterval: (query) =>
+      query.state.data?.some((r) => r.status === "running") ? 2000 : false,
   });
   const start = useMutation({
     mutationFn: () =>
@@ -236,25 +244,32 @@ export function EvaluationPage() {
   const run = runsQuery.data?.[0];
   const running = run?.status === "running";
 
-  if (!user?.is_admin) {
-    return (
+  const header = (
+    <header className="grid gap-1">
+      <h1 className="flex items-center gap-2 text-xl font-semibold">
+        <FlaskConical aria-hidden className="size-5" /> Evaluación
+      </h1>
       <p className="text-sm text-muted-foreground">
-        Solo los administradores pueden evaluar modelos.
+        Corre el set de preguntas de referencia con cada proveedor y compara exactitud, costo y
+        latencia.
       </p>
+    </header>
+  );
+
+  if (!isAdmin) {
+    return (
+      <div className="grid gap-6">
+        {header}
+        <p className="text-sm text-muted-foreground">
+          Solo los administradores pueden evaluar modelos.
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="grid gap-6">
-      <header className="grid gap-1">
-        <h1 className="flex items-center gap-2 text-xl font-semibold">
-          <FlaskConical aria-hidden className="size-5" /> Evaluación
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Corre el set de preguntas de referencia con cada proveedor y compara exactitud, costo y
-          latencia.
-        </p>
-      </header>
+      {header}
 
       <form
         className="grid gap-3 rounded-xl border bg-card p-4"
