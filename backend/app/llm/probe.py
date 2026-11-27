@@ -145,7 +145,9 @@ def _models_request(
         headers = {"x-goog-api-key": key}
         return f"{base or _GEMINI_BASE}/models", headers, {"pageSize": 1000}, _parse_gemini
     if kind == "ollama":
-        return f"{base or _OLLAMA_BASE}/api/tags", {}, {}, _parse_ollama
+        # Ollama no pide clave, pero detrás de un proxy con autenticación sí: se envía si existe.
+        headers = {"Authorization": f"Bearer {key}"} if key else {}
+        return f"{base or _OLLAMA_BASE}/api/tags", headers, {}, _parse_ollama
     return None
 
 

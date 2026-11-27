@@ -49,6 +49,14 @@ Detalle y ejemplos: [INTEGRACION.md](INTEGRACION.md).
 
 Ver la lista exige sesión; crear, cambiar, borrar y probar la conexión exigen administrador (403 `forbidden` si no).
 
+## Métricas sugeridas
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/v1/datasources/{id}/metrics` | Métricas que el rol del usuario puede consultar, para sugerir preguntas. Basta con sesión (no exige administrador) |
+
+Responde `{metrics: [{name, label, description, requires_period, default_period, dimensions}]}`. Solo incluye las métricas cuya tabla no está oculta para el rol del usuario (el rol de su permiso; para administradores sin permiso, el rol por defecto del modelo). `dimensions` son nombres para mostrar (primer sinónimo de la columna o su nombre legible), sin las de tablas o columnas ocultas. No trae SQL, expresiones, filtros, tablas ni columnas físicas. Una fuente inexistente, sin modelo o sin permiso para el usuario responde la misma `404 datasource_not_found`.
+
 ## Modelo semántico
 
 | Método | Ruta | Descripción |
@@ -136,6 +144,17 @@ data: {"usage":{"tokens_in":1830,"tokens_out":142,"cost_usd":0.0031},"elapsed_ms
 
 Todos los eventos: [FLUJO_CONVERSACIONAL.md](FLUJO_CONVERSACIONAL.md#eventos-de-streaming).
 
+- La respuesta lleva `Cache-Control: no-cache` y `X-Accel-Buffering: no`, y cada 15 s sin eventos envía un comentario `: keep-alive`.
+- Sin `conversation_id` se crea una conversación (su título son los primeros 60 caracteres del mensaje). Si se envía, debe ser del usuario y de la misma fuente de datos (`404 conversation_not_found`, `409 datasource_mismatch`).
+- Sin `provider_override` se usa el proveedor por defecto (`422 no_provider` si no hay ninguno).
+- `POST /api/v1/chat/{turn_id}/cancel` (el `turn_id` llega en `turn.started`) detiene el turno en curso del usuario y responde `{"turn_id", "status": "cancelled"}`; el stream termina con `error` `{code: "cancelled", recoverable: true}` y no emite `turn.completed`. Un turno inexistente o ya terminado responde `404 turn_not_found`.
+
+Conversaciones: cada usuario ve solo las suyas (una ajena responde `404`).
+
+- `GET /api/v1/conversations` → `[{id, title, datasource_id, created_at}]`, las más recientes primero.
+- `GET /api/v1/conversations/{id}` → lo anterior más `messages: [{id, role, content, events, created_at}]`. `events` guarda los eventos del turno del asistente (sin `answer.delta`) para reconstruir la conversación.
+- `PATCH /api/v1/conversations/{id}` con `{"title"}` renombra; `DELETE` responde `204` y borra también sus mensajes.
+
 ## Administración (M3)
 
 | Método | Ruta | Descripción |
@@ -143,8 +162,26 @@ Todos los eventos: [FLUJO_CONVERSACIONAL.md](FLUJO_CONVERSACIONAL.md#eventos-de-
 | `POST` | `/api/v1/auth/login` | Correo + contraseña → JWT |
 | `GET` | `/api/v1/users` · `POST` · `PATCH` · `DELETE` | Usuarios |
 | `PUT` | `/api/v1/users/{id}/grants` | Rol y atributos por fuente de datos |
-| `GET` | `/api/v1/audit` | Auditoría con filtros (usuario, fuente, fecha, estado) |
-| `GET` | `/api/v1/audit/export` | Exporta CSV |
+| `GET` | `/api/v1/audit` | Auditoría (solo administradores), más reciente primero. Filtros: `user_id`, `external_user_id`, `datasource_id`, `api_key_id`, `status` (`ok`, `rejected`, `error`), `date_from`, `date_to` (fechas `AAAA-MM-DD`, ambas inclusivas). Paginada con `page` y `page_size` (máx. 200) → `{items, total, page, page_size}` |
+| `GET` | `/api/v1/audit/export` | Exporta en CSV (UTF-8, hasta 50 000 filas) con los mismos filtros; las celdas que empiezan con `=`, `+`, `-` o `@` se neutralizan |
+
+### Usuarios y permisos por fuente
+
+Todas las rutas de `/api/v1/users` exigen un administrador. `POST` recibe `{email, password, is_admin?}` (contraseña de 8 o más caracteres; 409 si el correo ya existe). `PATCH` cambia `email`, `password` o `is_admin`. No se puede eliminar al propio usuario ni dejar el sistema sin administradores (409).
+
+`PUT /api/v1/users/{id}/grants` **reemplaza** los permisos del usuario:
+
+```json
+{ "grants": [
+  { "datasource_id": "…", "role": "gerente_sucursal", "attributes": { "sucursales": [1, 2] } }
+] }
+```
+
+- **422** `unknown_role`: el rol no existe en el modelo semántico vigente de la fuente.
+- **422** `missing_attributes`: faltan (o están vacíos) atributos que exigen los filtros del rol (`{user.x}`).
+- **404** si la fuente no existe. Las fuentes que no aparecen en la lista quedan sin acceso.
+
+Al consultar una fuente (chat o vista previa), el rol y los atributos salen del permiso del usuario autenticado. Sin permiso: **403** `no_access` (los administradores usan el rol por defecto del modelo). `view_as` solo lo aceptan los administradores; los demás reciben **403** `view_as_forbidden`.
 
 ## Integraciones (M3)
 
@@ -157,6 +194,12 @@ Todos los eventos: [FLUJO_CONVERSACIONAL.md](FLUJO_CONVERSACIONAL.md#eventos-de-
 | `POST` | `/api/v1/embed/sessions` | API key con alcance `embed` | `{datasource, origin, user, ttl_seconds?}` → `{token, expires_at}` para el chat embebido |
 | `GET` | `/embed/v1/chatiapp.js` | Pública | Script del chat embebido (web component) |
 | `GET` | `/api/v1/openapi.json` | Pública | Especificación OpenAPI de la versión `v1` |
+
+**Token de sesión** (`POST /embed/sessions`): `ttl_seconds` por defecto 900, máximo 3600 (422 fuera de rango). `origin` debe estar en los orígenes permitidos de la key (**403** `origin_not_allowed`); la fuente, el rol y los atributos se validan igual que en las llamadas con API key. El token es un JWT con usuario, fuente, rol, atributos, origen, id de la key y alcance `chat`, y solo se acepta en `POST /chat/stream`, `POST /chat/{turn_id}/cancel`, `GET /conversations` y `GET /conversations/{id}`; el resto responde 401. Con token:
+
+- El `Origin` de cada petición debe ser el del token; si falta o es otro, **403** `origin_not_allowed`. CORS solo se concede a los orígenes permitidos de las keys vivas con alcance `embed`.
+- Expirado: **401** `token_expired` (el widget pide otro a tu backend). Key revocada, vencida o sin alcance `embed`: **401** `invalid_api_key`, en la siguiente petición.
+- Otra fuente distinta de la del token: **403** `datasource_not_allowed`. Las conversaciones son las de la key y el usuario del token; las ajenas responden 404.
 
 Guía completa con ejemplos de backend, widget y SDKs: [INTEGRACION.md](INTEGRACION.md).
 

@@ -54,10 +54,12 @@ Cada uno permite cambiar `api_base` para usar el endpoint de **China continental
 
 | Servidor | Prefijo LiteLLM | Campos |
 |---|---|---|
-| Ollama | `ollama_chat/` | `api_base` (por defecto `http://localhost:11434`) |
+| Ollama | `ollama_chat/` | `api_base` (por defecto `http://localhost:11434`), `api_key` opcional |
 | vLLM | `hosted_vllm/` | `api_base`, `api_key` opcional |
-| LM Studio | `lm_studio/` | `api_base` |
+| LM Studio | `lm_studio/` | `api_base`, `api_key` opcional |
 | Cualquier servidor compatible con OpenAI | `openai/` + `api_base` | `api_base`, `api_key` opcional |
+
+Los modelos se listan desde `GET {api_base}/api/tags` en Ollama y desde `GET {api_base}/models` (`/v1/models`) en los demás; la `api_key`, si existe, se envía como `Bearer`. Con `docker compose --profile local-ai up`, Ollama queda en `http://ollama:11434` dentro de la red de Compose (descarga un modelo con `docker compose exec ollama ollama pull llama3.1`).
 
 ## GitHub Copilot
 
@@ -91,7 +93,7 @@ ai:
     fallback: [deepseek, local]
 ```
 
-**Respaldo (fallback):** si el proveedor de una tarea falla por autenticación, cuota, tiempo de espera o error 5xx, se intenta el siguiente de `fallback` y queda registrado en el razonamiento («Claude no respondió; usé DeepSeek»). Un plan **inválido** no dispara el respaldo: se reintenta con el mismo proveedor y el error.
+**Respaldo (fallback):** si el proveedor de una tarea falla por autenticación, cuota, tiempo de espera o error 5xx, se intenta el siguiente de `fallback` y queda registrado en el razonamiento («Claude no respondió; usé DeepSeek»). Un plan **inválido** no dispara el respaldo: se reintenta con el mismo proveedor y el error. Tampoco `model_not_found`: es un error de configuración. Sin asignación, la tarea usa el proveedor predeterminado. El orquestador emite un `step` con `status: warning` por cada respaldo. La asignación se guarda con `PUT /api/v1/providers/routing` o se declara en `chatiapp.yaml`; la implementación está en `backend/app/llm/routing.py`.
 
 ## Probar conexión
 

@@ -9,14 +9,16 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agent.answer import escape_data as _escape_data
 from app.agent.events import Event, Step
-from app.agent.orchestrator import Orchestrator, _escape_data
+from app.agent.orchestrator import Orchestrator
 from app.db.models import Base, Conversation, Datasource, Message, QueryRun
 from app.db.session import make_engine
 from app.demo.seed import generar
 from app.engine.executor import QueryExecutor
 from app.engine.guard import GuardCache
 from app.llm.gateway import Gateway, ProviderConfig
+from app.llm.routing import Candidate, Router
 from app.semantic.schema import SemanticModel, parse_semantic_model
 
 EXAMPLE = Path(__file__).parents[3] / "examples" / "ventas" / "semantic-model.yaml"
@@ -84,7 +86,7 @@ def _orchestrator(
     session: Session,
     model: SemanticModel,
     datasource: Datasource,
-    gateway: Gateway,
+    gateway: Gateway | Router,
     url: str,
     query_executor: QueryExecutor,
     *,
@@ -150,9 +152,10 @@ def test_cuanto_vendi_este_mes_de_punta_a_punta(
     assert sql["period"]["start"] == "2026-11-01" and sql["period"]["end_exclusive"] == "2026-12-01"
     result = _of(events, "result")[0]
     assert result["row_count"] == 1 and len(result["rows"]) == 1 and not result["truncated"]
-    assert _of(events, "answer")[0]["text"] == "Este mes llevas buenas ventas."
+    answer = _of(events, "answer")[0]["text"]
+    assert answer.startswith("Este mes llevas buenas ventas.") and "noviembre" in answer.lower()
     deltas = "".join(d["text"] for d in _of(events, "answer.delta"))
-    assert deltas == "Este mes llevas buenas ventas."
+    assert deltas == answer
     completed = _of(events, "turn.completed")[0]
     assert completed["usage"]["tokens_in"] > 0 and completed["elapsed_ms"] >= 0
 
@@ -178,7 +181,7 @@ def test_guarda_last_plan_query_run_y_mensajes(
     assert conversation.last_plan["period_text"] == "este mes"
     messages = session.scalars(select(Message).order_by(Message.created_at)).all()
     assert [m.role for m in messages] == ["user", "assistant"]
-    assert messages[1].content == "Listo."
+    assert messages[1].content.startswith("Listo.")
     assert messages[1].events is not None
     assert [e["type"] for e in messages[1].events][-1] == "turn.completed"
     assert str(messages[1].id) == _of(events, "turn.started")[0]["turn_id"]
@@ -188,6 +191,37 @@ def test_guarda_last_plan_query_run_y_mensajes(
     assert run.status == "ok" and run.origin == "catalog" and run.row_count == 1
     assert run.summary_table == "ventas_diarias" and "ventas_diarias" in (run.sql_final or "")
     assert run.message_id == messages[1].id and (run.tokens_in or 0) > 0
+
+
+def test_auditoria_guarda_los_campos_del_turno_sin_filas(
+    session: Session, model: SemanticModel, demo_url: str, query_executor: QueryExecutor
+) -> None:
+    datasource = _datasource(session)
+    conversation = _conversation(session, datasource)
+    conversation.external_user_id = "cliente-77"
+    session.commit()
+    gateway = _gateway(METRIC_PLAN, "Listo.")
+    orchestrator = _orchestrator(session, model, datasource, gateway, demo_url, query_executor)
+
+    events = _turn(orchestrator, conversation, "¿Cuánto vendí este mes?")
+
+    run = session.scalars(select(QueryRun)).one()
+    assert run.question == "¿Cuánto vendí este mes?"
+    assert run.role == GENERAL and run.datasource_id == datasource.id
+    assert run.external_user_id == "cliente-77"
+    assert run.semantic_version == 1 and run.model == "fake-1" and run.provider_kind == "fake"
+    assert run.plan is not None and run.plan["metric"] == "ventas_netas"
+    assert run.sql_candidate is not None and run.sql_final is not None
+    assert run.filters_applied is not None and "role" in run.filters_applied
+    assert run.row_count == 1
+    # Solo el conteo: ningún valor del resultado queda en el registro.
+    stored = json.dumps(
+        [run.plan, run.filters_applied, run.sql_final, run.sql_candidate, run.summary_table],
+        default=str,
+    )
+    for row in _of(events, "result")[0]["rows"]:
+        for value in row:
+            assert str(value) not in stored
 
 
 def test_privacidad_schema_no_envia_filas_y_responde_con_plantilla(
@@ -222,7 +256,8 @@ def test_aclara_el_periodo_faltante_y_guarda_el_plan_pendiente(
     assert "sql" not in _types(events) and "error" not in _types(events)
     session.refresh(conversation)
     assert conversation.last_plan is not None and conversation.last_plan["metric"] == "ventas_netas"
-    assert session.scalars(select(QueryRun)).all() == []
+    run = session.scalars(select(QueryRun)).one()  # auditoría: también las aclaraciones
+    assert run.status == "ok" and run.sql_final is None and run.question == "¿Cuánto vendí?"
 
 
 def test_tras_dos_aclaraciones_usa_el_periodo_por_defecto(
@@ -329,7 +364,8 @@ def test_plan_invalido_termina_con_error_claro(
     steps = [(e.data.id, e.data.status) for e in events if isinstance(e.data, Step)]
     assert ("understand", "error") in steps
     assert _types(events)[-1] == "turn.completed"
-    assert session.scalars(select(QueryRun)).all() == []
+    run = session.scalars(select(QueryRun)).one()
+    assert run.status == "error" and run.error_code == "invalid_plan" and run.sql_final is None
 
 
 def test_error_del_proveedor_de_ia_no_lanza_excepcion(
@@ -393,7 +429,8 @@ def test_pregunta_sobre_el_modelo_responde_sin_sql(
 
     assert _of(events, "answer")[0]["text"] == "Es el valor medio."
     assert "sql" not in _types(events) and "result" not in _types(events)
-    assert session.scalars(select(QueryRun)).all() == []
+    run = session.scalars(select(QueryRun)).one()
+    assert run.status == "ok" and run.sql_final is None and run.row_count is None
 
 
 def test_filtro_de_rol_se_aplica_al_sql_del_catalogo(
@@ -450,3 +487,22 @@ def test_los_datos_no_pueden_cerrar_el_delimitador_del_resultado() -> None:
     assert "<" not in escapado and ">" not in escapado
     assert "&lt;/resultado&gt;" in escapado
     assert _escape_data("a & b") == "a &amp; b"
+
+
+def test_respaldo_del_planificador_emite_step_warning(
+    session: Session, model: SemanticModel, demo_url: str, query_executor: QueryExecutor
+) -> None:
+    datasource = _datasource(session)
+    conversation = _conversation(session, datasource)
+    claude = Candidate("Claude", _gateway(error="quota"))
+    deepseek = Candidate("DeepSeek", _gateway(METRIC_PLAN, "Listo."))
+    router = Router({"planner": claude}, default=deepseek, fallback=[deepseek])
+    orchestrator = _orchestrator(session, model, datasource, router, demo_url, query_executor)
+
+    events = _turn(orchestrator, conversation, "¿Cuánto vendí este mes?")
+
+    assert "error" not in _types(events)
+    warnings = [e.data for e in events if isinstance(e.data, Step) and e.data.status == "warning"]
+    assert [(w.id, w.detail) for w in warnings] == [
+        ("understand", "Claude no respondió; usé DeepSeek")
+    ]
