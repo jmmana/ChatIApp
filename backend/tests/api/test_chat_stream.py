@@ -238,9 +238,12 @@ def test_el_primer_evento_llega_en_menos_de_500_ms_aunque_el_turno_siga(
             return {"type": "http.disconnect"}
 
         async def send(message: dict[str, Any]) -> None:
-            if message["type"] == "http.response.body" and message.get("body"):
-                if not arrived.done():
-                    arrived.set_result((time.perf_counter() - started, message["body"]))
+            if (
+                message["type"] == "http.response.body"
+                and message.get("body")
+                and not arrived.done()
+            ):
+                arrived.set_result((time.perf_counter() - started, message["body"]))
 
         task = asyncio.create_task(app(scope, receive, send))
         try:
