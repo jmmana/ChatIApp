@@ -16,6 +16,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 API_ROOT = "/api"
 ASSETS_ROOT = "/assets"
+EMBED_ROOT = "/embed"
 
 
 def _under(path: str, root: str) -> bool:
@@ -37,12 +38,13 @@ def mount_web(app: FastAPI, static_dir: Path) -> bool:
         if not isinstance(exc, StarletteHTTPException):
             raise exc
         path = request.url.path
-        # La API y los assets con hash no caen en index.html: un 404 ahí es un 404 real.
+        # La API, los assets con hash y el widget no caen en index.html: un 404 ahí es un 404 real.
         if (
             exc.status_code != 404
             or request.method not in ("GET", "HEAD")
             or _under(path, API_ROOT)
             or _under(path, ASSETS_ROOT)
+            or _under(path, EMBED_ROOT)
         ):
             return await http_exception_handler(request, exc)
         candidate = (root / path.lstrip("/")).resolve()

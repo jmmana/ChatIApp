@@ -49,6 +49,7 @@ function json(body: unknown, status = 200) {
 function stubApi() {
   const urls: string[] = [];
   const fetchMock = vi.fn(async (url: string) => {
+    if (url.endsWith("/auth/me")) return json(session.user);
     if (url.includes("/auth/")) return json(session);
     if (url.includes("/audit/export")) {
       urls.push(url);

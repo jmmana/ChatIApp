@@ -12,29 +12,21 @@ import {
 } from "@/components/ui/sheet";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { listDatasources } from "@/features/datasources/api";
+import { PRIVACY_LEVELS, privacyLabel } from "@/features/datasources/catalog";
 import { listProviders } from "@/features/providers/api";
-import { Clarification } from "./Clarification";
 import { cancelTurnOnServer, getConversation, getFormatSettings, getMetrics, getRoles } from "./api";
 import { Composer } from "./Composer";
+import { Exchange } from "./Exchange";
+import type { ResultFormat } from "./Exchange";
 import { messagesFromStored } from "./rebuild";
 import type { Message } from "./rebuild";
 import { CONVERSATIONS_KEY } from "./queryKeys";
-import { Reasoning } from "./Reasoning";
-import { ResultView } from "./results/ResultView";
 import { Sidebar } from "./Sidebar";
-import { SqlBlock } from "./SqlBlock";
 import { buildSuggestions } from "./suggestions";
-import type { TurnState } from "./turnReducer";
 import { useTurn } from "./useTurn";
 
 /** Distancia (px) al final desde la que se considera que la persona sigue «abajo». */
 const STICK_THRESHOLD = 48;
-
-interface ResultFormat {
-  locale?: string;
-  currency?: string;
-  metricLabels: Record<string, string>;
-}
 
 const selectClass = "h-9 rounded-md border border-input bg-card px-2 text-sm";
 
@@ -59,6 +51,7 @@ export function ChatPage() {
   const sources = Array.isArray(datasources.data) ? datasources.data : [];
   const models = Array.isArray(providers.data) ? providers.data : [];
   const selectedSource = datasourceId || sources[0]?.id || "";
+  const currentSource = sources.find((source) => source.id === selectedSource);
   const metrics = useQuery({
     queryKey: ["chat-metrics", selectedSource],
     queryFn: () => getMetrics(selectedSource),
@@ -215,6 +208,15 @@ export function ChatPage() {
             </option>
           ))}
         </select>
+        {currentSource?.privacy && (
+          <span
+            data-testid="privacy-level"
+            title={PRIVACY_LEVELS.find((p) => p.value === currentSource.privacy)?.help}
+            className="rounded-md border bg-muted px-2 py-1 text-xs text-muted-foreground"
+          >
+            Privacidad: {privacyLabel(currentSource.privacy)}
+          </span>
+        )}
         <select
           aria-label="Modelo de IA"
           className={selectClass}
@@ -300,55 +302,5 @@ export function ChatPage() {
       <Composer busy={busy} disabled={!selectedSource} onSend={ask} onCancel={stop} />
       </div>
     </div>
-  );
-}
-
-interface ExchangeProps {
-  question: string;
-  turn: TurnState;
-  onOption?: (option: string) => void;
-  onRetry?: () => void;
-  format: ResultFormat;
-  live?: boolean;
-}
-
-function Exchange({ question, turn, onOption, onRetry, format, live = false }: ExchangeProps) {
-  const text = turn.answer || turn.clarification?.question || "";
-  return (
-    <article className="flex flex-col gap-3">
-      <p className="self-end rounded-xl bg-accent px-3 py-2 text-accent-foreground">{question}</p>
-      <Reasoning
-        steps={turn.steps}
-        reasoning={turn.reasoning}
-        streaming={turn.status === "streaming"}
-      />
-      {turn.status === "streaming" && !text && turn.steps.length === 0 && (
-        <p role="status" className="text-sm text-muted-foreground">
-          Pensando…
-        </p>
-      )}
-      {turn.sql && <SqlBlock sql={turn.sql} streaming={turn.status === "streaming"} />}
-      {turn.result && <ResultView result={turn.result} sql={turn.sql} {...format} />}
-      {text && <p className="whitespace-pre-wrap">{text}</p>}
-      {live && turn.status === "clarifying" && turn.clarification && (
-        <Clarification
-          question={turn.clarification.question}
-          options={turn.clarification.options}
-          onSelect={(option) => onOption?.(option)}
-        />
-      )}
-      {turn.status === "error" && turn.error && (
-        <div className="flex flex-wrap items-center gap-3">
-          <p role="alert" className="text-sm text-destructive">
-            {turn.error.message}
-          </p>
-          {live && turn.error.recoverable && onRetry && (
-            <Button variant="outline" size="sm" onClick={onRetry}>
-              Reintentar
-            </Button>
-          )}
-        </div>
-      )}
-    </article>
   );
 }

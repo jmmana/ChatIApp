@@ -634,3 +634,47 @@ def test_dos_planes_invalidos_terminan_con_invalid_plan_tras_un_reintento(
     assert error["code"] == "invalid_plan" and error["recoverable"] is True
     assert "sql" not in _types(events) and _types(events)[-1] == "turn.completed"
     assert len(calls) == 2  # el plan y un solo reintento
+
+
+def _plan_con_dimensiones(*dimensions: str) -> dict[str, Any]:
+    return {**METRIC_PLAN, "dimensions": list(dimensions)}
+
+
+def test_descarta_las_dimensiones_que_la_pregunta_no_pide(
+    session: Session, model: SemanticModel, demo_url: str, query_executor: QueryExecutor
+) -> None:
+    datasource = _datasource(session)
+    conversation = _conversation(session, datasource)
+    plan = _plan_con_dimensiones("sucursales.nombre", "sucursales.ciudad", "facturas.canal")
+    gateway = _gateway(plan, "Vendiste mucho.")
+    orchestrator = _orchestrator(session, model, datasource, gateway, demo_url, query_executor)
+
+    events = _turn(orchestrator, conversation, "¿Cuánto vendí este mes?")
+
+    assert "error" not in _types(events)
+    sql = _of(events, "sql")[0]["sql"]
+    assert "ciudad" not in sql and "canal" not in sql
+    assert _of(events, "result")[0]["row_count"] == 1
+    session.refresh(conversation)
+    assert conversation.last_plan is not None
+    assert conversation.last_plan["dimensions"] == []
+    reasoning = conversation.last_plan["reasoning"]
+    assert "sucursales.ciudad" in reasoning and "facturas.canal" in reasoning
+
+
+def test_conserva_la_dimension_que_la_pregunta_nombra(
+    session: Session, model: SemanticModel, demo_url: str, query_executor: QueryExecutor
+) -> None:
+    datasource = _datasource(session)
+    conversation = _conversation(session, datasource)
+    gateway = _gateway(_plan_con_dimensiones("sucursales.ciudad"), "Por ciudad.")
+    orchestrator = _orchestrator(session, model, datasource, gateway, demo_url, query_executor)
+
+    events = _turn(orchestrator, conversation, "ventas por ciudad este mes")
+
+    assert "error" not in _types(events)
+    assert "ciudad" in _of(events, "sql")[0]["sql"]
+    assert _of(events, "result")[0]["row_count"] > 1
+    session.refresh(conversation)
+    assert conversation.last_plan is not None
+    assert conversation.last_plan["dimensions"] == ["sucursales.ciudad"]

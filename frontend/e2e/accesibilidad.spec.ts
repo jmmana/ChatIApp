@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { mockApi } from "./mocks";
 
 const PAGES = [
-  { name: "Chat", path: "/chat", ready: "Preguntas sugeridas" },
+  { name: "Chat", path: "/chat", ready: "¿Qué quieres saber?" },
   { name: "Estudio del modelo", path: "/modelo-semantico", ready: "Contexto" },
   { name: "Proveedores", path: "/proveedores-ia", ready: "Simulado" },
 ];

@@ -2,7 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { listVersions } from "./api";
 
-const dateFormat = new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short" });
+const dateFormat = new Intl.DateTimeFormat("es", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 export function VersionHistory({ datasourceId }: { datasourceId: string }) {
   const { user } = useAuth();

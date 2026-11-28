@@ -22,6 +22,9 @@ build/
 # Node
 node_modules/
 frontend/dist/
+embed/react/dist/
+embed/test-results/
+embed/playwright-report/
 frontend/playwright-report/
 frontend/test-results/
 .vite/

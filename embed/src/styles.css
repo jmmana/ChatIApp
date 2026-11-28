@@ -1,0 +1,165 @@
+@import "tailwindcss";
+@source "../../frontend/src/features/chat";
+@source "../../frontend/src/components/ui";
+
+/*
+ * Estilos del widget: viven dentro del Shadow DOM, así que no heredan ni alteran los de la
+ * página. Los tokens son los de la interfaz (docs/INTERFAZ.md); el anfitrión los ajusta con
+ * `--chatiapp-*`.
+ */
+:host {
+  display: block;
+  color-scheme: light;
+  --background: var(--chatiapp-background, #ffffff);
+  --foreground: var(--chatiapp-foreground, #0f172a);
+  --card: var(--chatiapp-card, #ffffff);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --muted: var(--chatiapp-muted, #f1f5f9);
+  --muted-foreground: var(--chatiapp-muted-foreground, #64748b);
+  --secondary: #e2e8f0;
+  --secondary-foreground: #0f172a;
+  --border: var(--chatiapp-border, #e2e8f0);
+  --input: var(--chatiapp-border-strong, #cbd5e1);
+  --primary: var(--chatiapp-accent, #4f46e5);
+  --primary-foreground: var(--chatiapp-accent-foreground, #ffffff);
+  --accent: var(--chatiapp-accent-soft, #eef2ff);
+  --accent-foreground: var(--chatiapp-accent-soft-foreground, #3730a3);
+  --brand-from: var(--primary);
+  --brand-to: #06b6d4;
+  --ring: var(--primary);
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --radius: var(--chatiapp-radius, 0.625rem);
+  --chatiapp-font-stack: var(
+    --chatiapp-font,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif
+  );
+}
+
+:host([theme="dark"]) {
+  color-scheme: dark;
+  --background: var(--chatiapp-background, #020617);
+  --foreground: var(--chatiapp-foreground, #f1f5f9);
+  --card: var(--chatiapp-card, #0f172a);
+  --muted: var(--chatiapp-muted, #1e293b);
+  --muted-foreground: var(--chatiapp-muted-foreground, #94a3b8);
+  --secondary: #1e293b;
+  --secondary-foreground: #f1f5f9;
+  --border: var(--chatiapp-border, #1e293b);
+  --input: var(--chatiapp-border-strong, #334155);
+  --primary: var(--chatiapp-accent, #6366f1);
+  --accent: var(--chatiapp-accent-soft, #1e1b4b);
+  --accent-foreground: var(--chatiapp-accent-soft-foreground, #c7d2fe);
+  --brand-to: #22d3ee;
+  --destructive: #ef4444;
+}
+
+@media (prefers-color-scheme: dark) {
+  :host(:not([theme="light"]):not([theme="dark"])) {
+    color-scheme: dark;
+    --background: var(--chatiapp-background, #020617);
+    --foreground: var(--chatiapp-foreground, #f1f5f9);
+    --card: var(--chatiapp-card, #0f172a);
+    --muted: var(--chatiapp-muted, #1e293b);
+    --muted-foreground: var(--chatiapp-muted-foreground, #94a3b8);
+    --secondary: #1e293b;
+    --secondary-foreground: #f1f5f9;
+    --border: var(--chatiapp-border, #1e293b);
+    --input: var(--chatiapp-border-strong, #334155);
+    --primary: var(--chatiapp-accent, #6366f1);
+    --accent: var(--chatiapp-accent-soft, #1e1b4b);
+    --accent-foreground: var(--chatiapp-accent-soft-foreground, #c7d2fe);
+    --brand-to: #22d3ee;
+    --destructive: #ef4444;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-brand-from: var(--brand-from);
+  --color-brand-to: var(--brand-to);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: var(--chatiapp-font-stack);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/*
+ * Tailwind declara sus variables internas con `@property`, que el navegador ignora dentro de un
+ * Shadow DOM: sin valores iniciales, bordes, sombras y anillos no se dibujan.
+ */
+*,
+::before,
+::after {
+  --tw-border-style: solid;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-color: initial;
+  --tw-inset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-inset-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: initial;
+  --tw-outline-style: solid;
+  --tw-font-weight: initial;
+  --tw-leading: initial;
+  --tw-tracking: initial;
+  --tw-space-y-reverse: 0;
+  --tw-space-x-reverse: 0;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
+  --tw-translate-z: 0;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+.chatiapp-root {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--chatiapp-font-stack);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 24rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}

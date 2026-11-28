@@ -54,8 +54,13 @@ interface Calls {
 
 function setup(put: (calls: Calls) => Response, current = { version: 12, model: baseModel() }) {
   const calls: Calls = { puts: [] };
-  let live = { ...current, created_by: "u1", created_at: "2026-11-20T15:00:00Z" };
+  let live = {
+    ...current,
+    created_by: "u1",
+    created_at: "2026-11-20T15:00:00Z",
+  };
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/auth/me")) return json(session.user);
     if (url.endsWith("/auth/refresh")) return json(session);
     if (url.endsWith("/datasources")) {
       return json([{ id: DS, name: "Ventas (demo)", dialect: "sqlite" }]);
@@ -63,7 +68,11 @@ function setup(put: (calls: Calls) => Response, current = { version: 12, model: 
     if (url.endsWith("/semantic/versions")) {
       return json([
         { version: 12, created_by: "u1", created_at: "2026-11-20T15:00:00Z" },
-        { version: 11, created_by: "otro-usuario-id", created_at: "2026-11-18T10:00:00Z" },
+        {
+          version: 11,
+          created_by: "otro-usuario-id",
+          created_at: "2026-11-18T10:00:00Z",
+        },
       ]);
     }
     if (url.endsWith("/semantic") && init?.method === "PUT") {
@@ -148,7 +157,10 @@ describe("estudio del modelo", () => {
             message: "El modelo semántico no es válido",
             details: {
               errors: [
-                { path: "tables[1].columns[2].description", message: "Descripción inválida" },
+                {
+                  path: "tables[1].columns[2].description",
+                  message: "Descripción inválida",
+                },
               ],
             },
           },
@@ -194,7 +206,12 @@ describe("estudio del modelo", () => {
 
   it("agrega y quita relaciones con selectores tabla.columna", async () => {
     const calls = setup((c) =>
-      json({ version: 13, created_by: "u1", created_at: "2026-11-26T10:00:00Z", model: c.puts[0].model }),
+      json({
+        version: 13,
+        created_by: "u1",
+        created_at: "2026-11-26T10:00:00Z",
+        model: c.puts[0].model,
+      }),
     );
     await userEvent.click(await screen.findByRole("tab", { name: "Relaciones" }));
 
@@ -211,7 +228,12 @@ describe("estudio del modelo", () => {
 
   it("edita el contexto del negocio y la configuración regional", async () => {
     const calls = setup((c) =>
-      json({ version: 13, created_by: "u1", created_at: "2026-11-26T10:00:00Z", model: c.puts[0].model }),
+      json({
+        version: 13,
+        created_by: "u1",
+        created_at: "2026-11-26T10:00:00Z",
+        model: c.puts[0].model,
+      }),
     );
     await userEvent.click(await screen.findByRole("tab", { name: "Contexto" }));
 
@@ -239,7 +261,9 @@ describe("estudio del modelo", () => {
     setup(() => json({}));
     await userEvent.click(await screen.findByRole("tab", { name: "Historial" }));
 
-    const table = await screen.findByRole("table", { name: "Historial de versiones" });
+    const table = await screen.findByRole("table", {
+      name: "Historial de versiones",
+    });
     const rows = within(table).getAllByRole("row");
     expect(rows).toHaveLength(3);
     expect(rows[1]).toHaveTextContent("v12");

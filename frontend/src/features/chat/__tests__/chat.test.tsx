@@ -45,6 +45,8 @@ function stubApi(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       calls.push({ url, method: init?.method ?? "GET", body: init?.body as string | undefined });
+      if (url.endsWith("/auth/me"))
+        return json({ id: "1", email: "ana@example.com", is_admin: isAdmin });
       if (url.endsWith("/auth/refresh"))
         return json({
           access_token: "jwt",
@@ -82,7 +84,7 @@ function stubApi(
       if (url.endsWith("/semantic")) return json(semantic);
       if (url.endsWith("/metrics")) return json({ metrics: semantic.model.metrics });
       if (url.endsWith("/api/v1/datasources"))
-        return json([{ id: "ds1", name: "Ventas", dialect: "sqlite" }]);
+        return json([{ id: "ds1", name: "Ventas", dialect: "sqlite", privacy: "aggregates" }]);
       if (url.endsWith("/api/v1/providers"))
         return json([{ id: "p1", name: "Simulado", kind: "fake", model: "fake-1" }]);
       return json({});
@@ -129,6 +131,7 @@ describe("ChatPage", () => {
     expect(await screen.findByRole("combobox", { name: "Fuente de datos" })).toHaveValue("ds1");
     expect(screen.getByRole("combobox", { name: "Modelo de IA" })).toBeInTheDocument();
     expect(await screen.findByRole("combobox", { name: "Rol" })).toBeInTheDocument();
+    expect(await screen.findByTestId("privacy-level")).toHaveTextContent("Privacidad: Agregados");
   });
 
   it("quien no es administrador recibe sugerencias sin leer el modelo completo", async () => {
