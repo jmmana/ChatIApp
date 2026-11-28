@@ -144,6 +144,7 @@ data: {"usage":{"tokens_in":1830,"tokens_out":142,"cost_usd":0.0031},"elapsed_ms
 
 Todos los eventos: [FLUJO_CONVERSACIONAL.md](FLUJO_CONVERSACIONAL.md#eventos-de-streaming).
 
+- Credenciales: la sesión del usuario, un token de sesión del chat embebido o una **API key con alcance `chat`**. Con key, `user` es obligatorio y se validan fuente, roles permitidos, atributos y presupuesto igual que en `POST /api/v1/chat` (`end_user_required`, `datasource_not_allowed`, `role_required`, `role_not_allowed`, `missing_attributes`); la conversación queda ligada a la key y al `user.id`. Una key no puede cancelar turnos: cierra la conexión para cortarlo.
 - La respuesta lleva `Cache-Control: no-cache` y `X-Accel-Buffering: no`, y cada 15 s sin eventos envía un comentario `: keep-alive`.
 - Sin `conversation_id` se crea una conversación (su título son los primeros 60 caracteres del mensaje). Si se envía, debe ser del usuario y de la misma fuente de datos (`404 conversation_not_found`, `409 datasource_mismatch`).
 - Sin `provider_override` se usa el proveedor por defecto (`422 no_provider` si no hay ninguno).

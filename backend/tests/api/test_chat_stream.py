@@ -87,6 +87,7 @@ def client(factory: sessionmaker[Session], user_id: uuid.UUID) -> Iterator[TestC
     usuario = User(id=user_id, email="a@b.co", is_admin=True)
     app.dependency_overrides[get_current_user] = lambda: usuario
     app.dependency_overrides[get_caller] = lambda: Caller(user=usuario)
+    app.dependency_overrides[chat.get_stream_caller] = lambda: Caller(user=usuario)
     yield TestClient(app)
     app.dependency_overrides.clear()
 

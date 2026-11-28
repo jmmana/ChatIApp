@@ -288,14 +288,17 @@ def test_conversaciones_aisladas_por_key_y_usuario_final(
 # --- seguridad de las rutas de chat (POST /chat comparte módulo con el streaming) ---------------
 
 SOLO_SESION = [
-    ("/api/v1/chat/stream", {"datasource_id": "ventas", "message": "hola"}),
     ("/api/v1/chat/00000000-0000-0000-0000-000000000000/cancel", None),
 ]
 
 
 @pytest.mark.parametrize(
     ("path", "body"),
-    [("/api/v1/chat", {"datasource_id": "ventas", "message": "hola"}), *SOLO_SESION],
+    [
+        ("/api/v1/chat", {"datasource_id": "ventas", "message": "hola"}),
+        ("/api/v1/chat/stream", {"datasource_id": "ventas", "message": "hola"}),
+        *SOLO_SESION,
+    ],
 )
 def test_toda_ruta_de_chat_sin_credencial_es_401(
     client: TestClient, datasource: Datasource, path: str, body: dict[str, Any] | None
@@ -307,7 +310,7 @@ def test_toda_ruta_de_chat_sin_credencial_es_401(
 def test_una_api_key_no_llega_al_chat_de_sesion(
     client: TestClient, session: Session, datasource: Datasource, path: str, body: Any
 ) -> None:
-    _, secret = _key(session)  # alcance `chat`, y aun así: el streaming es solo de sesión
+    _, secret = _key(session)  # alcance `chat`, y aun así: cancelar es solo de sesión
     response = client.post(path, json=body, headers={"Authorization": f"Bearer {secret}"})
     assert response.status_code == 401
 

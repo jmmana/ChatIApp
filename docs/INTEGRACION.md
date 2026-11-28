@@ -104,7 +104,7 @@ curl -N https://chatiapp.tuempresa.com/api/v1/chat/stream \
       }'
 ```
 
-Los eventos son los mismos que usa la interfaz: [FLUJO_CONVERSACIONAL.md](FLUJO_CONVERSACIONAL.md#eventos-de-streaming).
+Los eventos son los mismos que usa la interfaz: [FLUJO_CONVERSACIONAL.md](FLUJO_CONVERSACIONAL.md#eventos-de-streaming). Con la API key (alcance `chat`) valen las mismas validaciones y los mismos errores que en `POST /api/v1/chat`; la key nunca aparece en los eventos. Para cortar un turno, cierra la conexión.
 
 ### Sin streaming
 
