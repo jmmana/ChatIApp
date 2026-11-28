@@ -86,6 +86,19 @@ export function detectShape(result: ResultData): ResultShape {
         };
       }
     }
+    // Una medida y columnas de tiempo (p. ej. «periodo» y «valor» de un total mensual): sigue
+    // siendo un valor único, y el tiempo pasa a ser el contexto de la tarjeta.
+    const measures = numeric.flatMap((is, i) => (is ? [i] : []));
+    const times = result.columns.flatMap((_, i) => (!numeric[i] && isTimeColumn(result, i) ? [i] : []));
+    if (measures.length === 1 && times.length === count - 1) {
+      return {
+        ...base,
+        auto: "kpi",
+        available: ["kpi", "table"],
+        measureIndexes: measures,
+        constants: times.map((i) => ({ index: i, value: String(column(result, i)[0]) })),
+      };
+    }
     return base;
   }
 
