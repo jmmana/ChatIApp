@@ -1,115 +1,81 @@
 # Spike · GitHub Copilot como proveedor de IA
 
-Issue #64 · Épica #5 · Hito M2
+Issues #64 y #173 · Épica #5 · Hito M2
 
 ## Decisión
 
-**ChatIApp ofrece solo GitHub Models (`github/`). No ofrece la suscripción de Copilot (`github_copilot/`).**
+**ChatIApp no ofrece la suscripción de Copilot (`github_copilot/`) ni GitHub Models (`github/`).**
 
-## Límites de esta evaluación
+- **GitHub Models está retirado.** La página oficial dice que desde el 30 de julio de 2026 «the playground, model catalog, inference API, and bring your own key (BYOK) are no longer available to any customer». La recomendación anterior («ofrecer solo GitHub Models») ya no se puede cumplir.
+- **`github_copilot/` no se ofrece** como proveedor de un servidor multiusuario: el acceso es de una sola persona, LiteLLM se presenta como el editor oficial y los términos de GitHub no contemplan servir una suscripción a otros usuarios (detalle abajo).
+- Para modelos de la nube, las opciones soportadas son las API directas del [hub de proveedores](../PROVEEDORES_IA.md) (Claude, ChatGPT, Gemini, etc.) o modelos locales con Ollama.
 
-El spike se hizo en un contenedor **sin red, sin token de GitHub y sin LiteLLM instalado**. Por tanto:
-
-- Lo que se dice de `github_copilot/` viene del conocimiento del código de LiteLLM y **no se contrastó** contra la versión 1.111.0 del catálogo. Hay que releer el código antes de citarlo como definitivo.
-- **Los términos de uso no se pudieron consultar en vivo.** La sección de términos resume lo conocido y lista qué texto hay que revisar. Quien revise debe confirmarlo antes de aprobar el PR.
-- **La prueba de concepto con `github/` no se ejecutó.** Se deja el guion para correrlo en una máquina con red (ver abajo); el criterio queda sin marcar.
-
-## Estado de la verificación (27 de noviembre de 2026, issue #173)
+## Verificación (27 de noviembre de 2026)
 
 | Criterio | Estado | Detalle |
 |---|---|---|
-| Versión de LiteLLM fijada | Confirmada | `backend/uv.lock` fija **litellm 1.111.0** |
-| Flujo de autenticación contra el código de 1.111.0 | **No verificado** | El contenedor no tiene LiteLLM instalado ni acceso a PyPI ni a GitHub; no se pudo leer `litellm/llms/github_copilot/`. La sección de abajo sigue siendo conocimiento previo |
-| Términos de uso vigentes | **No verificado** | Sin acceso a la red: no se leyó ninguno de los textos de GitHub. No se anota fecha de consulta ni conclusión nueva |
-| Recomendación | Sin cambios | Nada la contradice, pero tampoco hay evidencia nueva |
-| Prueba de concepto con token real | Pendiente (dueño) | Guion en las secciones de abajo |
+| Versión de LiteLLM fijada | Verificada | `backend/uv.lock` fija **litellm 1.111.0**; el código se leyó del paquete instalado con `uv sync --locked` |
+| Flujo de autenticación contra el código de 1.111.0 | **Verificado** | Ver «Cómo autentica `github_copilot/`» |
+| Términos de uso vigentes | **Leídos en línea** | Ver «Términos de uso» (fecha de consulta, enlaces y límites de la lectura) |
+| GitHub Models | **Retirado** | Ver «GitHub Models» |
+| Recomendación | Actualizada | Ver «Decisión» |
+| Prueba de concepto con token real | Pendiente (dueño) | Solo aplica a `github_copilot/` y es opcional: la decisión no depende de ella |
 
-### Guion para verificar el flujo de autenticación (máquina con red)
+## Cómo autentica `github_copilot/` en LiteLLM 1.111.0
 
-```bash
-cd backend && uv sync --locked
-python - <<'PY'
-import importlib.metadata as m, litellm.llms.github_copilot as p, pathlib
-print("litellm", m.version("litellm"))   # debe ser 1.111.0
-print(pathlib.Path(p.__file__).parent)
-PY
-grep -rnE "client_id|login/device|login/oauth|copilot_internal|GITHUB_COPILOT_TOKEN_DIR|editor-version|Copilot-Integration-Id|api.githubcopilot" \
-  "$(python -c 'import litellm.llms.github_copilot as p, pathlib; print(pathlib.Path(p.__file__).parent)')"
-```
+Contrastado con `litellm/llms/github_copilot/` (`authenticator.py`, `common_utils.py`):
 
-Contrasta cada punto de la sección «Cómo autentica» (client_id de editor, URL del flujo de dispositivo, código impreso por stdout, directorio del token, endpoint interno, cabeceras) con la salida y anota aquí el resultado y la versión.
-
-### Guion para los términos de uso
-
-Lee y anota **fecha de consulta, enlace y conclusión** de:
-
-- https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features (sección GitHub Copilot)
-- https://docs.github.com/en/site-policy/acceptable-use-policies/github-acceptable-use-policies
-- https://docs.github.com/en/copilot (uso permitido, límites y acceso programático)
-
-Pregunta a responder: ¿se permite usar la suscripción de Copilot de una persona como backend de una aplicación multiusuario, o acceder a Copilot fuera de un editor/cliente soportado? Si no queda claro, la conclusión es «no permitido por defecto».
-
-## Cómo autentica `github_copilot/` en LiteLLM (sin contrastar con 1.111.0)
-
-1. Flujo de dispositivo OAuth de GitHub con el `client_id` de un cliente de editor (el de la extensión de Copilot), no de una app propia de ChatIApp.
-2. El usuario abre `https://github.com/login/device` e introduce un código. LiteLLM lo **imprime en la salida estándar** y sondea hasta que se autoriza.
-3. El token de acceso se guarda en disco, por defecto bajo `~/.config/litellm/github_copilot/` (configurable con `GITHUB_COPILOT_TOKEN_DIR`).
-4. Ese token se cambia por un token de API de corta duración en un endpoint interno de GitHub (`copilot_internal`), que se renueva solo.
-5. Las peticiones van al endpoint de Copilot con cabeceras que se hacen pasar por un editor (`editor-version`, `Copilot-Integration-Id`, etc.).
-
-Consecuencias: el token pertenece a **una persona** con asiento de Copilot; el endpoint interno no es una API pública con contrato; el cliente suplantado es el de otro producto.
+- **Flujo de dispositivo OAuth** con un `client_id` de editor (`DEFAULT_GITHUB_CLIENT_ID = "Iv1.b507a08c87ecfe98"`, sobreescribible con `GITHUB_COPILOT_CLIENT_ID`), contra `https://github.com/login/device/code` y `https://github.com/login/oauth/access_token`.
+- **Endpoint interno** `https://api.github.com/copilot_internal/user` para resolver la URL base; las llamadas de modelo van a `https://api.githubcopilot.com`.
+- **Se hace pasar por el editor oficial:** envía `editor-version: vscode/1.85.1` y `user-agent: GithubCopilot/1.155.0`.
+- El token se guarda en un archivo (`GITHUB_COPILOT_TOKEN_DIR`, archivo `access-token`) y se reutiliza.
+- **No puede iniciar sesión dentro de un servidor en marcha:** si se pide el token desde un bucle de eventos o un hilo de trabajo (el caso de ChatIApp con FastAPI o del proxy de LiteLLM), lanza `GetAccessTokenError` y pide iniciar sesión una vez fuera y montar el archivo del token.
 
 ## ¿Funciona en un servidor sin navegador?
 
 A medias. El flujo de dispositivo no necesita navegador *en el servidor*: otra persona abre la URL en cualquier equipo. Pero:
 
-- El código se imprime por consola; no hay API para mostrarlo en la interfaz de ChatIApp. Habría que envolver o reimplementar el autenticador.
-- El token vive en el disco del servidor, ligado a un solo usuario de GitHub; en un contenedor efímero se pierde.
+- El código se imprime por consola y el inicio de sesión no puede hacerse dentro del servidor (ver arriba): habría que hacerlo aparte y montar el archivo del token.
+- El token está ligado a **un solo usuario de GitHub** y vive en el disco del servidor; en un contenedor efímero se pierde.
 - Cada usuario de ChatIApp no puede usar *su* suscripción sin un flujo por usuario, que el catálogo no contempla (la configuración es del servidor).
 
-## Términos de uso (por confirmar en vivo)
+## Términos de uso
 
-Textos a revisar: *GitHub Terms for Additional Products and Features* (sección GitHub Copilot), *GitHub Acceptable Use Policies* y la documentación de Copilot sobre uso permitido.
+Consultados en línea el **27 de noviembre de 2026**:
 
-Lo que se conoce y debe confirmarse:
+| Fuente | Qué dice | Relevancia |
+|---|---|---|
+| [GitHub Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service), sección J («AI Features, Training, and Your Data») | Regula propiedad de entradas y salidas, uso de entradas y salidas para entrenar modelos («unless you opt out»), descargos y responsabilidad del usuario | **No dice nada sobre aplicaciones de terceros ni uso multiusuario.** Sí implica que, con una suscripción individual, los datos enviados pueden usarse para entrenar salvo que la persona lo desactive |
+| [GitHub Terms for Additional Products and Features](https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features), sección «GitHub Copilot» (vigente desde el 27 de agosto de 2026) | Remite a los *Generative AI Services Terms* (Business y Enterprise), a los términos de Microsoft o a la sección J | Sin mención de API, proxies o terceros |
+| [GitHub Acceptable Use Policies](https://docs.github.com/en/site-policy/acceptable-use-policies/github-acceptable-use-policies), secciones 4 a 6 | Prohíbe actividad automatizada masiva excesiva, el acceso no autorizado a un servicio y «reproduce, duplicate, copy, sell, resell or exploit any portion of the Service» sin permiso escrito | Es lo más cercano a nuestro caso y **apunta en contra** de repartir el acceso de una persona entre varios usuarios. Es una lectura nuestra, no una conclusión legal |
 
-- Copilot se licencia **por usuario**; compartir un asiento entre varias personas no está previsto.
-- Se prohíben el uso automatizado excesivo, revender el acceso y eludir los límites del servicio.
-- Exponer la cuota de una suscripción personal como backend de una aplicación multiusuario encaja en lo que esas cláusulas buscan evitar. Además depende de un endpoint interno y de suplantar a un editor.
+**Lo que no se leyó:** los *GitHub Generative AI Services Terms* (`github.com/customer-terms/github-generative-ai-services-terms`), los *Product Terms* de Microsoft y la documentación de Copilot sobre acceso programático. Ninguna de las páginas leídas permite ni prohíbe expresamente el uso con LiteLLM; para una respuesta firme habría que confirmarlo con GitHub Support.
 
-Mientras GitHub no autorice expresamente ese uso, el riesgo (suspensión de la cuenta, rotura sin aviso) recae en el cliente y en ChatIApp.
+**Conclusión:** no hay base para ofrecer `github_copilot/` a varios usuarios; la combinación de un `client_id` y cabeceras de editor ajenos, un endpoint interno y la AUP (sección 6) lo hace una apuesta frágil.
 
-## GitHub Models (`github/`)
+## GitHub Models
 
-- API oficial para usar modelos desde aplicaciones, con un **token de GitHub** (PAT con permiso `models:read` o token de GitHub Actions).
-- Se limita y factura aparte de Copilot: nivel gratuito con límites bajos para prototipos y uso de pago opcional.
-- Un token de servicio por organización o proyecto: encaja con el modelo multiusuario de ChatIApp (credencial del servidor, no de una persona).
-- Campos en el catálogo: solo el token. El catálogo ya lo lista.
+Retirado el 30 de julio de 2026 (fuente: <https://docs.github.com/en/github-models>, consultada el 27 de noviembre de 2026). GitHub lo describe como un servicio aparte de Copilot y sugiere Azure AI Foundry. Por tanto:
 
-## Prueba de concepto (GitHub Models) — pendiente de ejecutar
+- La prueba de concepto con `github/` ya no es posible ni necesaria.
+- Si el catálogo de proveedores aún lista `github/`, debe retirarse (seguimiento en el issue de limpieza).
 
-Guion para una máquina con red y `GITHUB_TOKEN` con `models:read`. No lo guardes con el token.
+## Prueba de concepto opcional (solo `github_copilot/`, la hace el dueño)
 
-```python
-import json, os, litellm
+Solo tiene sentido para uso personal de una sola persona, nunca para un servidor compartido. Con la versión fijada de LiteLLM, fuera del servidor:
 
-plan_prompt = (
-    "Devuelve SOLO un plan JSON para: «ventas totales por mes del último año». "
-    'Formato: {"metric": str, "group_by": [str], "filters": []}'
-)
-r = litellm.completion(
-    model="github/gpt-4o-mini",  # usa un modelo que liste GitHub Models
-    api_key=os.environ["GITHUB_TOKEN"],
-    messages=[{"role": "user", "content": plan_prompt}],
-    response_format={"type": "json_object"},
-)
-print(json.loads(r.choices[0].message.content))
+```bash
+cd backend && uv sync --locked
+uv run python -c "from litellm.llms.github_copilot.authenticator import Authenticator; Authenticator().get_access_token()"
+# abre la URL que imprime, escribe el código y autoriza; el token queda en GITHUB_COPILOT_TOKEN_DIR
+uv run python -c "import litellm; print(litellm.completion(model='github_copilot/gpt-4o', messages=[{'role':'user','content':'Di hola'}]).choices[0].message.content)"
 ```
 
-Criterio de éxito: el JSON se parsea y contiene métrica y agrupación. Anota aquí el resultado, el modelo y la versión de LiteLLM al ejecutarlo.
+No guardes el token en el repositorio.
 
 ## Recomendación
 
-1. Soportar `github/` en el catálogo (ya está).
-2. No soportar `github_copilot/` en servidores multiusuario. Reabrir si GitHub publica una API de Copilot para terceros o autoriza por escrito ese uso.
-3. Antes de cerrar el issue: confirmar los términos en vivo y ejecutar la prueba de concepto.
+1. No ofrecer `github_copilot/` ni `github/` en el hub de proveedores.
+2. Retirar `github/` del catálogo y de la documentación si todavía aparece.
+3. Para quien no quiera pagar API de nube: Ollama (local) o las API directas del hub.
+4. Reabrir solo si GitHub publica un acceso programático oficial para aplicaciones de terceros.

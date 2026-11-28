@@ -1,0 +1,124 @@
+{{- $dbType := .Values.database.type -}}
+{{- if not (has $dbType (list "sqlite" "postgresql")) -}}
+{{- fail "database.type debe ser sqlite o postgresql" -}}
+{{- end -}}
+{{- if eq $dbType "sqlite" -}}
+  {{- if ne (int .Values.replicaCount) 1 -}}
+    {{- fail "SQLite requiere replicaCount: 1; configura PostgreSQL para varias réplicas" -}}
+  {{- end -}}
+  {{- if not .Values.database.persistence.enabled -}}
+    {{- fail "SQLite requiere database.persistence.enabled: true" -}}
+  {{- end -}}
+{{- end -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "chatiapp.fullname" . }}
+  labels:
+    {{- include "chatiapp.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: {{ if eq $dbType "sqlite" }}Recreate{{ else }}RollingUpdate{{ end }}
+  selector:
+    matchLabels:
+      {{- include "chatiapp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "chatiapp.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        fsGroup: 10001
+      containers:
+        - name: chatiapp
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: CHATIAPP_ENV
+              value: production
+            - name: CHATIAPP_CONFIG
+              value: /config/chatiapp.yaml
+            - name: CHATIAPP_DATA_DIR
+              value: /data
+            - name: CHATIAPP_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "existingSecret debe indicar un Secret existente" .Values.existingSecret }}
+                  key: CHATIAPP_SECRET_KEY
+            - name: CHATIAPP_DATABASE_URL
+              {{- if eq $dbType "postgresql" }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "existingSecret debe indicar un Secret existente" .Values.existingSecret }}
+                  key: CHATIAPP_DATABASE_URL
+              {{- else }}
+              value: sqlite:////data/chatiapp.db
+              {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ required "existingSecret debe indicar un Secret existente" .Values.existingSecret }}
+          startupProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            {{- if eq $dbType "sqlite" }}
+            - name: data
+              mountPath: /data
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "chatiapp.fullname" . }}-config
+            items:
+              - key: chatiapp.yaml
+                path: chatiapp.yaml
+              - key: semantic-model.yaml
+                path: ventas/semantic-model.yaml
+        {{- if eq $dbType "sqlite" }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "chatiapp.fullname" . }}-data
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

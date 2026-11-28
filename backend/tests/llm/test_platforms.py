@@ -107,10 +107,9 @@ def test_vertex_guarda_la_cuenta_de_servicio_como_secreto() -> None:
     ("kind", "model", "expected"),
     [
         ("openrouter", "anthropic/claude-sonnet-5-5", "openrouter/anthropic/claude-sonnet-5-5"),
-        ("github_models", "gpt-4o", "github/gpt-4o"),
     ],
 )
-def test_agregador_y_github_models(kind: str, model: str, expected: str) -> None:
+def test_agregador(kind: str, model: str, expected: str) -> None:
     kwargs = _kwargs(kind, model, secrets={"api_key": KEY})
     assert kwargs["model"] == expected
     assert kwargs["api_key"] == KEY

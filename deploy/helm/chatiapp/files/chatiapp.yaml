@@ -1,0 +1,29 @@
+version: 1
+
+app:
+  public_url: {{ .Values.app.publicUrl | quote }}
+  language: es
+  timezone: America/Bogota
+
+ai:
+  providers:
+    - id: claude
+      kind: anthropic
+      model: claude-sonnet-5-5
+      api_key: ${ANTHROPIC_API_KEY}
+  routing:
+    planner: claude
+    sql: claude
+    answer: claude
+    suggest: claude
+  privacy: aggregates
+
+datasources:
+  - id: ventas
+    name: Ventas
+    dialect: postgres
+    url: ${VENTAS_DB_URL}
+    execute: true
+    max_rows: 1000
+    timeout_seconds: 30
+    semantic_model: ./ventas/semantic-model.yaml

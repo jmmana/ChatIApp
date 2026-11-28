@@ -133,7 +133,7 @@ flowchart LR
 │                                                                              │
 │ AGREGAR                                                                      │
 │ API directa     Claude · ChatGPT · Gemini · Mistral · Grok · Groq            │
-│ Plataformas     Bedrock · Azure · Vertex AI · OpenRouter · GitHub Models     │
+│ Plataformas     Bedrock · Azure · Vertex AI · OpenRouter     │
 │ Modelos chinos  DeepSeek · Qwen · Kimi · GLM · MiniMax · Doubao              │
 │ Local           Ollama · vLLM · LM Studio · Compatible con OpenAI            │
 └──────────────────────────────────────────────────────────────────────────────┘
