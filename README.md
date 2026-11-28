@@ -314,7 +314,18 @@ Plan detallado en [docs/ROADMAP.md](docs/ROADMAP.md) y avance en vivo en el [tab
 
 ## Inicio rápido
 
-Con Docker instalado, la demo queda lista en pocos minutos. Hoy la ruta verificada es construir la imagen desde el repositorio:
+Con Docker instalado, la demo queda lista en pocos minutos, con la imagen publicada (verificada con la `0.1.0`):
+
+```bash
+docker run -p 8080:8080 -v chatiapp:/data \
+  -e CHATIAPP_ADMIN_EMAIL=tu@correo.com -e CHATIAPP_ADMIN_PASSWORD='una-clave-larga' \
+  ghcr.io/jmmana/chatiapp
+# abre http://localhost:8080 e inicia sesión con ese correo y esa clave
+```
+
+La fuente «Ventas (demo)» ya viene creada. Para que responda, añade un proveedor de IA en «Proveedores de IA» (Claude, ChatGPT, Gemini, Ollama…) y pregunta «¿Cuánto vendí?»; el agente pedirá el período y puedes responder «Este mes».
+
+Para construir la imagen tú mismo desde el repositorio:
 
 ```bash
 git clone https://github.com/jmmana/ChatIApp && cd ChatIApp
@@ -322,16 +333,6 @@ cp .env.example .env
 echo "CHATIAPP_ADMIN_EMAIL=tu@correo.com" >> .env
 echo "CHATIAPP_ADMIN_PASSWORD=una-clave-larga" >> .env
 docker compose up --build
-# abre http://localhost:8080
-```
-
-Cuando se publique la primera versión, bastará con la imagen ya construida (**aún no está en GHCR**: se publica con la v0.1.0):
-
-```bash
-docker run -p 8080:8080 -v chatiapp:/data \
-  -e CHATIAPP_ADMIN_EMAIL=tu@correo.com -e CHATIAPP_ADMIN_PASSWORD='una-clave-larga' \
-  -e ANTHROPIC_API_KEY=sk-ant-… ghcr.io/jmmana/chatiapp
-# abre http://localhost:8080 y pregunta: ¿cuánto vendí?
 ```
 
 Todo queda en el volumen `chatiapp` (base SQLite, demo y llave de cifrado). Para PostgreSQL u Ollama, usa los perfiles de [`docker-compose.yml`](docker-compose.yml).
