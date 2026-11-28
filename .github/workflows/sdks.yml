@@ -1,0 +1,78 @@
+name: SDKs
+
+# Los SDKs de `sdks/` se generan desde docs/openapi/v1.json. Este workflow comprueba que la
+# generación esté al día, corre sus pruebas y, con una release, los publica en PyPI y npm si
+# están configurados los secretos PYPI_API_TOKEN y NPM_TOKEN.
+on:
+  pull_request:
+    paths: ["sdks/**", "docs/openapi/**", ".github/workflows/sdks.yml"]
+  push:
+    branches: [main]
+    paths: ["sdks/**", "docs/openapi/**", ".github/workflows/sdks.yml"]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    name: SDKs (generación al día, lint y pruebas)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Regenerar y comprobar que no hay diferencias
+        run: |
+          node sdks/scripts/generate.mjs
+          git diff --exit-code -- sdks || { echo "Los SDKs están desactualizados respecto a docs/openapi/v1.json: ejecuta node sdks/scripts/generate.mjs"; exit 1; }
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - name: Python (ruff, mypy y pytest)
+        working-directory: sdks/python
+        run: |
+          uv run --with ruff --with mypy --with pytest --with httpx --with pydantic bash -c "ruff format --check . && ruff check . && mypy chatiapp && pytest -q"
+      - name: TypeScript (lint, pruebas y build)
+        working-directory: sdks/typescript
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm run lint
+          pnpm run test
+          pnpm run build
+
+  publicar:
+    name: Publicar (PyPI y npm)
+    if: github.event_name == 'release'
+    needs: verificar
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - name: PyPI
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          if [ -z "$UV_PUBLISH_TOKEN" ]; then echo "Sin PYPI_API_TOKEN: se omite la publicación en PyPI"; exit 0; fi
+          cd sdks/python && uv build && uv publish
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: npm
+        working-directory: sdks/typescript
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then echo "Sin NPM_TOKEN: se omite la publicación en npm"; exit 0; fi
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm run build
+          npm publish --access public

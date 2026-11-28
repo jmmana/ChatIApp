@@ -4,6 +4,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); l
 
 ## [Sin publicar]
 
+### Añadido
+
+- SDKs oficiales `chatiapp` (Python) y `@chatiapp/client` (TypeScript) en `sdks/`: modelos generados desde `docs/openapi/v1.json`, chat con aclaraciones, streaming SSE tipado y emisión de tokens de sesión del chat embebido.
+
 ## [0.1.0] - 2026-11-27
 
 Primera versión usable: pregunta a tu base de datos en lenguaje natural y recibe una respuesta con su razonamiento a la vista.

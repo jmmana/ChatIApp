@@ -141,7 +141,7 @@ Si tu app prefiere ejecutar el SQL por su cuenta, usa una fuente en **modo solo 
 
 ### SDKs
 
-Clientes oficiales generados desde la especificación OpenAPI, con soporte de streaming:
+Clientes oficiales (`pip install chatiapp` · `npm install @chatiapp/client`; código en [`sdks/`](../sdks/README.md)). Los modelos se generan desde la especificación OpenAPI y el chat, el streaming y los eventos SSE tipados están escritos a mano. El CI falla si los modelos quedan desactualizados respecto a `docs/openapi/v1.json`.
 
 ```python
 from chatiapp import ChatIApp, EndUser
@@ -163,6 +163,11 @@ for await (const event of client.chatStream({ datasource: "ventas", message: "¿
   if (event.type === "answer.delta") process.stdout.write(event.data.text);
 }
 ```
+
+- `chat()` devuelve el turno con `status` (`answered`, `needs_clarification`, `rejected`, `error`); en la respuesta de una aclaración, el SDK recuerda la fuente de la `conversation_id` y no hace falta repetirla.
+- Los errores HTTP lanzan `ChatIAppError` (`code`, `message`, estado HTTP). En el stream, un fallo del turno llega como evento `error`.
+- Los eventos de `chat_stream`/`chatStream` están tipados (`turn.started`, `step`, `sql`, `answer.delta`…); un evento que el SDK no conoce llega como `UnknownEvent` en Python y se omite en TypeScript.
+- Tokens de sesión del chat embebido, desde tu backend: `client.create_embed_session(datasource=…, origin=…, user=…)` (Python) o `client.createEmbedSession({ datasource, origin, user })` (TypeScript); devuelve `token` y `expires_at` para pasar el token al widget.
 
 ## Chat embebido
 
