@@ -229,6 +229,10 @@ class Catalog:
         self._check_value(qualified, item.op, item.value)
         return replace(item, field=qualified)
 
+    def find_column(self, metric: Metric, field: str) -> tuple[Table, Column] | None:
+        """Tabla y columna de un `tabla.columna` alcanzable desde la métrica, o None."""
+        return self._resolve_field(metric, field)
+
     def _resolve_field(self, metric: Metric, field: str) -> tuple[Table, Column] | None:
         """`tabla.columna` (o solo `columna` de la tabla base) alcanzable desde la métrica."""
         table_name, _, column_name = field.rpartition(".")

@@ -69,6 +69,23 @@ export async function refresh(): Promise<AuthUser | null> {
   return readSession(response);
 }
 
+/**
+ * Pide el usuario y su rol a GET /auth/me con el JWT en memoria.
+ * Devuelve null ante un 401 (sesión cerrada); otros errores se propagan.
+ */
+export async function me(): Promise<AuthUser | null> {
+  const response = await fetch("/api/v1/auth/me", {
+    credentials: "same-origin",
+    headers: { Authorization: `Bearer ${accessToken ?? ""}` },
+  });
+  if (response.status === 401) {
+    setAccessToken(null);
+    return null;
+  }
+  if (!response.ok) throw new AuthApiError(response.status, "No se pudo obtener el usuario.");
+  return (await response.json()) as AuthUser;
+}
+
 export async function logout(): Promise<void> {
   setAccessToken(null);
   await post("logout").catch(() => undefined);

@@ -20,18 +20,27 @@ import {
   type DatasourceInput,
   type TestResult,
 } from "./api";
-import { dialectLabel, privacyLabel } from "./catalog";
+import { ERROR_HELP, dialectLabel, privacyLabel } from "./catalog";
 import { DatasourceForm } from "./DatasourceForm";
 import { TestResultView } from "./TestResultView";
 
 type Editing = { mode: "create" } | { mode: "edit"; datasource: Datasource } | null;
+
+function lastTestText(ds: Datasource, result: TestResult | undefined): string {
+  if (result) return result.ok ? "correcta" : "con error";
+  if (ds.last_test_ok === null) return "sin probar";
+  const when = ds.last_test_at ? ` · ${new Date(ds.last_test_at).toLocaleString("es")}` : "";
+  if (ds.last_test_ok) return `correcta${when}`;
+  const kind = ds.last_test_error_kind ?? "unknown";
+  return `con error (${ERROR_HELP[kind].title})${when}`;
+}
 
 export function DatasourcesPage() {
   const { user } = useAuth();
   const isAdmin = user?.is_admin ?? false;
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Editing>(null);
-  // La API no guarda el resultado de la última prueba: se conserva mientras la página está abierta.
+  // Detalle de la prueba hecha en esta sesión; el resultado guardado llega con la lista.
   const [results, setResults] = useState<Record<string, TestResult>>({});
   const [testingId, setTestingId] = useState<string | null>(null);
 
@@ -62,7 +71,10 @@ export function DatasourcesPage() {
           error: { kind: "unknown", message: error.message },
         },
       })),
-    onSettled: () => setTestingId(null),
+    onSettled: async () => {
+      setTestingId(null);
+      await queryClient.invalidateQueries({ queryKey: ["datasources"] });
+    },
   });
 
   function openEditor(next: Editing) {
@@ -127,8 +139,7 @@ export function DatasourcesPage() {
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-muted-foreground">
-                Última prueba:{" "}
-                {results[ds.id] ? (results[ds.id].ok ? "correcta" : "con error") : "sin probar"}
+                Última prueba: {lastTestText(ds, results[ds.id])}
               </p>
               {isAdmin && (
                 <div className="flex gap-2">

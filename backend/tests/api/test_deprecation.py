@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from email.utils import format_datetime
 
 import pytest
@@ -15,15 +15,13 @@ def test_endpoint_deprecado_incluye_cabeceras_y_metadatos_openapi() -> None:
     application.get(
         "/legacy",
         deprecated=True,
-        dependencies=[
-            Depends(deprecation_headers(deprecated_on=deprecated_on, sunset=sunset))
-        ],
+        dependencies=[Depends(deprecation_headers(deprecated_on=deprecated_on, sunset=sunset))],
     )(lambda: {"status": "ok"})
     client = TestClient(application)
 
     response = client.get("/legacy")
-    deprecated_at = datetime.combine(deprecated_on, time(), tzinfo=timezone.utc)
-    sunset_at = datetime.combine(sunset, time(23, 59, 59), tzinfo=timezone.utc)
+    deprecated_at = datetime.combine(deprecated_on, time(), tzinfo=UTC)
+    sunset_at = datetime.combine(sunset, time(23, 59, 59), tzinfo=UTC)
 
     assert response.status_code == 200
     assert response.headers["deprecation"] == f"@{int(deprecated_at.timestamp())}"

@@ -107,6 +107,9 @@ export async function mockApi(page: Page): Promise<void> {
         user: { id: "u1", email: "admin@example.com", is_admin: true },
       });
     }
+    if (path === "/auth/me") {
+      return json(route, { id: "u1", email: "admin@example.com", is_admin: true });
+    }
     if (path === "/chat/stream") {
       const { message } = request.postDataJSON() as { message: string };
       return route.fulfill({

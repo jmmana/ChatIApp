@@ -1,15 +1,19 @@
 import { BarChart3, Download, Table2, TrendingUp } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import type { ResultData, SqlData } from "../types";
 import { downloadCsv } from "./csv";
 import { DEFAULT_LOCALE } from "./format";
 import { KpiCard } from "./KpiCard";
-import { ResultChart } from "./ResultChart";
 import { ResultTable } from "./ResultTable";
 import { detectShape } from "./shape";
 import type { ViewKind } from "./shape";
+
+// La librería de gráficos pesa más que todo el resto: se descarga solo cuando hay un gráfico.
+const ResultChart = lazy(() =>
+  import("./ResultChart").then((module) => ({ default: module.ResultChart })),
+);
 
 interface ResultViewProps {
   result: ResultData;
@@ -71,17 +75,25 @@ export function ResultView({
         </Button>
       </div>
 
+      {shape.constants.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {shape.constants.map((c) => `${result.columns[c.index]}: ${c.value}`).join(" · ")}
+        </p>
+      )}
+
       {view === "kpi" && (
         <KpiCard
           label={metricLabels[metricName] ?? metricName}
-          period={sql?.period}
+          period={sql?.period?.label}
           value={result.rows[0][current]}
           previous={shape.comparison ? result.rows[0][shape.comparison.previous] : undefined}
           {...options}
         />
       )}
       {(view === "line" || view === "bar") && (
-        <ResultChart result={result} shape={shape} kind={view} {...options} />
+        <Suspense fallback={<div role="status" aria-label="Cargando gráfico" className="h-72" />}>
+          <ResultChart result={result} shape={shape} kind={view} {...options} />
+        </Suspense>
       )}
       {view === "table" && <ResultTable result={result} {...options} />}
 

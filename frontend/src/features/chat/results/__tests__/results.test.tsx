@@ -5,7 +5,7 @@ import type { ResultData } from "../../types";
 import { toCsv } from "../csv";
 import { formatNumber, variation } from "../format";
 import { ResultView } from "../ResultView";
-import { selectView } from "../shape";
+import { detectShape, selectView } from "../shape";
 import { sortRows } from "../sort";
 
 function result(columns: string[], rows: unknown[][], truncated = false): ResultData {
@@ -26,6 +26,21 @@ describe("selectView", () => {
     expect(selectView(r)).toBe("line");
   });
 
+  it("tiempo constante + categoría + medida → barras", () => {
+    const r = result(
+      ["periodo", "sucursal", "ventas"],
+      [["2026-11-01", "Norte", 1], ["2026-11-01", "Sur", 2]],
+    );
+    expect(selectView(r)).toBe("bar");
+    expect(detectShape(r).constants).toEqual([{ index: 0, value: "2026-11-01" }]);
+  });
+
+  it("tiempo con varios valores + medida → línea", () => {
+    const r = result(["mes", "ventas"], [["2026-01-01", 1], ["2026-02-01", 2], ["2026-03-01", 3]]);
+    expect(selectView(r)).toBe("line");
+    expect(detectShape(r).timeAxis).toBe(true);
+  });
+
   it("categoría + medida → barras", () => {
     const r = result(["sucursal", "ventas"], [["Norte", 1], ["Sur", 2]]);
     expect(selectView(r)).toBe("bar");
@@ -38,8 +53,27 @@ describe("selectView", () => {
     expect(selectView(result(["c", "v"], many))).toBe("table");
   });
 
+  it("una fila con una columna de tiempo y una medida → tarjeta KPI", () => {
+    expect(selectView(result(["periodo", "valor"], [["2026-11-01", 37482545093]]))).toBe("kpi");
+  });
+
   it("una fila con varias columnas sin comparación → tabla", () => {
     expect(selectView(result(["a", "b"], [[1, 2]]))).toBe("table");
+  });
+});
+
+describe("ResultView con tiempo constante", () => {
+  it("muestra el período como contexto y dibuja barras", async () => {
+    render(
+      <ResultView
+        result={result(
+          ["periodo", "sucursal", "ventas"],
+          [["2026-11-01", "Norte", 1], ["2026-11-01", "Sur", 2]],
+        )}
+      />,
+    );
+    expect(screen.getByText("periodo: 2026-11-01")).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: /barras/ })).toBeInTheDocument();
   });
 });
 
@@ -76,7 +110,7 @@ describe("ResultView", () => {
           dialect: "sqlite",
           origin: "catalog",
           filters_applied: [],
-          period: "noviembre",
+          period: { label: "noviembre", start: "2026-11-01", end_exclusive: "2026-12-01" },
         }}
         metricLabels={{ ventas: "Ventas netas" }}
         locale="en-US"
@@ -95,7 +129,7 @@ describe("ResultView", () => {
         locale="en-US"
       />,
     );
-    expect(screen.getByRole("img", { name: /barras/ })).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: /barras/ })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Tabla" }));
     const header = screen.getByRole("columnheader", { name: /ventas/ });
     expect(header).toHaveAttribute("aria-sort", "none");

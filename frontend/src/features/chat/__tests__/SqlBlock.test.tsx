@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { formatSql } from "../formatSql";
@@ -34,9 +34,10 @@ describe("SqlBlock", () => {
     expect(!!screen.queryByText("Filtro de rol")).toBe(combo.filters_applied.length > 0);
   });
 
-  it("va abierto en curso, formateado, y plegado al terminar", () => {
+  it("va abierto en curso, formateado, y plegado al terminar", async () => {
     const { rerender, container } = render(<SqlBlock sql={base} streaming />);
-    expect(container.querySelector("code")?.textContent).toContain("SELECT");
+    // El formateador se carga aparte: primero el SQL tal cual, luego formateado.
+    await waitFor(() => expect(container.querySelector("code")?.textContent).toContain("SELECT"));
     expect(container.querySelector("code")?.textContent).toContain("\n");
     rerender(<SqlBlock sql={base} streaming={false} />);
     expect(container.querySelector("code")).toBeNull();
@@ -45,9 +46,10 @@ describe("SqlBlock", () => {
   it("se despliega a mano y copia con confirmación", async () => {
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
-    render(<SqlBlock sql={base} />);
+    const { container } = render(<SqlBlock sql={base} />);
     await user.click(screen.getByRole("button", { name: "SQL" }));
     expect(screen.getByRole("button", { name: "SQL" })).toHaveAttribute("aria-expanded", "true");
+    await waitFor(() => expect(container.querySelector("code")?.textContent).toContain("SELECT"));
     await user.click(screen.getByRole("button", { name: /Copiar/ }));
     expect(writeText).toHaveBeenCalledWith(formatSql(base.sql, "sqlite"));
     expect(await screen.findByText("Copiado")).toBeInTheDocument();

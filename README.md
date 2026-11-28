@@ -14,7 +14,7 @@ ChatIApp es un chat de IA que **razona tu pregunta, te pide lo que falta y escri
 
 [![CI](https://github.com/jmmana/ChatIApp/actions/workflows/ci.yml/badge.svg)](https://github.com/jmmana/ChatIApp/actions/workflows/ci.yml)
 [![Licencia](https://img.shields.io/badge/licencia-Apache--2.0-3B82F6)](LICENSE)
-[![Estado](https://img.shields.io/badge/estado-dise%C3%B1o%20abierto-8B5CF6)](#estado-del-proyecto)
+[![Estado](https://img.shields.io/badge/estado-previa%20a%20v0.1.0-8B5CF6)](#estado-del-proyecto)
 [![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](docs/ARQUITECTURA.md)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](docs/ARQUITECTURA.md)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](docs/INTERFAZ.md)
@@ -40,6 +40,10 @@ ChatIApp parte de tres ideas:
 3. **Tu IA, tu base, tus reglas.** Claude, ChatGPT, Gemini, DeepSeek, Qwen o un modelo local; PostgreSQL, SQL Server, Oracle o BigQuery. Tú decides qué ve el modelo, qué ve cada rol y qué se audita.
 
 ## Así fluye una conversación
+
+![ChatIApp respondiendo «¿Cuánto vendí?» con la demo](docs/assets/demo.gif)
+
+*Captura real de la demo: la pregunta, la aclaración del período («Este mes») y la respuesta con su razonamiento y su SQL a la vista.*
 
 ```mermaid
 sequenceDiagram
@@ -296,7 +300,7 @@ Tu backend dice en nombre de qué usuario se pregunta (`id`, `role`, `attributes
 
 ## Estado del proyecto
 
-ChatIApp está en **diseño abierto**: la documentación y el backlog están completos y el desarrollo avanza por hitos. Cada tarea es un issue con objetivo, criterios de aceptación verificables, archivos y tamaño.
+ChatIApp está en **desarrollo activo, previo a la v0.1.0**. El flujo principal ya funciona de punta a punta y se probó en un contenedor real: arranque con la demo «Ventas (demo)», inicio de sesión, proveedor de IA (incluido Ollama local), chat con respuesta en streaming («¿Cuánto vendí este mes?»), modelo semántico con roles, auditoría y métricas. Falta pulir la calidad con modelos pequeños y publicar la imagen en GHCR. Cada tarea es un issue con objetivo, criterios de aceptación verificables, archivos y tamaño.
 
 | Hito | Qué entrega | Épicas |
 |---|---|---|
@@ -310,7 +314,18 @@ Plan detallado en [docs/ROADMAP.md](docs/ROADMAP.md) y avance en vivo en el [tab
 
 ## Inicio rápido
 
-Con Docker instalado, la demo queda lista en pocos minutos:
+Con Docker instalado, la demo queda lista en pocos minutos. Hoy la ruta verificada es construir la imagen desde el repositorio:
+
+```bash
+git clone https://github.com/jmmana/ChatIApp && cd ChatIApp
+cp .env.example .env
+echo "CHATIAPP_ADMIN_EMAIL=tu@correo.com" >> .env
+echo "CHATIAPP_ADMIN_PASSWORD=una-clave-larga" >> .env
+docker compose up --build
+# abre http://localhost:8080
+```
+
+Cuando se publique la primera versión, bastará con la imagen ya construida (**aún no está en GHCR**: se publica con la v0.1.0):
 
 ```bash
 docker run -p 8080:8080 -v chatiapp:/data \

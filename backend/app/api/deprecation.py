@@ -2,7 +2,7 @@
 
 import calendar
 from collections.abc import Callable
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from email.utils import format_datetime
 
 from fastapi import Response
@@ -21,8 +21,8 @@ def deprecation_headers(*, deprecated_on: date, sunset: date) -> Callable[[Respo
     if sunset < _add_months(deprecated_on, 6):
         raise ValueError("Sunset debe ser al menos seis meses posterior a la fecha de deprecación")
 
-    deprecated_at = datetime.combine(deprecated_on, time(), tzinfo=timezone.utc)
-    sunset_at = datetime.combine(sunset, time(23, 59, 59), tzinfo=timezone.utc)
+    deprecated_at = datetime.combine(deprecated_on, time(), tzinfo=UTC)
+    sunset_at = datetime.combine(sunset, time(23, 59, 59), tzinfo=UTC)
 
     def add_headers(response: Response) -> None:
         response.headers["Deprecation"] = f"@{int(deprecated_at.timestamp())}"
