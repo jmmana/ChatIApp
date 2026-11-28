@@ -14,6 +14,7 @@ import html
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from urllib.parse import parse_qs
 
 import httpx
@@ -24,7 +25,7 @@ COOKIE = "anfitriona_sesion"
 ROLE = "gerente_sucursal"  # rol del modelo semántico de la demo; la key lo fija además
 
 # Usuarios de prueba de ESTA app (no son usuarios de ChatIApp). Cada uno ve sus sucursales.
-USERS: dict[str, dict[str, object]] = {
+USERS: dict[str, dict[str, Any]] = {
     "ana": {"password": "clave-ana-1234", "name": "Ana", "branch_ids": [1]},
     "bruno": {"password": "clave-bruno-1234", "name": "Bruno", "branch_ids": [2]},
 }
@@ -126,7 +127,7 @@ def create_app(settings: Settings, transport: httpx.BaseTransport | None = None)
         if username is None:
             return LOGIN_PAGE.format(error="")
         user = USERS[username]
-        branches = ", ".join(str(b) for b in user["branch_ids"])  # type: ignore[attr-defined]
+        branches = ", ".join(str(b) for b in user["branch_ids"])
         return CHAT_PAGE.format(
             public_url=html.escape(settings.public_url, quote=True),
             name=html.escape(str(user["name"])),
