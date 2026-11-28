@@ -62,7 +62,7 @@ def test_endpoint_obsoleto_agrega_cabeceras_y_marca_openapi() -> None:
     assert obsoleto.status_code == 200
     epoch = int(datetime(2026, 11, 28, tzinfo=UTC).timestamp())
     assert obsoleto.headers["Deprecation"] == f"@{epoch}"
-    assert obsoleto.headers["Sunset"] == "Fri, 01 Jan 2099 00:00:00 GMT"
+    assert obsoleto.headers["Sunset"] == "Thu, 01 Jan 2099 00:00:00 GMT"
     vigente = client.get("/api/v1/nuevo")
     assert "Deprecation" not in vigente.headers
     assert "Sunset" not in vigente.headers
