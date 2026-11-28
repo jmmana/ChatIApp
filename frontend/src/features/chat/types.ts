@@ -31,6 +31,8 @@ export interface SqlData {
   summary_table?: string | null;
   filters_applied: string[];
   period?: { label: string; start: string; end_exclusive: string } | null;
+  /** Nombre de la métrica del plan; solo cuando el SQL sale del catálogo. */
+  metric?: string | null;
 }
 
 export interface ResultData {
