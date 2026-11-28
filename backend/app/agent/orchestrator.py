@@ -607,7 +607,7 @@ class Orchestrator:
                 raise self._rejection(guarded)
             yield _step("guard", "done", "SQL validado")
             assert guarded.sql is not None
-            yield self._sql_event(t, guarded.sql, period)
+            yield self._sql_event(t, guarded.sql, period, verified.metric.name)
             yield from self._execute(t, guarded.sql, outcome)
         yield from self._answer(t, outcome)
 
@@ -747,7 +747,7 @@ class Orchestrator:
             [comparison.previous_period.label, comparison.previous_value],
         ]
         yield _step("compare", "done", comparison.summary_reason)
-        yield self._sql_event(t, guarded_sql[comparison.sql], period)
+        yield self._sql_event(t, guarded_sql[comparison.sql], period, verified.metric.name)
         yield Event(
             ResultData(
                 columns=outcome.columns,
@@ -916,7 +916,9 @@ class Orchestrator:
 
     # -- salidas
 
-    def _sql_event(self, t: _Turn, sql: str, period: PeriodRange | None) -> Event:
+    def _sql_event(
+        self, t: _Turn, sql: str, period: PeriodRange | None, metric: str | None = None
+    ) -> Event:
         assert t.run is not None
         applied = t.run.filters_applied
         flat = [*applied.get("metric", []), *applied.get("request", [])]
@@ -936,6 +938,7 @@ class Orchestrator:
                 summary_table=t.run.summary_table,
                 filters_applied=flat,
                 period=period_data,
+                metric=metric,
             )
         )
 

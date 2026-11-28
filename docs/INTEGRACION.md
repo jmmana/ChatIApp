@@ -128,12 +128,14 @@ Para integraciones simples, `POST /api/v1/chat` devuelve el turno completo en un
   "conversation_id": "7d0c…",
   "status": "answered",
   "period": { "start": "2026-11-01", "end_exclusive": "2026-12-01", "label": "Noviembre 2026 (al día 25)" },
-  "sql": { "sql": "SELECT SUM(total_ventas) AS ventas_netas FROM ventas_diarias WHERE …", "dialect": "postgres", "origin": "catalog", "summary_table": "ventas_diarias", "filters_applied": ["ventas_diarias: sucursal_id IN (1, 2)"] },
+  "sql": { "sql": "SELECT SUM(total_ventas) AS ventas_netas FROM ventas_diarias WHERE …", "dialect": "postgres", "origin": "catalog", "summary_table": "ventas_diarias", "filters_applied": ["ventas_diarias: sucursal_id IN (1, 2)"], "metric": "ventas_netas" },
   "result": { "columns": ["ventas_netas"], "rows": [["482315000.00"]], "truncated": false },
   "answer": "Este mes llevas $482,3 M en ventas netas.",
   "usage": { "tokens_in": 1830, "tokens_out": 142, "cost_usd": 0.0031 }
 }
 ```
+
+`sql.metric` (opcional) es el nombre de la métrica del plan cuando el SQL sale del catálogo; no aparece en SQL libre. Úsalo para buscar la etiqueta legible de la métrica, porque la columna del resultado puede llevar un alias técnico como `valor`.
 
 Si tu app prefiere ejecutar el SQL por su cuenta, usa una fuente en **modo solo SQL** (`execute: false`): recibes la consulta validada y con el filtro del rol, sin que ChatIApp toque la base.
 

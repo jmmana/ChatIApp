@@ -460,6 +460,20 @@ def test_filtro_de_rol_se_aplica_al_sql_del_catalogo(
     assert any(f.startswith("ventas_diarias: sucursal_id IN") for f in sql["filters_applied"])
 
 
+def test_evento_sql_del_catalogo_trae_la_metrica(
+    session: Session, model: SemanticModel, demo_url: str, query_executor: QueryExecutor
+) -> None:
+    datasource = _datasource(session, privacy="schema")
+    conversation = _conversation(session, datasource)
+    orchestrator = _orchestrator(
+        session, model, datasource, _gateway(METRIC_PLAN), demo_url, query_executor
+    )
+
+    events = _turn(orchestrator, conversation, "¿Cuánto vendí este mes?")
+
+    assert _of(events, "sql")[0]["metric"] == METRIC_PLAN["metric"]
+
+
 def test_evento_se_serializa_como_sse() -> None:
     event = Event(Step(id="verify", label="Verificando", status="running"))
     assert event.sse() == (
