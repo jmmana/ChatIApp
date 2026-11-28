@@ -30,7 +30,7 @@ export interface SqlData {
   origin: "catalog" | "llm";
   summary_table?: string | null;
   filters_applied: string[];
-  period?: string | null;
+  period?: { label: string; start: string; end_exclusive: string } | null;
 }
 
 export interface ResultData {
