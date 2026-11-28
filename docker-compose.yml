@@ -9,6 +9,8 @@
 #                                                     (http://localhost:16686). Define en .env
 #                                                      CHATIAPP_OTEL_ENDPOINT=http://otel-collector:4318
 #                                                     para que la app exporte las trazas.
+#   docker compose --profile integracion up --build → + app anfitriona de ejemplo con el chat
+#                                                     embebido (http://localhost:8000)
 name: chatiapp
 
 services:
@@ -63,6 +65,41 @@ services:
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
       - "${CHATIAPP_JAEGER_PORT:-16686}:16686"
+    restart: unless-stopped
+
+  # App anfitriona de ejemplo (examples/integracion/README.md): http://localhost:8000
+  integracion-preparar:
+    profiles: ["integracion"]
+    image: chatiapp:local
+    command: ["sh", "/ejemplo/preparar.sh"]
+    environment:
+      HOST_ORIGIN: http://localhost:${INTEGRACION_PORT:-8000}
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - chatiapp-data:/data
+      - ./examples/integracion:/ejemplo:ro
+    depends_on:
+      chatiapp:
+        condition: service_healthy
+
+  integracion:
+    profiles: ["integracion"]
+    build: ./examples/integracion
+    ports:
+      - "${INTEGRACION_PORT:-8000}:8000"
+    environment:
+      CHATIAPP_URL: http://chatiapp:8080
+      CHATIAPP_PUBLIC_URL: http://localhost:${CHATIAPP_PORT:-8080}
+      HOST_ORIGIN: http://localhost:${INTEGRACION_PORT:-8000}
+      CHATIAPP_API_KEY_FILE: /chatiapp/integracion/api_key
+      CHATIAPP_DATASOURCE_FILE: /chatiapp/integracion/datasource
+    volumes:
+      - chatiapp-data:/chatiapp:ro
+    depends_on:
+      integracion-preparar:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   ollama:

@@ -38,7 +38,7 @@ flowchart LR
 Las crea un administrador desde **Integraciones** en la interfaz o con la línea de comandos del contenedor (útil en despliegues sin interfaz):
 
 ```bash
-docker compose exec api chatiapp keys create \
+docker compose exec chatiapp chatiapp keys create \
   --name "Portal de clientes" \
   --scopes chat,embed \
   --datasource ventas \
@@ -208,6 +208,12 @@ def chatiapp_token(session = Depends(current_session)):
     )
     return {"token": r.json()["token"]}
 ```
+
+- `datasource` acepta el UUID de la fuente o su `id` en `chatiapp.yaml`. El **nombre** («Ventas (demo)») sirve en `--datasource` al crear la key, pero no en esta petición: la fuente de la demo no tiene `id` de configuración, así que usa su UUID.
+- El `origin` es el de la página que abre tu usuario (esquema, dominio y puerto, p. ej. `http://localhost:8000`) y debe estar entre los orígenes permitidos de la key.
+- Si ChatIApp rechaza la petición, no reenvíes su respuesta al navegador: devuelve un error propio.
+
+**Ejemplo ejecutable.** [`examples/integracion/`](../examples/integracion/README.md) trae una app anfitriona completa (login de prueba, `/chatiapp-token` y la página con el widget). `docker compose --profile integracion up --build` la levanta junto a ChatIApp con la demo; `backend/tests/examples/test_integracion.py` verifica que dos usuarios con sucursales distintas ven resultados distintos y que la API key no llega al navegador.
 
 ### En tu página
 

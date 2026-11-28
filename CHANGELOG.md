@@ -7,6 +7,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); l
 ### Añadido
 
 - SDKs oficiales `chatiapp` (Python) y `@chatiapp/client` (TypeScript) en `sdks/`: modelos generados desde `docs/openapi/v1.json`, chat con aclaraciones, streaming SSE tipado y emisión de tokens de sesión del chat embebido.
+- App anfitriona de ejemplo en `examples/integracion/` (login de prueba, `/chatiapp-token` y `<chatiapp-chat>`), con el perfil `integracion` de Compose y una prueba E2E de filtros por sucursal y de que la API key no llega al navegador.
 
 ## [0.1.0] - 2026-11-27
 
