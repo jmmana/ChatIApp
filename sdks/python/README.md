@@ -19,10 +19,11 @@ if turn.needs_clarification:
 print(turn.answer, turn.sql.sql)
 ```
 
-Streaming:
+Streaming (solo con una sesión o un token de sesión del chat embebido, **no con una API key**: el servidor responde 401; desde tu servidor usa `chat()`):
 
 ```python
-for event in client.chat_stream("¿Cuánto vendí este mes?", datasource="ventas", user=user):
+browser_client = ChatIApp(base_url="https://chatiapp.tuempresa.com", api_key=session_token)
+for event in browser_client.chat_stream("¿Cuánto vendí este mes?", datasource="ventas", user=user):
     if event.type == "answer.delta":
         print(event.data.text, end="")
 ```
