@@ -121,6 +121,34 @@ describe("ResultView", () => {
     expect(screen.getByText(/Subió 10%/)).toBeInTheDocument();
   });
 
+  it("la tarjeta usa la etiqueta de la métrica del evento aunque la columna sea «valor»", () => {
+    const sql = {
+      sql: "",
+      dialect: "sqlite",
+      origin: "catalog" as const,
+      filters_applied: [],
+      period: { label: "noviembre", start: "2026-11-01", end_exclusive: "2026-12-01" },
+    };
+    const { rerender } = render(
+      <ResultView
+        result={result(["valor"], [[110]])}
+        sql={{ ...sql, metric: "ventas_netas" }}
+        metricLabels={{ ventas_netas: "Ventas netas" }}
+        locale="en-US"
+      />,
+    );
+    expect(screen.getByText("Ventas netas · noviembre")).toBeInTheDocument();
+    rerender(
+      <ResultView
+        result={result(["valor"], [[110]])}
+        sql={sql}
+        metricLabels={{ ventas_netas: "Ventas netas" }}
+        locale="en-US"
+      />,
+    );
+    expect(screen.getByText("valor · noviembre")).toBeInTheDocument();
+  });
+
   it("permite cambiar a tabla, ordenar y avisa del recorte", async () => {
     const user = userEvent.setup();
     render(
