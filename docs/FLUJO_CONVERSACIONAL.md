@@ -159,7 +159,7 @@ El endpoint `POST /api/v1/chat/stream` responde con `text/event-stream`. Cada ev
 | `step` | `{id, label, status: running · done · warning · error, detail?}` | Agrega o actualiza un paso en la línea de tiempo del razonamiento |
 | `reasoning` | `{text}` | Muestra el resumen del plan |
 | `clarification` | `{question, options[], slot}` | Muestra la pregunta con botones |
-| `sql` | `{sql, dialect, origin: catalog · llm, summary_table?, filters_applied[], period?}` | Muestra el bloque SQL con insignias |
+| `sql` | `{sql, dialect, origin: catalog · llm, summary_table?, filters_applied[], period?, metric?}` | Muestra el bloque SQL con insignias |
 | `result` | `{columns[], rows[][], row_count, truncated, elapsed_ms}` | Tarjeta KPI, tabla o gráfico |
 | `answer.delta` | `{text}` | Escribe la respuesta en vivo |
 | `answer` | `{text}` | Texto final completo |

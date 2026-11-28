@@ -66,6 +66,7 @@ class SqlData(_Data):
     summary_table: str | None = None
     filters_applied: list[str] = []
     period: PeriodData | None = None
+    metric: str | None = None
 
 
 class ResultData(_Data):
