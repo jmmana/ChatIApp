@@ -4,6 +4,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); l
 
 ## [Sin publicar]
 
+## [0.1.0] - 2026-11-27
+
+Primera versión usable: pregunta a tu base de datos en lenguaje natural y recibe una respuesta con su razonamiento a la vista.
+
 ### Añadido
 
 - Chat con respuesta en streaming y razonamiento visible; el agente pide el período cuando la pregunta lo necesita, reintenta el plan con el error de verificación y no añade dimensiones que la pregunta no pide.
@@ -26,23 +30,3 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); l
 - Con modelos pequeños (7B) el planificador puede equivocarse; hay un reintento con el error de verificación, pero conviene un modelo mayor para uso real.
 - La verificación manual con un proveedor de pago (10 preguntas de la demo) está pendiente.
 - Los SDKs de Python y TypeScript generados desde OpenAPI y la app anfitriona de ejemplo están en desarrollo y no forman parte de esta versión.
-
-## [0.1.0] - 2026-11-27
-
-Primera versión usable: pregunta a tu base de datos en lenguaje natural y recibe una respuesta con su razonamiento a la vista.
-
-### Añadido
-
-- Chat con respuesta en streaming y razonamiento visible; el agente pide el período cuando la pregunta lo necesita.
-- Modelo semántico en YAML (métricas, tablas resumidas, relaciones, roles con tablas ocultas y filtros por fila) y pantallas para editarlo, importar la estructura de la base y probar métricas.
-- Guardián de SQL ([sqlguardllm](https://github.com/jmmana/sqlguardllm)): solo `SELECT` permitido por el modelo semántico y el rol del usuario.
-- Hub de proveedores de IA con enrutamiento por tarea y respaldo entre proveedores; Ollama local incluido.
-- Usuarios y roles, «Ver como», claves de API, auditoría y métricas Prometheus.
-- Demo «Ventas (demo)» creada al arrancar; imagen única con SQLite y perfiles de Compose para PostgreSQL y Ollama.
-- Accesibilidad AA, tema oscuro y diseño responsive.
-
-### Limitaciones conocidas
-
-- Con modelos pequeños (7B) el planificador puede equivocarse; hay un reintento con el error de verificación, pero conviene un modelo mayor para uso real.
-- El chat embebible, los SDKs, el chart de Helm y la comparativa de modelos están en desarrollo y no forman parte de esta versión.
-- La verificación manual con un proveedor de pago (10 preguntas) está pendiente.
