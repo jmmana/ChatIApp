@@ -25,8 +25,14 @@ PROMPT_PATH = Path(__file__).parent / "prompts" / "answer.md"
 DEFAULT_LOCALE = "es-CO"
 MIN_FIGURE_DIGITS = 3  # cifras más cortas («3», «12») no sirven para detectar una fila citada
 _FIGURE = re.compile(r"\d(?:[\d.,]|[   ](?=\d))*")
+# Número tal como lo escribe una respuesta: con miles agrupados («1.234.567,8») o sin agrupar.
+_NUMBER_TOKEN = re.compile(r"\d{1,3}(?:[.,   ]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)*")
+MIN_CHECKED_DIGITS = 4  # la comprobación de cifras inventadas solo mira números de 4+ dígitos
+_SEPARATOR_STYLES = ((",", "."), (".", ","), ("", "."), ("", ","))
+_SCALES = (1, 10**3, 10**6, 10**9)  # «mil», «millones», «mil millones» / «mil M»
+_SPACES = "   "
 
-NBSP = " "
+NBSP =" "
 NARROW_NBSP = " "
 
 # Idiomas con «1.234,5», con «1 234,5» y regiones de español con «1,234.5».
@@ -203,6 +209,70 @@ def quotes_only_first_row(
     return bool(only_first & cited) and not (others & cited)
 
 
+def _figure_tokens(text: str) -> set[str]:
+    """Números de 4+ dígitos del texto, sin espacios ni puntuación final."""
+    tokens = {re.sub(f"[{_SPACES}]", "", m).rstrip(".,") for m in _NUMBER_TOKEN.findall(text)}
+    return {t for t in tokens if len(_digits(t)) >= MIN_CHECKED_DIGITS}
+
+
+def _value_forms(number: float) -> set[str]:
+    """Formas en que un número puede citarse: entero, con decimales, separadores, abreviado."""
+    forms: set[str] = set()
+    for scale in _SCALES:
+        scaled = abs(number) / scale
+        for decimals in (0, 1, 2):
+            for group, decimal in _SEPARATOR_STYLES:
+                text = f"{scaled:,.{decimals}f}".translate(str.maketrans(",.", "\x00\x01"))
+                forms.add(text.replace("\x00", group).replace("\x01", decimal))
+        forms.add(str(int(scaled)))  # truncado
+    return forms
+
+
+def _is_year(token: str) -> bool:
+    return token.isdigit() and len(token) == 4 and 1900 <= int(token) <= 2100
+
+
+def _allowed_figures(outcome: Outcome, locale: str, currency: str | None) -> set[str]:
+    allowed = _figure_tokens(template_answer(outcome, locale=locale, currency=currency))
+    periods = [outcome.period]
+    comparison = outcome.comparison
+    if comparison is not None:
+        periods += [comparison.period, comparison.previous_period]
+        allowed |= _figure_tokens(variation_text(comparison, locale))
+        for value in (
+            comparison.value,
+            comparison.previous_value,
+            comparison.difference,
+            comparison.change_pct,
+        ):
+            number = _number(value)
+            if number is not None:
+                allowed |= _value_forms(number)
+    for period in periods:
+        if period is not None:
+            allowed |= _figure_tokens(period.label) | _figure_tokens(str(period.start))
+    for row in outcome.rows:
+        for cell in row:
+            number = _number(cell)
+            if number is not None:
+                allowed |= _value_forms(number)
+            if not isinstance(cell, bool):
+                allowed |= _figure_tokens(str(cell))
+    return allowed
+
+
+def invented_figures(
+    text: str, outcome: Outcome, *, locale: str = DEFAULT_LOCALE, currency: str | None = None
+) -> list[str]:
+    """Cifras de 4+ dígitos del texto que no están en el resultado ni en el período del turno.
+
+    Se comparan como texto, no solo por sus dígitos: «395.407.376.71» tiene los mismos dígitos que
+    39540737671 pero no es una forma válida de escribirlo. Los años no se consideran inventados.
+    """
+    allowed = _allowed_figures(outcome, locale, currency)
+    return sorted(t for t in _figure_tokens(text) if t not in allowed and not _is_year(t))
+
+
 # --------------------------------------------------------------------------- redacción
 
 
@@ -243,6 +313,13 @@ class AnswerWriter:
             self.warning = (
                 "La respuesta de la IA citaba solo la primera de varias filas. "
                 "Se usó la respuesta de plantilla."
+            )
+            return
+        invented = invented_figures(drafted, outcome, locale=self.locale, currency=self.currency)
+        if invented:
+            self.warning = (
+                f"La respuesta de la IA citaba cifras que no están en el resultado "
+                f"({', '.join(invented)}). Se usó la respuesta de plantilla."
             )
             return
         self.text = drafted.strip()

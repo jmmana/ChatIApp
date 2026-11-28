@@ -14,6 +14,7 @@ from app.agent.answer import (
     template_answer,
 )
 from app.agent.events import AnswerDelta
+from app.engine.compare import Comparison
 from app.engine.periods import PeriodRange
 from app.llm.gateway import Gateway, ProviderConfig, StreamEvent
 from app.semantic.context import Privacy
@@ -186,5 +187,72 @@ def test_si_la_ia_cita_todas_las_filas_se_conserva_su_respuesta(
     gateway = EspiaGateway(texto)
 
     writer, _ = _redactar(gateway, model, "aggregates", _por_grupo(ventas))
+
+    assert writer.text == texto and writer.warning is None
+
+
+@pytest.mark.parametrize(
+    ("valor", "respuesta"),
+    [
+        (39540737671, "En Marzo 2026 vendiste 395.407.376.71 COP."),
+        (9505618882, "En Marzo 2026 vendiste 95.056.188.82 COP."),
+        (18322862.68, "En Marzo 2026 vendiste 18.322.262 COP."),
+    ],
+)
+def test_una_cifra_desfigurada_se_sustituye_por_la_plantilla(
+    model: SemanticModel, ventas: Metric, valor: float, respuesta: str
+) -> None:
+    outcome = _outcome(ventas, [[valor]])
+
+    writer, _ = _redactar(EspiaGateway(respuesta), model, "aggregates", outcome)
+
+    assert writer.text == template_answer(outcome, locale="es-CO", currency="COP")
+    assert writer.warning is not None and "Se usó la respuesta de plantilla" in writer.warning
+
+
+@pytest.mark.parametrize(
+    "respuesta",
+    [
+        "En Marzo 2026 vendiste 34.617.161.773 COP.",
+        "En Marzo 2026 vendiste $34.617.161.773,00.",
+        "En Marzo 2026 vendiste 34617161773 pesos.",
+        "En Marzo 2026 vendiste unos 34.617 millones.",
+        "En Marzo 2026 vendiste 34,6 mil M; el 15 de marzo de 2026 fue el pico.",
+    ],
+)
+def test_una_cifra_correcta_en_cualquier_forma_se_conserva(
+    model: SemanticModel, ventas: Metric, respuesta: str
+) -> None:
+    writer, _ = _redactar(
+        EspiaGateway(respuesta), model, "aggregates", _outcome(ventas, [[34617161773]])
+    )
+
+    assert writer.text == respuesta and writer.warning is None
+
+
+def test_la_comprobacion_acepta_variacion_del_motor_y_cifras_de_la_plantilla(
+    model: SemanticModel, ventas: Metric
+) -> None:
+    anterior = PeriodRange(date(2026, 2, 1), date(2026, 3, 1), "Febrero 2026", "month", False)
+    comparison = Comparison(
+        metric="ventas",
+        period=PERIODO,
+        previous_period=anterior,
+        value=1500000.0,
+        previous_value=1000.0,
+        difference=1499000.0,
+        change_pct=149900.0,
+        change_note=None,
+        summary_table=None,
+        summary_reason="",
+        sql="",
+        previous_sql="",
+    )
+    outcome = Outcome(
+        columns=["valor"], rows=[[1500000.0]], metric=ventas, period=PERIODO, comparison=comparison
+    )
+    texto = "En Marzo 2026 vendiste $1.500.000, un 149.900,0 % más que Febrero 2026."
+
+    writer, _ = _redactar(EspiaGateway(texto), model, "aggregates", outcome)
 
     assert writer.text == texto and writer.warning is None
