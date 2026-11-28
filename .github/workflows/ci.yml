@@ -188,13 +188,50 @@ jobs:
           kubectl logs deploy/chatiapp --all-containers --tail=80 || true
           kubectl get events --sort-by=.lastTimestamp | tail -20
 
+  openapi:
+    name: Contrato OpenAPI (publicado y sin cambios incompatibles)
+    needs: detect
+    if: needs.detect.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Dependencias
+        run: uv sync --locked
+        working-directory: backend
+      - name: El archivo publicado coincide con la API
+        run: uv run python -m app.api.openapi --check
+        working-directory: backend
+      - name: Cambios incompatibles frente a main
+        if: github.event_name == 'pull_request'
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          if ! git show origin/main:docs/openapi/v1.json > /tmp/base.json 2>/dev/null; then
+            echo "main aún no publica docs/openapi/v1.json: no hay nada que comparar"; exit 0
+          fi
+          BREAKING=""
+          docker run --rm -v "$PWD:/w" -v /tmp:/t tufin/oasdiff breaking /t/base.json /w/docs/openapi/v1.json --fail-on ERR > /tmp/diff.txt || BREAKING=1
+          cat /tmp/diff.txt
+          if [ -n "$BREAKING" ]; then
+            echo "$LABELS" | grep -q 'api:cambio-incompatible' || { echo "Cambio incompatible sin la etiqueta api:cambio-incompatible"; exit 1; }
+            git diff origin/main -- CHANGELOG.md | grep -q '^+' || { echo "Falta una entrada en CHANGELOG.md"; exit 1; }
+          fi
+
   ok:
     name: CI completo
-    needs: [backend, node, imagen, helm]
+    needs: [backend, node, imagen, helm, openapi]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Resultado
         run: |
-          echo "backend=${{ needs.backend.result }} node=${{ needs.node.result }} imagen=${{ needs.imagen.result }} helm=${{ needs.helm.result }}"
+          echo "backend=${{ needs.backend.result }} node=${{ needs.node.result }} imagen=${{ needs.imagen.result }} helm=${{ needs.helm.result }} openapi=${{ needs.openapi.result }}"
           if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then exit 1; fi
