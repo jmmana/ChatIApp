@@ -310,7 +310,7 @@ def test_toda_ruta_de_chat_sin_credencial_es_401(
 def test_una_api_key_no_llega_al_chat_de_sesion(
     client: TestClient, session: Session, datasource: Datasource, path: str, body: Any
 ) -> None:
-    _, secret = _key(session)  # alcance `chat`, y aun así: el streaming es solo de sesión
+    _, secret = _key(session)  # alcance `chat`, y aun así: cancelar es solo de sesión
     response = client.post(path, json=body, headers={"Authorization": f"Bearer {secret}"})
     assert response.status_code == 401
 
