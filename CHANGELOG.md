@@ -6,6 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); l
 
 ### Añadido
 
+- SDKs oficiales `chatiapp` (Python) y `@chatiapp/client` (TypeScript) en `sdks/`: modelos generados desde `docs/openapi/v1.json`, chat con aclaraciones, streaming SSE tipado y emisión de tokens de sesión del chat embebido.
 - Contrato de la API: `docs/openapi/v1.json` versionado, exportador `python -m app.api.openapi` y utilidad `deprecated_route` para anunciar retiros con las cabeceras `Deprecation` y `Sunset`.
 
 ## [0.1.0] - 2026-11-27
