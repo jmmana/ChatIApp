@@ -53,6 +53,10 @@ describe("selectView", () => {
     expect(selectView(result(["c", "v"], many))).toBe("table");
   });
 
+  it("una fila con una columna de tiempo y una medida → tarjeta KPI", () => {
+    expect(selectView(result(["periodo", "valor"], [["2026-11-01", 37482545093]]))).toBe("kpi");
+  });
+
   it("una fila con varias columnas sin comparación → tabla", () => {
     expect(selectView(result(["a", "b"], [[1, 2]]))).toBe("table");
   });
