@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.agent.orchestrator import Orchestrator
+from app.api.chat import get_stream_caller
 from app.api.datasources import get_request_cipher
 from app.db.models import Base, Datasource, Provider, SemanticModelVersion, User
 from app.db.session import get_session, make_engine
@@ -66,6 +67,7 @@ def client(factory: sessionmaker[Session]) -> Iterator[TestClient]:
     app.dependency_overrides[get_request_cipher] = lambda: CIPHER
     app.dependency_overrides[get_current_user] = lambda: usuario
     app.dependency_overrides[get_caller] = lambda: Caller(user=usuario)
+    app.dependency_overrides[get_stream_caller] = lambda: Caller(user=usuario)
     yield TestClient(app)
     app.dependency_overrides.clear()
 

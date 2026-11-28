@@ -288,14 +288,17 @@ def test_conversaciones_aisladas_por_key_y_usuario_final(
 # --- seguridad de las rutas de chat (POST /chat comparte módulo con el streaming) ---------------
 
 SOLO_SESION = [
-    ("/api/v1/chat/stream", {"datasource_id": "ventas", "message": "hola"}),
     ("/api/v1/chat/00000000-0000-0000-0000-000000000000/cancel", None),
 ]
 
 
 @pytest.mark.parametrize(
     ("path", "body"),
-    [("/api/v1/chat", {"datasource_id": "ventas", "message": "hola"}), *SOLO_SESION],
+    [
+        ("/api/v1/chat", {"datasource_id": "ventas", "message": "hola"}),
+        ("/api/v1/chat/stream", {"datasource_id": "ventas", "message": "hola"}),
+        *SOLO_SESION,
+    ],
 )
 def test_toda_ruta_de_chat_sin_credencial_es_401(
     client: TestClient, datasource: Datasource, path: str, body: dict[str, Any] | None

@@ -7,9 +7,10 @@ comentario keep-alive mientras se espera y `cancel` puede cortar el turno sin es
 
 `/chat/stream` y `/chat/{turn_id}/cancel` aceptan la sesión del usuario o un token de sesión del
 chat embebido (docs/INTEGRACION.md); con token, la fuente, el rol y los atributos son los que
-fijó el backend anfitrión. `POST /chat` (sin streaming) acepta además una API key con alcance
+fijó el backend anfitrión. `POST /chat` y `/chat/stream` aceptan además una API key con alcance
 `chat`; con key, la identidad sale del campo `user` dentro del techo de la key y las
-conversaciones se aíslan por `api_key_id` + `external_user_id`.
+conversaciones se aíslan por `api_key_id` + `external_user_id`. Cancelar un turno sigue siendo
+solo de la sesión y del token (una key corta el turno cerrando la conexión).
 """
 
 import asyncio
@@ -22,7 +23,7 @@ from dataclasses import dataclass, field
 from typing import Annotated, Any, cast
 
 from cryptography.fernet import MultiFernet
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Engine, select
@@ -35,7 +36,13 @@ from app.api.errors import ApiError
 from app.api.preview import ViewAs, load_model, resolve_identity
 from app.db.models import ApiKey, Conversation, Datasource, Message, Provider, User
 from app.db.session import get_session
-from app.integrations.api_keys import Principal, require_scope
+from app.integrations.api_keys import (
+    Principal,
+    bearer_token,
+    get_principal,
+    looks_like_api_key,
+    require_scope,
+)
 from app.integrations.embed_sessions import Caller, get_caller
 from app.integrations.end_user import EndUser, EndUserError, resolve_end_user
 from app.llm.gateway import Gateway, ProviderConfig
@@ -56,6 +63,20 @@ CallerDep = Annotated[Caller, Depends(get_caller)]
 PrincipalDep = Annotated[Principal, Depends(require_scope("chat"))]
 CipherDep = Annotated[MultiFernet, Depends(get_request_cipher)]
 
+_require_chat = require_scope("chat")
+
+
+def get_stream_caller(
+    request: Request, session: Annotated[Session, Depends(get_session)]
+) -> Caller | Principal:
+    """Credencial del streaming: API key con `chat`, o sesión / token de sesión."""
+    if looks_like_api_key(bearer_token(request)):
+        return _require_chat(get_principal(request, session))
+    return get_caller(request, session)
+
+
+StreamCallerDep = Annotated[Caller | Principal, Depends(get_stream_caller)]
+
 KEEPALIVE_SECONDS = 15.0
 TITLE_LENGTH = 60
 SSE_HEADERS = {
@@ -75,7 +96,7 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     provider_override: str | None = Field(default=None, description="UUID o `id` del archivo")
     view_as: ViewAs | None = None
-    # Obligatorio con API key (solo `POST /chat`); con sesión se ignora.
+    # Obligatorio con API key; con sesión se ignora.
     user: EndUser | None = None
 
 
@@ -309,16 +330,33 @@ async def _stream(turn: _Turn) -> AsyncIterator[str]:
 
 @router.post("/stream", summary="Envía un mensaje y recibe el turno por SSE")
 async def chat_stream(
-    body: ChatRequest, session: SessionDep, caller: CallerDep, cipher: CipherDep
+    body: ChatRequest, session: SessionDep, credential: StreamCallerDep, cipher: CipherDep
 ) -> StreamingResponse:
     # Todo lo que puede fallar con 4xx pasa antes de abrir el stream.
     datasource_id = _uuid_or_config(body.datasource_id, datasource_uuid)
     datasource, model, version = load_model(session, datasource_id)
-    embed = caller.embed
     override = body.provider_override
     role: str | None
     context: dict[str, Any]
-    if embed is not None:
+    owner: str | None = None  # `external_user_id` del usuario final, si lo hay
+    api_key: ApiKey | None = None
+    user: User | None = None
+    if isinstance(credential, Principal):
+        # API key: la identidad sale de `user`, dentro del techo de la key (como `POST /chat`).
+        assert credential.api_key is not None
+        api_key = credential.api_key
+        try:
+            access = resolve_end_user(api_key, datasource, model, body.user)
+        except EndUserError as exc:
+            raise ApiError(exc.status_code, exc.code, exc.message) from exc
+        role, context, owner = access.role, access.context, access.external_user_id
+        check_turn(credential)
+        check_api_key_budget(session, api_key)
+        override = None  # una key no elige proveedor
+        turn_owner = f"{api_key.id}:{owner}"
+    elif credential.embed is not None:
+        embed = credential.embed
+        api_key, owner, turn_owner = embed.api_key, embed.user_id, credential.owner
         # Token de sesión: la fuente, el rol y los atributos los fijó el backend anfitrión; se
         # revalidan contra el techo de la key y nada de la petición los cambia.
         if datasource.id != embed.datasource_id:
@@ -337,22 +375,16 @@ async def chat_stream(
         check_api_key_budget(session, embed.api_key)
         override = None  # como con API key: solo el proveedor del administrador
     else:
-        assert caller.user is not None
-        role, context = resolve_identity(session, caller.user, datasource, model, body.view_as)
+        assert credential.user is not None
+        user = credential.user
+        turn_owner = credential.owner
+        role, context = resolve_identity(session, user, datasource, model, body.view_as)
     provider = _provider(session, override)
     try:
         url = decrypt(datasource.url_encrypted, cipher)
     except SecretKeyError as exc:
         raise ApiError(500, "secret_key_invalid", str(exc)) from exc
-    api_key = embed.api_key if embed is not None else None
-    conversation = _conversation(
-        session,
-        datasource,
-        body,
-        user=caller.user,
-        api_key=api_key,
-        owner=embed.user_id if embed is not None else None,
-    )
+    conversation = _conversation(session, datasource, body, user=user, api_key=api_key, owner=owner)
     engine = session.get_bind()
     assert isinstance(engine, Engine)
     plan = _Plan(
@@ -371,7 +403,7 @@ async def chat_stream(
         message=body.message,
         api_key_id=api_key.id if api_key is not None else None,
     )
-    turn = _Turn(owner=caller.owner, loop=asyncio.get_running_loop())
+    turn = _Turn(owner=turn_owner, loop=asyncio.get_running_loop())
     threading.Thread(target=_run_turn, args=(plan, turn), daemon=True).start()
     return StreamingResponse(_stream(turn), media_type="text/event-stream", headers=SSE_HEADERS)
 
