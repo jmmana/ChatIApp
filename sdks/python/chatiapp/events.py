@@ -197,7 +197,7 @@ def parse_sse(lines: Iterable[str]) -> Iterator[StreamEvent]:
             continue
         else:
             field, _, value = line.partition(":")
-            value = value[1:] if value.startswith(" ") else value
+            value = value.removeprefix(" ")
             if field == "event":
                 event_type = value
             elif field == "data":

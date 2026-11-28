@@ -45,7 +45,7 @@ class ChatIApp:
         if self._owns_client:
             self._http.close()
 
-    def __enter__(self) -> "ChatIApp":
+    def __enter__(self) -> "ChatIApp":  # noqa: PYI034 (typing.Self exige Python 3.11; se admite 3.10)
         return self
 
     def __exit__(
