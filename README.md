@@ -110,7 +110,7 @@ Defines «ventas netas» una vez y se calcula igual siempre, sin depender de có
 <td valign="top">
 
 **🔌 Cualquier proveedor de IA**<br/>
-Claude, ChatGPT, Gemini, DeepSeek, Qwen, Kimi y GLM por API directa; o a través de Bedrock, Azure, Vertex AI, OpenRouter o GitHub Models; o local con Ollama. Un modelo distinto para cada tarea, con respaldo automático si uno falla.
+Claude, ChatGPT, Gemini, DeepSeek, Qwen, Kimi y GLM por API directa; o a través de Bedrock, Azure, Vertex AI, OpenRouter; o local con Ollama. Un modelo distinto para cada tarea, con respaldo automático si uno falla.
 
 </td>
 <td valign="top">
@@ -235,7 +235,7 @@ La tabla se reemplaza por una versión ya filtrada, así que el filtro aplica ta
 | Tipo | Proveedores | Cómo se conecta |
 |---|---|---|
 | **API directa** | Anthropic (Claude) · OpenAI (ChatGPT) · Google Gemini · Mistral · xAI (Grok) · Groq | API key |
-| **Plataformas cloud** | AWS Bedrock · Azure OpenAI / AI Foundry · Google Vertex AI · OpenRouter · GitHub Models | Credenciales de la plataforma (IAM, endpoint + key, cuenta de servicio, token) |
+| **Plataformas cloud** | AWS Bedrock · Azure OpenAI / AI Foundry · Google Vertex AI · OpenRouter | Credenciales de la plataforma (IAM, endpoint + key, cuenta de servicio, token) |
 | **Modelos chinos** | DeepSeek · Qwen (Alibaba Model Studio) · Kimi (Moonshot) · GLM (Zhipu / Z.ai) · MiniMax · Doubao (Volcengine) | API key, con endpoint internacional o de China continental |
 | **Local** | Ollama · vLLM · LM Studio · cualquier servidor compatible con OpenAI | URL del servidor, sin datos fuera de tu red |
 

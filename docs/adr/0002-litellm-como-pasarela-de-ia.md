@@ -5,7 +5,7 @@
 
 ## Contexto
 
-ChatIApp debe funcionar con Claude, ChatGPT, Gemini, modelos chinos (DeepSeek, Qwen, Kimi, GLM, MiniMax, Doubao), plataformas cloud (Bedrock, Azure, Vertex AI, OpenRouter, GitHub Models) y modelos locales. Cada uno tiene su SDK, su autenticación, su formato de *streaming*, de salida estructurada y de errores.
+ChatIApp debe funcionar con Claude, ChatGPT, Gemini, modelos chinos (DeepSeek, Qwen, Kimi, GLM, MiniMax, Doubao), plataformas cloud (Bedrock, Azure, Vertex AI, OpenRouter) y modelos locales. Cada uno tiene su SDK, su autenticación, su formato de *streaming*, de salida estructurada y de errores.
 
 ## Decisión
 

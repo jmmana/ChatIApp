@@ -226,23 +226,6 @@ CATALOG: tuple[ProviderSpec, ...] = (
         docs_url="https://openrouter.ai/docs/quickstart",
         notes="Cientos de modelos con una cuenta.",
     ),
-    ProviderSpec(
-        kind="github_models",
-        label="GitHub Models",
-        category="platform",
-        litellm_prefix="github/",
-        fields=(
-            ProviderField(
-                name="api_key",
-                label="Token de GitHub",
-                type="secret",
-                help="Token con permiso de modelos.",
-            ),
-        ),
-        suggested_models=("gpt-4o", "Llama-3.3-70B-Instruct"),
-        docs_url="https://docs.github.com/en/github-models",
-        notes="No es la suscripción de Copilot (docs/spikes/github-copilot.md).",
-    ),
     # --- Modelos chinos ---
     ProviderSpec(
         kind="deepseek",
