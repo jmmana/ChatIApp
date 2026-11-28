@@ -84,7 +84,7 @@ export function ResultView({
       {view === "kpi" && (
         <KpiCard
           label={metricLabels[metricName] ?? metricName}
-          period={sql?.period}
+          period={sql?.period?.label}
           value={result.rows[0][current]}
           previous={shape.comparison ? result.rows[0][shape.comparison.previous] : undefined}
           {...options}

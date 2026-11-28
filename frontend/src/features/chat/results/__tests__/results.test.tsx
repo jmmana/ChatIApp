@@ -106,7 +106,7 @@ describe("ResultView", () => {
           dialect: "sqlite",
           origin: "catalog",
           filters_applied: [],
-          period: "noviembre",
+          period: { label: "noviembre", start: "2026-11-01", end_exclusive: "2026-12-01" },
         }}
         metricLabels={{ ventas: "Ventas netas" }}
         locale="en-US"
