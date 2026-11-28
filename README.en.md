@@ -43,6 +43,10 @@ ChatIApp is built on three ideas:
 
 ## How a conversation flows
 
+![ChatIApp answering "How much did I sell?" on the demo](docs/assets/demo.gif)
+
+*Real capture of the demo (the interface is in Spanish): the question, the period clarification ("Este mes" = this month) and the answer with its reasoning and SQL in plain sight.*
+
 ```mermaid
 sequenceDiagram
     autonumber
