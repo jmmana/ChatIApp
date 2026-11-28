@@ -67,6 +67,8 @@ function mockApi(options: { admin?: boolean; test?: unknown } = {}) {
   const { admin = true, test = { ok: true, latency_ms: 840, error_kind: null, message: null } } =
     options;
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/auth/me"))
+      return json({ id: "1", email: "ana@example.com", is_admin: admin });
     if (url.endsWith("/auth/refresh"))
       return json({
         access_token: "jwt",

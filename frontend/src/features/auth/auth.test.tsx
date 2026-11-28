@@ -41,10 +41,40 @@ describe("autenticación", () => {
     expect(await screen.findByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
   });
 
-  it("inicia sesión, guarda el token solo en memoria y entra a la app", async () => {
-    const fetchMock = vi.fn(async (url: string) =>
-      url.endsWith("/refresh") ? json({}, 401) : json(session),
+  it("si /auth/me responde 401 trata la sesión como cerrada y vuelve al login", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.endsWith("/auth/me")
+          ? json({ error: { message: "Sesión inválida." } }, 401)
+          : json(session),
+      ),
     );
+
+    renderAt("/chat");
+
+    expect(await screen.findByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
+    expect(getAccessToken()).toBeNull();
+  });
+
+  it("al cargar la sesión pide /auth/me una sola vez", async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      url.endsWith("/auth/me") ? json(session.user) : json(session),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderAt("/chat");
+    await screen.findByRole("heading", { level: 1, name: "Chat" });
+
+    const meCalls = fetchMock.mock.calls.filter(([url]) => url.endsWith("/auth/me"));
+    expect(meCalls).toHaveLength(1);
+  });
+
+  it("inicia sesión, guarda el token solo en memoria y entra a la app", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith("/refresh")) return json({}, 401);
+      return url.endsWith("/auth/me") ? json(session.user) : json(session);
+    });
     vi.stubGlobal("fetch", fetchMock);
     renderAt("/chat");
 
@@ -79,7 +109,9 @@ describe("autenticación", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) =>
-        url.endsWith("/logout") ? new Response(null, { status: 204 }) : json(session),
+        url.endsWith("/logout")
+          ? new Response(null, { status: 204 })
+          : json(url.endsWith("/auth/me") ? session.user : session),
       ),
     );
     renderAt("/chat");

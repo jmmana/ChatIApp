@@ -68,6 +68,7 @@ function setup(model: SemanticModel = demoModel()) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/auth/me")) return json(session.user);
       if (url.endsWith("/auth/refresh")) return json(session);
       if (url.endsWith("/datasources")) {
         return json([{ id: DS, name: "Ventas (demo)", dialect: "sqlite" }]);

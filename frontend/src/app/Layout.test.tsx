@@ -14,11 +14,15 @@ beforeEach(() => {
     "fetch",
     vi.fn(
       async (url: string) => {
-        let body: unknown = {
-          access_token: "jwt",
-          expires_in: 900,
-          user: { id: "1", email: "ana@example.com", is_admin: isAdmin },
-        };
+        // El rol sale de /auth/me; el usuario de refresh no cuenta.
+        const user = { id: "1", email: "ana@example.com", is_admin: isAdmin };
+        let body: unknown = url.endsWith("/auth/me")
+          ? user
+          : {
+              access_token: "jwt",
+              expires_in: 900,
+              user: { ...user, is_admin: !isAdmin },
+            };
         if (url.includes("/datasources") || url.includes("/providers") || url.includes("/evals"))
           body = [];
         else if (url.includes("/audit")) body = { items: [], total: 0, page: 1, page_size: 25 };
