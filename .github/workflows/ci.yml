@@ -167,6 +167,8 @@ jobs:
           kind load docker-image chatiapp:ci --name chart-testing
           kubectl create secret generic chatiapp-secrets \
             --from-literal=CHATIAPP_SECRET_KEY="$(python3 -c 'import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')" \
+            --from-literal=ANTHROPIC_API_KEY=sk-ant-clave-falsa-de-prueba \
+            --from-literal=VENTAS_DB_URL=postgresql://usuario:clave@postgres.invalido:5432/ventas \
             --from-literal=CHATIAPP_ADMIN_EMAIL=admin@example.com \
             --from-literal=CHATIAPP_ADMIN_PASSWORD=una-clave-larga-de-prueba
           helm install chatiapp deploy/helm/chatiapp \
