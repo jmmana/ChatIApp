@@ -68,6 +68,7 @@ function json(body: unknown, status = 200) {
 function setup(onImport: (file: File) => Response) {
   const uploads: File[] = [];
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/auth/me")) return json(session.user);
     if (url.endsWith("/auth/refresh")) return json(session);
     if (url.endsWith("/datasources")) {
       return json([{ id: DS, name: "Ventas (demo)", dialect: "sqlite" }]);

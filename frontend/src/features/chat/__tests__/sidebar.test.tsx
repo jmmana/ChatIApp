@@ -97,6 +97,8 @@ function stubApi() {
     vi.fn(async (url: string, init?: RequestInit) => {
       const method = init?.method ?? "GET";
       calls.push({ url, method, body: init?.body as string | undefined });
+      if (url.endsWith("/auth/me"))
+        return json({ id: "1", email: "ana@example.com", is_admin: false });
       if (url.endsWith("/auth/refresh"))
         return json({
           access_token: "jwt",

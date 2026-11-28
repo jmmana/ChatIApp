@@ -22,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
     api
       .refresh()
+      .then((session) => (session ? api.me() : null))
       .catch(() => null)
       .then((restored) => {
         if (!active) return;
@@ -34,8 +35,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const loggedIn = await api.login(email, password);
-    setUser(loggedIn);
+    await api.login(email, password);
+    const current = await api.me();
+    if (!current) throw new api.AuthApiError(401, "No se pudo iniciar sesión. Inténtalo de nuevo.");
+    setUser(current);
     setStatus("authenticated");
   }, []);
 
