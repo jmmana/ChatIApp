@@ -60,6 +60,7 @@ function setup(put: (calls: Calls) => Response, current = { version: 12, model: 
     created_at: "2026-11-20T15:00:00Z",
   };
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/auth/me")) return json(session.user);
     if (url.endsWith("/auth/refresh")) return json(session);
     if (url.endsWith("/datasources")) {
       return json([{ id: DS, name: "Ventas (demo)", dialect: "sqlite" }]);

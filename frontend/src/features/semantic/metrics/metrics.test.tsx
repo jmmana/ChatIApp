@@ -86,6 +86,7 @@ interface Calls {
 function setup(handlers: { preview?: () => Response; put?: () => Response } = {}) {
   const calls: Calls = { previews: [], puts: [] };
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/auth/me")) return json(session.user);
     if (url.endsWith("/auth/refresh")) return json(session);
     if (url.endsWith("/datasources")) {
       return json([{ id: DS, name: "Ventas (demo)", dialect: "sqlite" }]);

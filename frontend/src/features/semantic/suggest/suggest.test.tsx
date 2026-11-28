@@ -43,6 +43,7 @@ function json(body: unknown, status = 200) {
 
 function setup(suggest: () => Response) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/auth/me")) return json(session.user);
     if (url.endsWith("/auth/refresh")) return json(session);
     if (url.endsWith("/datasources")) return json([{ id: DS, name: "Ventas", dialect: "sqlite" }]);
     if (url.endsWith("/semantic/suggest")) return suggest();
