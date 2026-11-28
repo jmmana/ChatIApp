@@ -12,10 +12,6 @@ import { ChatIApp } from "@chatiapp/client";
 const client = new ChatIApp({ baseUrl: "https://chatiapp.tuempresa.com", apiKey: process.env.CHATIAPP_API_KEY! });
 const user = { id: "u-123", role: "gerente_sucursal", attributes: { sucursales: [1, 2] } };
 
-for await (const event of client.chatStream({ datasource: "ventas", message: "¿Cuánto vendí este mes?", user })) {
-  if (event.type === "answer.delta") process.stdout.write(event.data.text);
-}
-
 let turn = await client.chat({ datasource: "ventas", message: "¿Cuánto vendí?", user });
 if (turn.status === "needs_clarification") {
   turn = await client.chat({ message: "Este mes", conversationId: turn.conversation_id, user });
@@ -37,3 +33,14 @@ const { token } = await client.createEmbedSession({
 - `src/generated/types.ts` se genera desde `docs/openapi/v1.json` (`node sdks/scripts/generate.mjs`); no lo edites.
 
 Desarrollo: `pnpm install`, `pnpm run lint`, `pnpm run test`, `pnpm run build`.
+
+## Streaming
+
+`chatStream` solo funciona con una sesión o un token de sesión del chat embebido, **no con una API key** (el servidor responde 401): desde tu servidor usa `chat()`. Con un token de sesión, pásalo como `apiKey`:
+
+```ts
+const browserClient = new ChatIApp({ baseUrl: "https://chatiapp.tuempresa.com", apiKey: sessionToken });
+for await (const event of browserClient.chatStream({ datasource: "ventas", message: "¿Cuánto vendí este mes?", user })) {
+  if (event.type === "answer.delta") process.stdout.write(event.data.text);
+}
+```

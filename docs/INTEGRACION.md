@@ -93,15 +93,13 @@ Las conversaciones quedan ligadas a la key y al `user.id`: otra key u otro usuar
 
 ### Con streaming (SSE)
 
+El streaming lo usan la interfaz de ChatIApp y el chat embebido, con una **sesión** (el inicio de sesión de un usuario) o un **token de sesión** del chat embebido, que solo se acepta desde el origen para el que se emitió. **Una API key no puede abrir `POST /api/v1/chat/stream`** (responde 401): desde tu servidor usa [`POST /api/v1/chat`](#sin-streaming), que sí acepta la key.
+
 ```bash
 curl -N https://chatiapp.tuempresa.com/api/v1/chat/stream \
-  -H "Authorization: Bearer $CHATIAPP_API_KEY" \
+  -H "Authorization: Bearer $TOKEN_DE_SESION" \
   -H "Content-Type: application/json" \
-  -d '{
-        "datasource": "ventas",
-        "message": "¿Cuánto vendí?",
-        "user": { "id": "u-123", "role": "gerente_sucursal", "attributes": { "sucursales": [1, 2] } }
-      }'
+  -d '{ "datasource_id": "ventas", "message": "¿Cuánto vendí?" }'
 ```
 
 Los eventos son los mismos que usa la interfaz: [FLUJO_CONVERSACIONAL.md](FLUJO_CONVERSACIONAL.md#eventos-de-streaming).
@@ -159,14 +157,18 @@ print(turn.answer, turn.sql.sql)
 import { ChatIApp } from "@chatiapp/client";
 
 const client = new ChatIApp({ baseUrl: "https://chatiapp.tuempresa.com", apiKey: process.env.CHATIAPP_API_KEY! });
-for await (const event of client.chatStream({ datasource: "ventas", message: "¿Cuánto vendí este mes?", user })) {
-  if (event.type === "answer.delta") process.stdout.write(event.data.text);
+const user = { id: "u-123", role: "gerente_sucursal", attributes: { sucursales: [1, 2] } };
+
+let turn = await client.chat({ datasource: "ventas", message: "¿Cuánto vendí?", user });
+if (turn.status === "needs_clarification") {
+  turn = await client.chat({ conversationId: turn.conversation_id, message: "Este mes", user });
 }
+console.log(turn.answer, turn.sql?.sql);
 ```
 
 - `chat()` devuelve el turno con `status` (`answered`, `needs_clarification`, `rejected`, `error`); en la respuesta de una aclaración, el SDK recuerda la fuente de la `conversation_id` y no hace falta repetirla.
 - Los errores HTTP lanzan `ChatIAppError` (`code`, `message`, estado HTTP). En el stream, un fallo del turno llega como evento `error`.
-- Los eventos de `chat_stream`/`chatStream` están tipados (`turn.started`, `step`, `sql`, `answer.delta`…); un evento que el SDK no conoce llega como `UnknownEvent` en Python y se omite en TypeScript.
+- `chat_stream`/`chatStream` solo funcionan con una sesión o un token de sesión (ver [Con streaming](#con-streaming-sse)), no con una API key. Sus eventos están tipados (`turn.started`, `step`, `sql`, `answer.delta`…); un evento que el SDK no conoce llega como `UnknownEvent` en Python y se omite en TypeScript.
 - Tokens de sesión del chat embebido, desde tu backend: `client.create_embed_session(datasource=…, origin=…, user=…)` (Python) o `client.createEmbedSession({ datasource, origin, user })` (TypeScript); devuelve `token` y `expires_at` para pasar el token al widget.
 
 ## Chat embebido
