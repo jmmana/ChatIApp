@@ -14,7 +14,7 @@ ChatIApp is an AI chat that **reasons about your question, asks for what's missi
 
 [![CI](https://github.com/jmmana/ChatIApp/actions/workflows/ci.yml/badge.svg)](https://github.com/jmmana/ChatIApp/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-3B82F6)](LICENSE)
-[![Status](https://img.shields.io/badge/status-before%20v0.1.0-8B5CF6)](#project-status)
+[![Version](https://img.shields.io/badge/version-v0.1.0-8B5CF6)](https://github.com/jmmana/ChatIApp/releases/tag/v0.1.0)
 [![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](docs/ARQUITECTURA.md)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](docs/ARQUITECTURA.md)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](docs/INTERFAZ.md)
@@ -298,7 +298,7 @@ Your backend states on whose behalf each question is asked (`id`, `role`, `attri
 
 ## Project status
 
-ChatIApp is in **active development, ahead of v0.1.0**. The main flow works end to end and was tested in a real container: start-up with the "Ventas (demo)" data, sign-in, AI provider (including local Ollama), streaming chat ("How much did I sell this month?"), semantic model with roles, audit and metrics. Still to do: polish quality with small models and publish the image to GHCR. Every task is an issue with a goal, verifiable acceptance criteria, files and size.
+ChatIApp is in **active development; v0.1.0 is already released**. The main flow works end to end and was tested in a real container: start-up with the "Ventas (demo)" data, sign-in, AI provider (including local Ollama), streaming chat ("How much did I sell this month?"), semantic model with roles, audit and metrics. Still to do: polish quality with small models and publish the image to GHCR. Every task is an issue with a goal, verifiable acceptance criteria, files and size.
 
 | Milestone | Delivers | Epics |
 |---|---|---|
@@ -312,7 +312,18 @@ Detailed plan in [docs/ROADMAP.md](docs/ROADMAP.md) and live progress on the [pr
 
 ## Quick start
 
-With Docker installed, the demo is ready in a few minutes. Today the verified path is building the image from the repository:
+With Docker installed, the demo is ready in a few minutes, using the published image (verified with `0.1.0`):
+
+```bash
+docker run -p 8080:8080 -v chatiapp:/data \
+  -e CHATIAPP_ADMIN_EMAIL=you@example.com -e CHATIAPP_ADMIN_PASSWORD='a-long-password' \
+  ghcr.io/jmmana/chatiapp
+# open http://localhost:8080 and sign in with that email and password
+```
+
+The "Ventas (demo)" data source is already created. To get answers, add an AI provider under "Proveedores de IA" (Claude, ChatGPT, Gemini, Ollama…) and ask "How much did I sell?"; the agent asks for the period and you can answer "Este mes" (this month).
+
+To build the image yourself from the repository:
 
 ```bash
 git clone https://github.com/jmmana/ChatIApp && cd ChatIApp
@@ -320,16 +331,6 @@ cp .env.example .env
 echo "CHATIAPP_ADMIN_EMAIL=you@example.com" >> .env
 echo "CHATIAPP_ADMIN_PASSWORD=a-long-password" >> .env
 docker compose up --build
-# open http://localhost:8080
-```
-
-Once the first release is out, the prebuilt image will be enough (**not on GHCR yet**: it ships with v0.1.0):
-
-```bash
-docker run -p 8080:8080 -v chatiapp:/data \
-  -e CHATIAPP_ADMIN_EMAIL=you@example.com -e CHATIAPP_ADMIN_PASSWORD='a-long-password' \
-  -e ANTHROPIC_API_KEY=sk-ant-… ghcr.io/jmmana/chatiapp
-# open http://localhost:8080 and ask: how much did I sell?
 ```
 
 Everything lives in the `chatiapp` volume (SQLite database, demo and encryption key). For PostgreSQL or Ollama, use the profiles in [`docker-compose.yml`](docker-compose.yml).
