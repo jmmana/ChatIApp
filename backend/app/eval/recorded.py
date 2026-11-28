@@ -137,11 +137,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="app.eval.recorded", description="Evalúa el motor con planes grabados"
     )
-    parser.add_argument("--set", dest="set_dir", type=Path, default=RAIZ_SET, help="Carpeta del set")
+    parser.add_argument(
+        "--set", dest="set_dir", type=Path, default=RAIZ_SET, help="Carpeta del set"
+    )
     parser.add_argument(
         "--recorded", type=Path, default=None, help="Grabaciones (por defecto, las del set)"
     )
-    parser.add_argument("--out", type=Path, default=Path("eval-reports"), help="Carpeta del informe")
+    parser.add_argument(
+        "--out", type=Path, default=Path("eval-reports"), help="Carpeta del informe"
+    )
     parser.add_argument(
         "--min-accuracy",
         type=float,
