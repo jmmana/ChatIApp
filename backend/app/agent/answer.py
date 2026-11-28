@@ -32,7 +32,7 @@ _SEPARATOR_STYLES = ((",", "."), (".", ","), ("", "."), ("", ","))
 _SCALES = (1, 10**3, 10**6, 10**9)  # «mil», «millones», «mil millones» / «mil M»
 _SPACES = "   "
 
-NBSP =" "
+NBSP = " "
 NARROW_NBSP = " "
 
 # Idiomas con «1.234,5», con «1 234,5» y regiones de español con «1,234.5».
