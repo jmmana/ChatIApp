@@ -112,7 +112,7 @@ Define "net sales" once and it's computed the same way every time, regardless of
 <td valign="top">
 
 **🔌 Any AI provider**<br/>
-Claude, ChatGPT, Gemini, DeepSeek, Qwen, Kimi and GLM via direct API; or through Bedrock, Azure, Vertex AI, OpenRouter or GitHub Models; or locally with Ollama. A different model per task, with automatic fallback.
+Claude, ChatGPT, Gemini, DeepSeek, Qwen, Kimi and GLM via direct API; or through Bedrock, Azure, Vertex AI, OpenRouter; or locally with Ollama. A different model per task, with automatic fallback.
 
 </td>
 <td valign="top">
@@ -235,7 +235,7 @@ The table is replaced by an already-filtered version, so the filter also applies
 | Type | Providers | How it connects |
 |---|---|---|
 | **Direct API** | Anthropic (Claude) · OpenAI (ChatGPT) · Google Gemini · Mistral · xAI (Grok) · Groq | API key |
-| **Cloud platforms** | AWS Bedrock · Azure OpenAI / AI Foundry · Google Vertex AI · OpenRouter · GitHub Models | Platform credentials (IAM, endpoint + key, service account, token) |
+| **Cloud platforms** | AWS Bedrock · Azure OpenAI / AI Foundry · Google Vertex AI · OpenRouter | Platform credentials (IAM, endpoint + key, service account, token) |
 | **Chinese models** | DeepSeek · Qwen (Alibaba Model Studio) · Kimi (Moonshot) · GLM (Zhipu / Z.ai) · MiniMax · Doubao (Volcengine) | API key, international or mainland China endpoint |
 | **Local** | Ollama · vLLM · LM Studio · any OpenAI-compatible server | Server URL, no data leaves your network |
 

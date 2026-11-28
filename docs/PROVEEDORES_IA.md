@@ -35,7 +35,6 @@ Los prefijos de LiteLLM se verificaron contra **LiteLLM 1.111.0** (`litellm.prov
 | Azure AI Foundry | `azure_ai/` | `api_base`, `api_key` | Modelos del catálogo de Foundry |
 | Google Vertex AI | `vertex_ai/` | `vertex_project`, `vertex_location`, `vertex_credentials` (JSON de la cuenta de servicio, **se guarda como secreto cifrado**) | Gemini y modelos de socios en Vertex |
 | OpenRouter | `openrouter/` | `api_key` | Cientos de modelos con una cuenta |
-| GitHub Models | `github/` | Token de GitHub con permiso de modelos | Ver [GitHub Copilot](#github-copilot) |
 
 ### Modelos chinos
 
@@ -61,16 +60,16 @@ Cada uno permite cambiar `api_base` para usar el endpoint de **China continental
 
 Los modelos se listan desde `GET {api_base}/api/tags` en Ollama y desde `GET {api_base}/models` (`/v1/models`) en los demás; la `api_key`, si existe, se envía como `Bearer`. Con `docker compose --profile local-ai up`, Ollama queda en `http://ollama:11434` dentro de la red de Compose (descarga un modelo con `docker compose exec ollama ollama pull llama3.1`).
 
-## GitHub Copilot
+## GitHub Copilot y GitHub Models
 
-Hay dos caminos y no son equivalentes:
+**ChatIApp no ofrece ninguno de los dos.**
 
-| Camino | Qué es | Estado en ChatIApp |
-|---|---|---|
-| **GitHub Models** (`github/`) | API oficial de GitHub para usar modelos desde aplicaciones, con un token de GitHub | Soportado en el catálogo |
-| **Suscripción de Copilot** (`github_copilot/`) | LiteLLM trae este proveedor, que se autentica con tu suscripción de Copilot por flujo de dispositivo OAuth | **No se ofrece** (decisión del spike): el token es de una persona, depende de un endpoint interno y los términos de GitHub no contemplan servir una suscripción a varios usuarios. Detalle y condiciones para reabrirlo en [docs/spikes/github-copilot.md](spikes/github-copilot.md) |
+| Camino | Estado |
+|---|---|
+| **GitHub Models** (`github/`) | **Retirado por GitHub el 30 de julio de 2026**; ya no existe la API de inferencia |
+| **Suscripción de Copilot** (`github_copilot/`) | **No se ofrece**: el token es de una persona, LiteLLM se hace pasar por el editor oficial, depende de un endpoint interno y los términos de GitHub no contemplan servir una suscripción a varios usuarios |
 
-**Decisión:** ChatIApp ofrece solo GitHub Models. Siguen pendientes, sin verificar, de una máquina con red (issue #173): el flujo de autenticación de `github_copilot/` contra LiteLLM 1.111.0, la lectura de los términos de uso y la prueba de concepto con `github/`. El spike trae los guiones.
+Verificación contra LiteLLM 1.111.0 y lectura de los términos (27 de noviembre de 2026) en [docs/spikes/github-copilot.md](spikes/github-copilot.md). Alternativas: las API directas de arriba, Azure AI Foundry (lo que GitHub recomienda como reemplazo de GitHub Models) u Ollama en local.
 
 ## Enrutamiento por tarea
 
