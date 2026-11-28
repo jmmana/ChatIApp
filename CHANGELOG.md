@@ -4,6 +4,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); l
 
 ## [Sin publicar]
 
+### Añadido
+
+- Contrato de la API: `docs/openapi/v1.json` versionado, exportador `python -m app.api.openapi` y utilidad `deprecated_route` para anunciar retiros con las cabeceras `Deprecation` y `Sunset`.
+
 ## [0.1.0] - 2026-11-27
 
 Primera versión usable: pregunta a tu base de datos en lenguaje natural y recibe una respuesta con su razonamiento a la vista.

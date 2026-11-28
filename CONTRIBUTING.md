@@ -52,6 +52,16 @@ Las épicas agrupan tareas como *sub-issues* y las dependencias se registran com
 - Si cambia un contrato (API, modelo semántico, eventos SSE, configuración), la documentación en `docs/` se actualiza en el mismo PR.
 - Sin secretos, credenciales ni datos reales en el código, las pruebas o los logs.
 
+## Versionado de la API
+
+Política completa: [docs/INTEGRACION.md](docs/INTEGRACION.md#versionado-de-la-api).
+
+- Todo vive bajo `/api/v1`. La especificación se sirve en `/api/v1/openapi.json` y se guarda en [`docs/openapi/v1.json`](docs/openapi/v1.json). Si tu cambio toca la API, regénerala con `uv run python -m app.api.openapi` (desde `backend/`); CI falla si difiere de la app.
+- Antes de **v1.0.0** el contrato puede cambiar, pero cada cambio incompatible se anuncia en el `CHANGELOG`.
+- Desde v1.0.0 un cambio incompatible solo llega en `/api/v2`.
+- CI compara la especificación del PR con la de `main` y falla ante un cambio incompatible, salvo que el PR tenga la etiqueta `api:cambio-incompatible` **y** una entrada en el `CHANGELOG`.
+- Para retirar un endpoint, márcalo con `deprecated_route(sunset=...)` de `app/api/deprecation.py`: agrega las cabeceras `Deprecation` y `Sunset` y lo marca como obsoleto en OpenAPI. Debe haber al menos 6 meses entre el aviso y el retiro.
+
 ## Decisiones de diseño
 
 Si tu propuesta cambia una decisión registrada en [`docs/adr/`](docs/adr/), escribe un ADR nuevo que la reemplace y explica por qué. Las decisiones aceptadas no se editan.
