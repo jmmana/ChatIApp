@@ -1,5 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { createRequire } from "node:module";
 import type { Page } from "@playwright/test";
+
+// Ver playwright.config.ts: Node no ve las exportaciones con nombre de @playwright/test como ESM.
+const { expect, test } = createRequire(import.meta.url)(
+  "@playwright/test",
+) as typeof import("@playwright/test");
 
 const CHATIAPP = "http://localhost:4101";
 const HOST = "http://localhost:4102";

@@ -1,4 +1,10 @@
-import { defineConfig, devices } from "@playwright/test";
+import { createRequire } from "node:module";
+
+// Node carga este archivo como ESM y no ve las exportaciones con nombre del paquete CommonJS
+// (`defineConfig`, `expect`): se piden con require, sin perder los tipos.
+const { defineConfig, devices } = createRequire(import.meta.url)(
+  "@playwright/test",
+) as typeof import("@playwright/test");
 
 // Requiere `pnpm run build` (usa dist/) y los navegadores: `pnpm exec playwright install chromium`.
 export default defineConfig({
