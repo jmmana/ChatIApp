@@ -139,13 +139,62 @@ jobs:
       - name: Prueba de humo
         run: sh scripts/smoke-image.sh chatiapp:ci
 
+  helm:
+    name: Helm (lint e instalación en kind)
+    needs: detect
+    if: needs.detect.outputs.backend == 'true' && needs.detect.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: helm lint
+        run: |
+          helm lint deploy/helm/chatiapp --set existingSecret=chatiapp-secrets
+          helm template chatiapp deploy/helm/chatiapp --set existingSecret=chatiapp-secrets >/dev/null
+      - uses: docker/setup-buildx-action@v3
+      - name: Build de la imagen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: chatiapp:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - uses: helm/kind-action@v1
+      - name: Instalar el chart en kind
+        run: |
+          kind load docker-image chatiapp:ci --name chart-testing
+          kubectl create secret generic chatiapp-secrets \
+            --from-literal=CHATIAPP_SECRET_KEY="$(python3 -c 'import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')" \
+            --from-literal=ANTHROPIC_API_KEY=sk-ant-clave-falsa-de-prueba \
+            --from-literal=VENTAS_DB_URL=postgresql://usuario:clave@postgres.invalido:5432/ventas \
+            --from-literal=CHATIAPP_ADMIN_EMAIL=admin@example.com \
+            --from-literal=CHATIAPP_ADMIN_PASSWORD=una-clave-larga-de-prueba
+          helm install chatiapp deploy/helm/chatiapp \
+            --set image.repository=chatiapp --set image.tag=ci --set image.pullPolicy=Never \
+            --wait --timeout 3m
+      - name: Probar /api/v1/health
+        run: |
+          kubectl port-forward svc/chatiapp 8080:8080 &
+          for i in $(seq 1 20); do curl -fs http://localhost:8080/api/v1/health && exit 0; sleep 2; done
+          kubectl describe pods; kubectl logs deploy/chatiapp || true
+          exit 1
+      - name: Diagnóstico del pod
+        if: failure()
+        run: |
+          kubectl get pods,pvc -o wide
+          kubectl describe pods
+          kubectl logs deploy/chatiapp --all-containers --tail=80 || true
+          kubectl get events --sort-by=.lastTimestamp | tail -20
+
   ok:
     name: CI completo
-    needs: [backend, node, imagen]
+    needs: [backend, node, imagen, helm]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Resultado
         run: |
-          echo "backend=${{ needs.backend.result }} node=${{ needs.node.result }} imagen=${{ needs.imagen.result }}"
+          echo "backend=${{ needs.backend.result }} node=${{ needs.node.result }} imagen=${{ needs.imagen.result }} helm=${{ needs.helm.result }}"
           if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then exit 1; fi

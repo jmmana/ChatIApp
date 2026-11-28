@@ -1,0 +1,17 @@
+{{- if and (eq .Values.database.type "sqlite") .Values.database.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "chatiapp.fullname" . }}-data
+  labels:
+    {{- include "chatiapp.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.database.persistence.accessModes | nindent 4 }}
+  {{- if .Values.database.persistence.storageClass }}
+  storageClassName: {{ .Values.database.persistence.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.database.persistence.size }}
+{{- end }}

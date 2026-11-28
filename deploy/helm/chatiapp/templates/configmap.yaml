@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "chatiapp.fullname" . }}-config
+  labels:
+    {{- include "chatiapp.labels" . | nindent 4 }}
+data:
+  chatiapp.yaml: |-
+    {{- if .Values.configuration.chatiappYaml }}
+    {{- .Values.configuration.chatiappYaml | nindent 4 }}
+    {{- else }}
+    {{- tpl (.Files.Get "files/chatiapp.yaml") . | nindent 4 }}
+    {{- end }}
+  semantic-model.yaml: |-
+    {{- if .Values.configuration.semanticModelYaml }}
+    {{- .Values.configuration.semanticModelYaml | nindent 4 }}
+    {{- else }}
+    {{- .Files.Get "files/semantic-model.yaml" | nindent 4 }}
+    {{- end }}
