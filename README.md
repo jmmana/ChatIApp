@@ -14,7 +14,7 @@ ChatIApp es un chat de IA que **razona tu pregunta, te pide lo que falta y escri
 
 [![CI](https://github.com/jmmana/ChatIApp/actions/workflows/ci.yml/badge.svg)](https://github.com/jmmana/ChatIApp/actions/workflows/ci.yml)
 [![Licencia](https://img.shields.io/badge/licencia-Apache--2.0-3B82F6)](LICENSE)
-[![Estado](https://img.shields.io/badge/estado-previa%20a%20v0.1.0-8B5CF6)](#estado-del-proyecto)
+[![Versión](https://img.shields.io/badge/versi%C3%B3n-v0.1.0-8B5CF6)](https://github.com/jmmana/ChatIApp/releases/tag/v0.1.0)
 [![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](docs/ARQUITECTURA.md)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](docs/ARQUITECTURA.md)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](docs/INTERFAZ.md)
@@ -300,7 +300,7 @@ Tu backend dice en nombre de qué usuario se pregunta (`id`, `role`, `attributes
 
 ## Estado del proyecto
 
-ChatIApp está en **desarrollo activo, previo a la v0.1.0**. El flujo principal ya funciona de punta a punta y se probó en un contenedor real: arranque con la demo «Ventas (demo)», inicio de sesión, proveedor de IA (incluido Ollama local), chat con respuesta en streaming («¿Cuánto vendí este mes?»), modelo semántico con roles, auditoría y métricas. Falta pulir la calidad con modelos pequeños y publicar la imagen en GHCR. Cada tarea es un issue con objetivo, criterios de aceptación verificables, archivos y tamaño.
+ChatIApp está en **desarrollo activo; la v0.1.0 ya está publicada**. El flujo principal ya funciona de punta a punta y se probó en un contenedor real: arranque con la demo «Ventas (demo)», inicio de sesión, proveedor de IA (incluido Ollama local), chat con respuesta en streaming («¿Cuánto vendí este mes?»), modelo semántico con roles, auditoría y métricas. Falta pulir la calidad con modelos pequeños y publicar la imagen en GHCR. Cada tarea es un issue con objetivo, criterios de aceptación verificables, archivos y tamaño.
 
 | Hito | Qué entrega | Épicas |
 |---|---|---|
@@ -314,7 +314,18 @@ Plan detallado en [docs/ROADMAP.md](docs/ROADMAP.md) y avance en vivo en el [tab
 
 ## Inicio rápido
 
-Con Docker instalado, la demo queda lista en pocos minutos. Hoy la ruta verificada es construir la imagen desde el repositorio:
+Con Docker instalado, la demo queda lista en pocos minutos, con la imagen publicada (verificada con la `0.1.0`):
+
+```bash
+docker run -p 8080:8080 -v chatiapp:/data \
+  -e CHATIAPP_ADMIN_EMAIL=tu@correo.com -e CHATIAPP_ADMIN_PASSWORD='una-clave-larga' \
+  ghcr.io/jmmana/chatiapp
+# abre http://localhost:8080 e inicia sesión con ese correo y esa clave
+```
+
+La fuente «Ventas (demo)» ya viene creada. Para que responda, añade un proveedor de IA en «Proveedores de IA» (Claude, ChatGPT, Gemini, Ollama…) y pregunta «¿Cuánto vendí?»; el agente pedirá el período y puedes responder «Este mes».
+
+Para construir la imagen tú mismo desde el repositorio:
 
 ```bash
 git clone https://github.com/jmmana/ChatIApp && cd ChatIApp
@@ -322,16 +333,6 @@ cp .env.example .env
 echo "CHATIAPP_ADMIN_EMAIL=tu@correo.com" >> .env
 echo "CHATIAPP_ADMIN_PASSWORD=una-clave-larga" >> .env
 docker compose up --build
-# abre http://localhost:8080
-```
-
-Cuando se publique la primera versión, bastará con la imagen ya construida (**aún no está en GHCR**: se publica con la v0.1.0):
-
-```bash
-docker run -p 8080:8080 -v chatiapp:/data \
-  -e CHATIAPP_ADMIN_EMAIL=tu@correo.com -e CHATIAPP_ADMIN_PASSWORD='una-clave-larga' \
-  -e ANTHROPIC_API_KEY=sk-ant-… ghcr.io/jmmana/chatiapp
-# abre http://localhost:8080 y pregunta: ¿cuánto vendí?
 ```
 
 Todo queda en el volumen `chatiapp` (base SQLite, demo y llave de cifrado). Para PostgreSQL u Ollama, usa los perfiles de [`docker-compose.yml`](docker-compose.yml).
