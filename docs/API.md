@@ -45,7 +45,7 @@ Detalle y ejemplos: [INTEGRACION.md](INTEGRACION.md).
 | `POST` | `/api/v1/datasources` | Crea: `name`, `dialect`, `url`, `execute`, `max_rows`, `timeout_seconds`, `privacy` |
 | `PATCH` | `/api/v1/datasources/{id}` | Actualiza; `url` solo se reemplaza si se envía |
 | `DELETE` | `/api/v1/datasources/{id}` | Elimina (409 `managed_by_config` si `managed_by = config`; igual en `PATCH`) |
-| `POST` | `/api/v1/datasources/{id}/test` | Prueba la conexión: `{ok, latency_ms, server_version, error?}`; `error` es `{kind, message}` con `kind` en `auth`, `network`, `driver_missing` o `unknown` (si falta el driver, el mensaje indica el extra: `uv sync --extra sqlserver`) |
+| `POST` | `/api/v1/datasources/{id}/test` | Prueba la conexión: `{ok, latency_ms, server_version, error?}`; `error` es `{kind, message}` con `kind` en `auth`, `network`, `driver_missing` o `unknown` (si falta el driver, el mensaje indica el extra: `uv sync --extra sqlserver`). Guarda el resultado en la fuente: `GET /datasources` devuelve `last_test_ok`, `last_test_at` y `last_test_error_kind` (`null` si nunca se probó); solo se guarda el tipo de error, nunca la URL ni el mensaje |
 
 Ver la lista exige sesión; crear, cambiar, borrar y probar la conexión exigen administrador (403 `forbidden` si no).
 
@@ -67,7 +67,7 @@ Responde `{metrics: [{name, label, description, requires_period, default_period,
 | `GET` | `/api/v1/datasources/{id}/semantic/versions/{n}` | Una versión del historial con su modelo |
 | `POST` | `/api/v1/datasources/{id}/semantic/import` | `multipart`: archivo `.sql` · `.csv` · `.xlsx` · `.yaml` · `.json`. El formato se detecta por la extensión. Devuelve **vista previa** `{model, diff, warnings}`; no guarda. `diff` trae `added` (`{path, kind}`), `changed` (`{path, field, before, after}`), `missing` (`{path, kind}`: no encontradas, no se borran) y `suggestions` (`{path, field, current, suggested}`: descripciones de la fuente que no pisan las escritas a mano). Extensión desconocida: 422 `unsupported_format`; archivo ilegible: 422 `invalid_file`. Solo administradores |
 | `POST` | `/api/v1/datasources/{id}/semantic/introspect` | Lee la base conectada y devuelve vista previa (`schemas`, `tables`, `relationships`, `warnings`); no guarda. Cuerpo opcional: `schemas` (lista), `table_pattern` (comodines `*` y `?`), `sample_values` (hasta 20 valores de columnas de texto de baja cardinalidad; solo con privacidad `samples`, y cada consulta pasa por el guardián). Con más de 500 tablas responde `422 too_many_tables`: hay que filtrar. Solo administración |
-| `POST` | `/api/v1/datasources/{id}/semantic/suggest` | Sugerencias de IA para descripciones, sinónimos y roles vacíos |
+| `POST` | `/api/v1/datasources/{id}/semantic/suggest` | Sugerencias de IA (tarea `suggest` del enrutamiento) para descripciones, sinónimos y roles **vacíos**; no guarda ni modifica nada existente. Cuerpo opcional: `tables` (limita a esas tablas). Procesa lotes de hasta 30 columnas, omite las columnas ocultas y solo envía valores de ejemplo con privacidad `samples`. Devuelve una lista de `{path, field, value, confidence}`: `path` es `tabla` o `tabla.columna`, `field` es `description`, `synonyms` (`value` es una lista) o `role`, y `confidence` va de 0 a 1. Sin proveedor o con la IA caída: 502 `ai_unavailable`. Solo administradores |
 | `GET` | `/api/v1/datasources/{id}/semantic/export?format=yaml` | Exporta el modelo vigente (`format=yaml` o `json`); reimportarlo da un modelo idéntico |
 | `POST` | `/api/v1/datasources/{id}/preview` | Cuerpo `{metric, period?, dimensions?, filters?, granularity?, view_as?}` → `{sql, metric, role, summary_table, reason, period, filters_applied, guard}`, sin IA. Errores de catálogo, de período o de plan: `422` |
 | `POST` | `/api/v1/datasources/{id}/validate-sql` | Cuerpo `{sql, view_as?}` → resultado del guardián `{allowed, sql, tables, violations, role}` (para pruebas; solo administradores, porque revela qué columnas están ocultas) |
@@ -197,7 +197,7 @@ Al consultar una fuente (chat o vista previa), el rol y los atributos salen del 
 | `PATCH` | `/api/v1/api-keys/{id}` | Administrador | Cambia alcances, fuentes, roles, orígenes, límites o expiración |
 | `POST` | `/api/v1/api-keys/{id}/revoke` | Administrador | Revoca la key y todos sus tokens de sesión al instante |
 | `POST` | `/api/v1/embed/sessions` | API key con alcance `embed` | `{datasource, origin, user, ttl_seconds?}` → `{token, expires_at}` para el chat embebido |
-| `GET` | `/embed/v1/chatiapp.js` | Pública | Script del chat embebido (web component) |
+| `GET` | `/embed/v1/chatiapp.js` | Pública | Script del chat embebido (web component). Carga `chatiapp-widget.js` y `chunks/*` de la misma carpeta (`/embed/v1/*`, públicos, CORS `*`) |
 | `GET` | `/api/v1/openapi.json` | Pública | Especificación OpenAPI de la versión `v1` |
 
 **Token de sesión** (`POST /embed/sessions`): `ttl_seconds` por defecto 900, máximo 3600 (422 fuera de rango). `origin` debe estar en los orígenes permitidos de la key (**403** `origin_not_allowed`); la fuente, el rol y los atributos se validan igual que en las llamadas con API key. El token es un JWT con usuario, fuente, rol, atributos, origen, id de la key y alcance `chat`, y solo se acepta en `POST /chat/stream`, `POST /chat/{turn_id}/cancel`, `GET /conversations` y `GET /conversations/{id}`; el resto responde 401. Con token:
@@ -212,5 +212,8 @@ Guía completa con ejemplos de backend, widget y SDKs: [INTEGRACION.md](INTEGRAC
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `POST` | `/api/v1/evals/runs` | Corre un set dorado contra uno o varios proveedores |
-| `GET` | `/api/v1/evals/runs` | Resultados: exactitud, latencia p50/p95, costo por proveedor |
+| `POST` | `/api/v1/evals/runs` | Lanza una corrida del set dorado contra uno o varios proveedores (**202**) |
+| `GET` | `/api/v1/evals/runs` | Corridas, la más reciente primero, con su avance y su informe |
+| `GET` | `/api/v1/evals/runs/{id}` | Una corrida |
+
+Solo administradores. `POST` recibe `{"provider_ids": [...], "max_calls": N}`; `max_calls` es obligatorio si algún proveedor no es `fake` y debe cubrir las llamadas previstas (**422** `max_calls_required`, con `details.planned_calls`). Solo corre una evaluación a la vez (**409** `eval_in_progress`). Cada corrida devuelve `status` (`running | done | error`), `cases_done`, `cases_total`, `error` y, al terminar, `report`: el informe de `app.eval.report` con exactitud (0 a 1), latencia p50/p95, tokens, costo y los casos fallidos con su SQL esperado y obtenido. El estado de las corridas vive en memoria y se pierde al reiniciar; cada proveedor deja además su `EVAL_RUN` en la base. Para asignar un proveedor a una tarea se usa `PUT /api/v1/providers/routing`.

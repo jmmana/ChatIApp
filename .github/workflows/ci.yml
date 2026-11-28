@@ -110,6 +110,12 @@ jobs:
       - name: Build
         if: steps.exists.outputs.run == 'true'
         run: pnpm run build
+      - name: Navegador para E2E
+        if: steps.exists.outputs.run == 'true' && matrix.package == 'frontend'
+        run: pnpm exec playwright install --with-deps chromium
+      - name: E2E (accesibilidad, teclado y responsive)
+        if: steps.exists.outputs.run == 'true' && matrix.package == 'frontend'
+        run: pnpm run test:e2e
 
   imagen:
     name: Imagen única (build y prueba de humo)

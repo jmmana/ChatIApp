@@ -14,6 +14,20 @@ export const TASKS: { value: Task; label: string; help: string }[] = [
   { value: "suggest", label: "Sugerencias", help: "Propone preguntas y descripciones." },
 ];
 
+/** Asignación actual a partir de lo guardado; los proveedores de `chatiapp.yaml` no se reasignan. */
+export function initialRouting(editable: Provider[]) {
+  const tasks: Partial<Record<Task, string>> = {};
+  for (const { value } of TASKS) {
+    const owner = editable.find((p) => p.tasks.includes(value));
+    if (owner) tasks[value] = owner.id;
+  }
+  const fallback = editable
+    .filter((p) => fallbackIndex(p) !== null)
+    .sort((a, b) => (fallbackIndex(a) ?? 0) - (fallbackIndex(b) ?? 0))
+    .map((p) => p.id);
+  return { tasks, fallback };
+}
+
 export function taskLabel(task: string): string {
   return TASKS.find((t) => t.value === task)?.label ?? task;
 }

@@ -41,6 +41,7 @@ function stubApi() {
   const calls: { method: string; url: string; body?: unknown }[] = [];
   const fetchMock = vi.fn(async (url: string, init: RequestInit = {}) => {
     const method = init.method ?? "GET";
+    if (url.endsWith("/auth/me")) return json(session.user);
     if (url.includes("/auth/")) return json(session);
     const body = init.body ? JSON.parse(init.body as string) : undefined;
     calls.push({ method, url, body });

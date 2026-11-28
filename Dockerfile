@@ -17,6 +17,18 @@ RUN pnpm install --frozen-lockfile
 COPY frontend/ ./
 RUN pnpm run build
 
+# --- Etapa 1b: script del chat embebido (web component en Shadow DOM) ---
+# Reutiliza los componentes de frontend/src, por eso ambos paquetes comparten carpeta padre.
+FROM node:22-slim AS widget
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
+WORKDIR /w/embed
+COPY embed/package.json embed/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY frontend/ /w/frontend/
+COPY embed/ ./
+RUN pnpm run build
+
 # --- Etapa 2: backend y dependencias en un entorno virtual ---
 FROM python:3.12-slim AS backend
 COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /usr/local/bin/uv
@@ -47,6 +59,8 @@ RUN groupadd --system --gid 10001 chatiapp \
 WORKDIR /app
 COPY --from=backend --chown=chatiapp:chatiapp /app /app
 COPY --from=web --chown=chatiapp:chatiapp /web/dist /app/static
+# El widget: /embed/v1/chatiapp.js (cargador), chatiapp-widget.js y chunks/ (partes diferidas).
+COPY --from=widget --chown=chatiapp:chatiapp /w/embed/dist /app/static/embed/v1
 COPY --chown=chatiapp:chatiapp examples /app/examples
 COPY --chmod=0755 backend/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 USER chatiapp

@@ -3,14 +3,29 @@ import type { KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
+export interface ComposerLabels {
+  question: string;
+  placeholder: string;
+  send: string;
+  cancel: string;
+}
+
+const DEFAULT_LABELS: ComposerLabels = {
+  question: "Pregunta",
+  placeholder: "Pregunta sobre tus datos…",
+  send: "Enviar",
+  cancel: "Cancelar",
+};
+
 interface Props {
   busy: boolean;
   disabled?: boolean;
+  labels?: ComposerLabels;
   onSend: (message: string) => void;
   onCancel: () => void;
 }
 
-export function Composer({ busy, disabled = false, onSend, onCancel }: Props) {
+export function Composer({ busy, disabled = false, labels = DEFAULT_LABELS, onSend, onCancel }: Props) {
   const [value, setValue] = useState("");
 
   // El campo está deshabilitado durante el turno y no recibe teclas: Esc se escucha en el documento.
@@ -46,8 +61,8 @@ export function Composer({ busy, disabled = false, onSend, onCancel }: Props) {
       }}
     >
       <Textarea
-        aria-label="Pregunta"
-        placeholder="Pregunta sobre tus datos…"
+        aria-label={labels.question}
+        placeholder={labels.placeholder}
         rows={1}
         className="min-h-10 flex-1 resize-none"
         value={value}
@@ -57,11 +72,11 @@ export function Composer({ busy, disabled = false, onSend, onCancel }: Props) {
       />
       {busy ? (
         <Button type="button" variant="outline" onClick={onCancel}>
-          Cancelar
+          {labels.cancel}
         </Button>
       ) : (
         <Button type="submit" disabled={disabled || !value.trim()}>
-          Enviar
+          {labels.send}
         </Button>
       )}
     </form>

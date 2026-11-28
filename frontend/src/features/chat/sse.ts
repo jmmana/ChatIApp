@@ -84,27 +84,37 @@ export class SseParser {
 export interface StreamTurnOptions {
   signal?: AbortSignal;
   fetchImpl?: typeof fetch;
+  /** Origen del servidor cuando el chat vive en otra página (chat embebido). */
+  baseUrl?: string;
+  /**
+   * Credencial propia en lugar del JWT en memoria. `forceRefresh` pide una nueva porque la
+   * anterior expiró: ante un 401 se reintenta una sola vez con ella.
+   */
+  authorize?: (forceRefresh: boolean) => Promise<string | null>;
 }
 
 /** POST a `/api/v1/chat/stream` y emite los eventos conforme llegan. */
 export async function* streamTurn(
   request: ChatRequest,
-  { signal, fetchImpl = fetch }: StreamTurnOptions = {},
+  { signal, fetchImpl = fetch, baseUrl = "", authorize }: StreamTurnOptions = {},
 ): AsyncGenerator<TurnEvent, void, undefined> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    Accept: "text/event-stream",
+  const post = async (forceRefresh: boolean) => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+    };
+    const token = authorize ? await authorize(forceRefresh) : getAccessToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return fetchImpl(`${baseUrl}/api/v1/chat/stream`, {
+      method: "POST",
+      credentials: authorize ? "omit" : "same-origin",
+      headers,
+      body: JSON.stringify(request),
+      signal,
+    });
   };
-  const token = getAccessToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const response = await fetchImpl("/api/v1/chat/stream", {
-    method: "POST",
-    credentials: "same-origin",
-    headers,
-    body: JSON.stringify(request),
-    signal,
-  });
+  let response = await post(false);
+  if (response.status === 401 && authorize) response = await post(true);
   if (!response.ok) {
     let message = `Error ${response.status}`;
     let code: string | undefined;
