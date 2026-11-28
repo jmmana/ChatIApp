@@ -24,6 +24,8 @@ from .test_chat_stream import (  # noqa: F401 (fixtures de pytest)
     user_id,
 )
 
+ROLES = ["gerente_sucursal", "mercadeo"]
+
 POR_SUCURSAL = {
     "intent": "metric",
     "reasoning": "Ventas por sucursal.",
@@ -65,7 +67,7 @@ def test_dos_usuarios_finales_con_sucursales_distintas_ven_resultados_distintos(
     datasource_id: str,  # noqa: F811
 ) -> None:
     _provider(factory, "por-sucursal", POR_SUCURSAL, default=True)
-    key_id, secret = _key(factory, datasources=[datasource_id])
+    key_id, secret = _key(factory, datasources=[datasource_id], allowed_roles=ROLES)
 
     primero = _stream(client, secret, datasource_id, _gerente("u-1", [1, 2]))
     segundo = _stream(client, secret, datasource_id, _gerente("u-2", [3]))
@@ -109,7 +111,7 @@ def test_un_rol_fuera_de_los_permitidos_responde_403(
     datasource_id: str,  # noqa: F811
 ) -> None:
     _provider(factory, "por-sucursal", POR_SUCURSAL, default=True)
-    _, secret = _key(factory, datasources=[datasource_id], allowed_roles=["gerente_sucursal"])
+    _, secret = _key(factory, datasources=[datasource_id], allowed_roles=ROLES)
 
     response = _stream(client, secret, datasource_id, {"id": "u-1", "role": "gerencia_general"})
 
@@ -123,7 +125,7 @@ def test_sin_rol_y_con_varios_roles_responde_422(
     datasource_id: str,  # noqa: F811
 ) -> None:
     _provider(factory, "por-sucursal", POR_SUCURSAL, default=True)
-    _, secret = _key(factory, datasources=[datasource_id])
+    _, secret = _key(factory, datasources=[datasource_id], allowed_roles=ROLES)
 
     response = _stream(client, secret, datasource_id, {"id": "u-1"})
 
@@ -137,7 +139,7 @@ def test_faltan_atributos_del_rol_responde_422(
     datasource_id: str,  # noqa: F811
 ) -> None:
     _provider(factory, "por-sucursal", POR_SUCURSAL, default=True)
-    _, secret = _key(factory, datasources=[datasource_id])
+    _, secret = _key(factory, datasources=[datasource_id], allowed_roles=ROLES)
 
     response = _stream(
         client, secret, datasource_id, {"id": "u-1", "role": "gerente_sucursal", "attributes": {}}
