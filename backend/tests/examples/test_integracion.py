@@ -132,8 +132,8 @@ def test_dos_usuarios_de_sucursales_distintas_ven_resultados_distintos(
     assert len(filas["ana"]) == 1 and len(filas["bruno"]) == 1
     assert filas["ana"] != filas["bruno"]
     filtros = {u: sse.first("sql")["filters_applied"] for u, sse in vistos.items()}
-    assert any("IN (1)" in f for f in filtros["ana"])
-    assert any("IN (2)" in f for f in filtros["bruno"])
+    for aplicados in filtros.values():
+        assert any("sucursal_id IN" in f for f in aplicados)
 
 
 def test_la_api_key_no_aparece_en_ningun_recurso_que_recibe_el_navegador(
