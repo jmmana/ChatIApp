@@ -41,6 +41,10 @@ ChatIApp parte de tres ideas:
 
 ## Así fluye una conversación
 
+![ChatIApp respondiendo «¿Cuánto vendí?» con la demo](docs/assets/demo.gif)
+
+*Captura real de la demo: la pregunta, la aclaración del período («Este mes») y la respuesta con su razonamiento y su SQL a la vista.*
+
 ```mermaid
 sequenceDiagram
     autonumber
