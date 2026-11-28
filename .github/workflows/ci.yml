@@ -115,7 +115,7 @@ jobs:
       - name: Navegador para E2E
         if: steps.exists.outputs.run == 'true'
         run: pnpm exec playwright install --with-deps chromium
-      - name: E2E (frontend: accesibilidad, teclado y responsive · embed: página anfitriona de otro origen)
+      - name: E2E de Playwright
         if: steps.exists.outputs.run == 'true'
         run: pnpm run test:e2e
 
