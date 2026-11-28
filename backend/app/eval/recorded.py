@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
 from app.eval import report
 from app.eval.golden import Caso, SetDorado, cargar, validar
-from app.eval.runner import MODELO_VENTAS, ResultadoCaso, cargar_modelo, evaluar
+from app.eval.runner import MODELO_VENTAS, cargar_modelo, evaluar
 from app.llm.gateway import (
     Completion,
     Gateway,
@@ -76,7 +76,7 @@ def cargar_planes(ruta: Path = ARCHIVO_PLANES) -> ConfigGrabada:
 
 
 def _entradas(conjunto: SetDorado, config: ConfigGrabada) -> list[EntradaGrabada]:
-    grabados = {registro.id: registro.plan for registro in config.casos}
+    grabados = {registro.id: registro for registro in config.casos}
     if len(grabados) != len(config.casos):
         raise ValueError("hay ids de caso repetidos en los planes grabados")
     ids = {caso.id for caso in conjunto.casos}
@@ -128,9 +128,7 @@ def _entradas(conjunto: SetDorado, config: ConfigGrabada) -> list[EntradaGrabada
     return entradas
 
 
-def _plan(
-    caso: Caso, tipo: str, config: ConfigGrabada, slot: str | None = None
-) -> dict[str, Any]:
+def _plan(caso: Caso, tipo: str, config: ConfigGrabada, slot: str | None = None) -> dict[str, Any]:
     if caso.answers and tipo != "respuesta_aclaracion":
         raise ValueError(f"{caso.id}: sus respuestas requieren un plan `respuesta_aclaracion`")
     if tipo == "sql" and caso.expect is not None:

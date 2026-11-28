@@ -30,9 +30,7 @@ def test_preguntas_con_respuesta_reproducen_aclaracion_y_respuesta() -> None:
     caso = next(caso for caso in conjunto.casos if caso.id == "acl-es-resp-periodo-mes")
 
     entradas = recorded._entradas(conjunto, config)
-    pregunta, respuesta = [
-        entrada for entrada in entradas if entrada.caso == caso.id
-    ]
+    pregunta, respuesta = [entrada for entrada in entradas if entrada.caso == caso.id]
 
     assert caso.expect is not None
     assert pregunta.pregunta == caso.question
