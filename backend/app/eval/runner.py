@@ -194,6 +194,7 @@ def evaluar(
     gateway: Gateway,
     model: SemanticModel,
     *,
+    al_empezar_caso: Callable[[Caso], None] | None = None,
     al_terminar_caso: Callable[[ResultadoCaso], None] | None = None,
 ) -> list[ResultadoCaso]:
     """Ejecuta todos los casos del set con `gateway` y devuelve un resultado por caso."""
@@ -234,6 +235,8 @@ def evaluar(
                 evaluador = Evaluador(orquestador)
                 resultados: list[ResultadoCaso] = []
                 for caso in conjunto.casos:
+                    if al_empezar_caso is not None:
+                        al_empezar_caso(caso)
                     resultado = evaluador.evaluar_caso(caso, esperados.get(caso.id))
                     resultados.append(resultado)
                     if al_terminar_caso is not None:

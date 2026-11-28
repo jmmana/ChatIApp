@@ -97,3 +97,15 @@ Otras opciones: `--model` (modelo semántico, por defecto `examples/ventas/seman
 - **Exactitud**: se ejecuta `expect.sql` sobre la demo y se comparan las **filas** con las del evento `result` del turno (tolerancia numérica de 0,005; sin orden salvo `ordered: true`). Con `expect_clarification` el caso pasa si el agente pregunta por ese `slot` sin ejecutar nada; con `expect_out_of_scope`, si no ejecuta ninguna consulta ni pregunta (un rechazo del guardián cuenta; un fallo del proveedor, no). Con `answers`, tras cada aclaración se envía la siguiente respuesta y se evalúa el último turno.
 - **Informe**: `<set>.md` y `<set>.json` en `--out`. Trae, por proveedor, la exactitud global (fracción de 0 a 1 en el JSON) y por etiqueta, las aclaraciones correctas e innecesarias, la latencia p50 y p95 (por caso, sin contar las preguntas de `previous`), los tokens y el costo (con todos los turnos), y los casos fallidos con su SQL y el esperado.
 - **Historial**: guarda un `EVAL_RUN` por proveedor (`accuracy`, `p50_latency_ms`, `cost_usd` y el informe completo en `details`). Las conversaciones de la evaluación van a una base temporal: la base de la app solo recibe los `EVAL_RUN`.
+
+## Evaluación en CI con planes grabados
+
+`evals/recorded/<set>.json` guarda, por caso, el plan que «responde» el proveedor en cada turno (`previous`, pregunta y `answers`). El proveedor grabado (`backend/app/eval/recorded.py`) no usa red ni tokens: con planes fijos el motor es determinista, así que la exactitud esperada es **100 %** y cualquier caída es una regresión del motor o del agente (no del modelo). Desde `backend/`:
+
+```bash
+uv run python -m app.eval.recorded --set evals/ventas --out eval-reports --min-accuracy 1.0 --summary "$GITHUB_STEP_SUMMARY"
+```
+
+Escribe `<set>-grabado.md` y `.json` en `--out`, añade el Markdown a `--summary` y sale con 1 si la exactitud queda bajo `--min-accuracy` (2 si falta la grabación de algún caso).
+
+Los planes de los casos con `expect` son `intent: sql` con el `expect.sql` del caso: miden guardián, ejecutor, aclaraciones y comparación de resultados, pero **no** el compilador de métricas del catálogo. Al añadir un caso al set hay que añadir su grabación (el comando falla si falta). Pasar a planes `metric` es una mejora aparte.

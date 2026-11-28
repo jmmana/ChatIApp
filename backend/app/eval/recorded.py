@@ -28,8 +28,9 @@ from typing import Any
 from pydantic import BaseModel, ValidationError
 
 from app.eval import report
+from app.eval.cli import resolver_set
 from app.eval.golden import RAIZ_SET, Caso, SetDorado, cargar
-from app.eval.runner import MODELO_VENTAS, ResultadoCaso, cargar_modelo, evaluar
+from app.eval.runner import ResultadoCaso, cargar_modelo, evaluar
 from app.llm.gateway import (
     Completion,
     Gateway,
@@ -74,7 +75,8 @@ def faltantes(conjunto: SetDorado, grabaciones: dict[str, list[Turno]]) -> list[
     """Casos del set sin grabación y grabaciones de casos que ya no existen."""
     ids = {c.id for c in conjunto.casos}
     problemas = [f"{c.id}: sin plan grabado" for c in conjunto.casos if c.id not in grabaciones]
-    problemas += [f"{i}: grabación de un caso que ya no existe" for i in sorted(set(grabaciones) - ids)]
+    sobran = sorted(set(grabaciones) - ids)
+    problemas += [f"{i}: grabación de un caso que ya no existe" for i in sobran]
     return problemas
 
 
@@ -137,7 +139,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--set", dest="set_dir", type=Path, default=RAIZ_SET, help="Carpeta del set")
     parser.add_argument(
-        "--recorded", type=Path, default=None, help="Archivo de grabaciones (por defecto, el del set)"
+        "--recorded", type=Path, default=None, help="Grabaciones (por defecto, las del set)"
     )
     parser.add_argument("--out", type=Path, default=Path("eval-reports"), help="Carpeta del informe")
     parser.add_argument(
@@ -154,9 +156,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    raiz = args.set_dir if args.set_dir.is_absolute() or args.set_dir.exists() else (
-        RAIZ_SET.parents[1] / args.set_dir
-    )
+    raiz = resolver_set(args.set_dir)
     try:
         conjunto = cargar(raiz)
         grabaciones = cargar_grabaciones(args.recorded or ruta_grabaciones(raiz))
@@ -180,8 +180,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             f.write(texto + "\n")
     exactitud: float = informe["proveedores"][0]["exactitud"]
     if exactitud < args.min_accuracy:
-        for r in informe["proveedores"][0].get("fallos", []):
-            print(f"FALLA {r}", file=sys.stderr)
+        for fallo in informe["proveedores"][0]["fallidos"]:
+            print(f"FALLA {fallo['id']}: {fallo['motivo']}", file=sys.stderr)
         print(
             f"error: exactitud {exactitud:.1%} por debajo del mínimo {args.min_accuracy:.1%}",
             file=sys.stderr,
